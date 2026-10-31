@@ -1,0 +1,13 @@
+{
+  "name": "autonomous-agentic-ai-local-editor",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "monaco-editor": "0.57.0",
+    "esbuild": "0.25.12"
+  }
+}
