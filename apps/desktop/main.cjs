@@ -7,6 +7,7 @@ const {spawn}=require('node:child_process');
 const http=require('node:http');
 const https=require('node:https');
 const {pipeline}=require('node:stream/promises');
+const {inspectEngine,selectOffload}=require('./hardware.cjs');
 const SERVER='http://127.0.0.1:8000';
 let win,backend,modelServer,rustGateway,starting=false,adminToken='';
 function backendPath(){
@@ -115,6 +116,11 @@ ipcMain.handle('choose-file',async (event,kind)=>{
  const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:kind==='model'?[{name:'GGUF model',extensions:['gguf']}]:[]});
  return result.canceled?null:result.filePaths[0];
 });
+ipcMain.handle('probe-engine',async(event,file)=>{
+ requireSetup(event);
+ if(typeof file!=='string'||!file||!fs.statSync(file).isFile())throw new Error('Choose a local llama-server binary first');
+ return inspectEngine(path.resolve(file));
+});
 ipcMain.handle('hardware',async(event)=>{
  requireSetup(event);
  const result={platform:process.platform,architecture:process.arch,cpus:os.cpus().length,memoryGB:Math.round(os.totalmem()/1073741824)};
@@ -122,10 +128,11 @@ ipcMain.handle('hardware',async(event)=>{
  else result.gpu='Check vendor drivers and GPU compatibility';
  return result;
 });
-function waitFor(url,timeoutMs=120000){
+function waitFor(url,timeoutMs=120000,processHandle=null){
  return new Promise(async(resolve,reject)=>{
   const started=Date.now();
   while(Date.now()-started<timeoutMs){
+   if(processHandle && (processHandle.startError || processHandle.exitCode!==null))throw new Error('Local inference service exited before readiness: '+(processHandle.startError||processHandle.exitCode));
    try{
     const ready=await new Promise(done=>{
      const request=http.get(url,{timeout:1500},r=>{r.resume();done(r.statusCode===200)});
@@ -144,16 +151,33 @@ ipcMain.handle('start-model',async (event,settings)=>{
  if(!settings||typeof settings.model!=='string'||typeof settings.engine!=='string')throw new Error('Choose model and inference engine');
  const model=path.resolve(settings.model),engine=path.resolve(settings.engine);
  if(path.extname(model).toLowerCase()!=='.gguf'||!fs.statSync(model).isFile()||!fs.statSync(engine).isFile())throw new Error('Select valid model and engine files');
- const layers=Number(settings.layers);
- if(!Number.isInteger(layers)||layers<0||layers>999)throw new Error('Invalid GPU layer count');
  const rust=runtimeBinary();
  if(!fs.existsSync(rust))throw new Error('Bundled Rust gateway missing');
+ const mode=settings.mode || 'auto';
+ const layers=Number(settings.layers??0);
+ const devices=await inspectEngine(engine);
+ const offload=selectOffload(mode,devices,layers);
+ let effectiveMode=offload.mode;
+ const launchModel=async(gpuLayers)=>{
+  modelServer=spawn(engine,['-m',model,'--host','127.0.0.1','--port','9931','-c','4096','-ngl',gpuLayers,'--jinja','--alias','local-model'],{windowsHide:true,stdio:'ignore'});
+  modelServer.on('error',error=>{if(modelServer)modelServer.startError=error.message});
+  try{await waitFor('http://127.0.0.1:9931/v1/models',120000,modelServer)}
+  catch(error){modelServer.kill();modelServer=null;throw error}
+ };
  try{
-  modelServer=spawn(engine,['-m',model,'--host','127.0.0.1','--port','9931','-c','4096','-ngl',String(layers),'--jinja','--alias','local-model'],{windowsHide:true,stdio:'ignore'});
-  await waitFor('http://127.0.0.1:9931/v1/models');
+  // CUDA, Metal, ROCm, Vulkan and other backends are handled inside the user's own llama-server.
+  // A CPU-only executable or a system without a supported accelerator starts in CPU mode.
+  try{await launchModel(offload.layers)}
+  catch(error){
+   if(mode!=='auto'||offload.mode!=='gpu')throw error;
+   effectiveMode='cpu-fallback';
+   await launchModel('0');
+  }
   rustGateway=spawn(rust,['serve'],{windowsHide:true,stdio:'ignore',env:{...process.env,LLAMA_UPSTREAM:'http://127.0.0.1:9931/v1'}});
-  await waitFor('http://127.0.0.1:8088/health');
-  return {ok:true};
+  rustGateway.on('error',error=>{if(rustGateway)rustGateway.startError=error.message});
+  await waitFor('http://127.0.0.1:8088/health',120000,rustGateway);
+  return {ok:true,mode:effectiveMode,offloadedLayers:effectiveMode==='cpu-fallback'?'0':offload.layers,
+          gpuDetected:devices.gpuAvailable,deviceDescriptions:devices.gpu};
  }catch(e){
   if(rustGateway){rustGateway.kill();rustGateway=null}
   if(modelServer){modelServer.kill();modelServer=null}

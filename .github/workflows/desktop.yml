@@ -46,6 +46,7 @@ jobs:
       - run: python -m pip install -r requirements.txt pyinstaller 'pytest>=8,<10'
       - run: python scripts/build_backend.py
       - run: python -m pytest -q
+      - run: node --test apps/desktop/hardware.test.cjs
       - run: node --check apps/desktop/main.cjs
       - run: node --check apps/desktop/preload.cjs
       - run: cargo build --release --manifest-path services/runtime-rust/Cargo.toml

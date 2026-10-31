@@ -1,1 +1,49 @@
-{"name":"autonomous-agentic-ai-desktop","version":"0.3.0","private":true,"description":"Desktop coding environment with bundled Python API and Rust local inference gateway","main":"main.cjs","scripts":{"start":"electron .","package:win":"electron-builder --win nsis","package:mac":"electron-builder --mac dmg","package:linux":"electron-builder --linux AppImage"},"devDependencies":{"electron":"^33.0.0","electron-builder":"^25.0.0"},"build":{"appId":"dev.autonomous.agenticai","productName":"Autonomous Agentic AI","files":["main.cjs","preload.cjs","setup.html","package.json"],"extraResources":[{"from":"../../dist/backend","to":"backend","filter":["**/*"]}],"directories":{"output":"dist"},"win":{"target":"nsis"},"mac":{"target":"dmg"},"linux":{"target":"AppImage"}}}
+{
+  "name": "autonomous-agentic-ai-desktop",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Desktop coding environment with bundled Python API and Rust local inference gateway",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package:win": "electron-builder --win nsis",
+    "package:mac": "electron-builder --mac dmg",
+    "package:linux": "electron-builder --linux AppImage"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "dev.autonomous.agenticai",
+    "productName": "Autonomous Agentic AI",
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "setup.html",
+      "package.json",
+      "hardware.cjs"
+    ],
+    "extraResources": [
+      {
+        "from": "../../dist/backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
