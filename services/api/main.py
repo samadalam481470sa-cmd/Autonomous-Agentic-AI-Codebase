@@ -1,6 +1,6 @@
 """FastAPI app and standalone browser UI."""
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from .engine import history, respond, tool, workspace
@@ -41,7 +41,6 @@ def execute(body:ToolRequest, authorization: str | None = Header(default=None)):
 # Optional, explicitly authorized delegation to an independently deployed agent.
 import hmac
 import os
-from fastapi import Header
 from .agenticseek import delegate, AgenticSeekUnavailable
 from .agents import plan as create_plan, load as load_plan
 
