@@ -17,4 +17,5 @@ jobs:
       - run: node --check apps/web/build.mjs
       - run: node --test apps/desktop/hardware.test.cjs
       - run: python scripts/check_inline_scripts.py
+      - run: python scripts/code_metrics.py
       - run: pytest -q

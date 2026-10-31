@@ -54,7 +54,7 @@ async def propose(body:ProposalRequest,authorization:str|None=Header(default=Non
             "Do not fabricate test results. Follow the instruction and existing code style.")
     user=f"File: {body.path}\nInstruction: {body.instruction}\nOriginal file:\n{old}"
     try:
-        async with httpx.AsyncClient(timeout=180) as client:
+        async with httpx.AsyncClient(timeout=180,trust_env=os.getenv('LOCAL_MODEL_ONLY')!='1',follow_redirects=False) as client:
             response=await client.post(base+"/chat/completions",
                 headers={"Authorization":"Bearer "+key},
                 json={"model":model,"messages":[{"role":"system","content":prompt},

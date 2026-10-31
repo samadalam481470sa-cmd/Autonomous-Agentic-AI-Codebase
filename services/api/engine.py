@@ -124,7 +124,7 @@ async def respond(project,message):
         base=os.getenv("MODEL_BASE_URL","https://api.openai.com/v1").rstrip("/")
         model=os.getenv("MODEL_NAME","gpt-4.1-mini")
     max_output=max(64,min(int(os.getenv("LOCAL_MAX_OUTPUT_TOKENS","1024")),8192)) if local else None
-    async with httpx.AsyncClient(timeout=180) as client:
+    async with httpx.AsyncClient(timeout=180,trust_env=not local,follow_redirects=False) as client:
         for _ in range(8):
             payload={"model":model,"messages":msgs,"tools":TOOLS,"tool_choice":"auto"}
             if local:payload["max_tokens"]=max_output
