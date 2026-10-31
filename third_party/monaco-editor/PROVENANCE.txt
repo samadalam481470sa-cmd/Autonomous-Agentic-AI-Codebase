@@ -1,0 +1,4 @@
+Source: https://github.com/microsoft/monaco-editor
+Version: v0.57.0
+Commit: d61824269f1377111d34306e4a47172327777083
+License: MIT; see LICENSE.txt and ThirdPartyNotices.txt
