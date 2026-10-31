@@ -117,7 +117,7 @@ def apply_record(project,proposal_id,proposal_hash):
             raise HTTPException(409,"Source changed since proposal: "+name)
     # Write replacement files to sibling staging files first. Roll back on errors.
     staged=[]
-    originals={str(path):old for _,path,old in files}
+    originals={str(path):(old,path.exists()) for _,path,old in files}
     applied=[]
     try:
         for c,(_,target,_) in zip(changes,files):
@@ -133,8 +133,8 @@ def apply_record(project,proposal_id,proposal_hash):
         source.write_text(json.dumps(record,ensure_ascii=False),encoding="utf-8")
     except OSError:
         for target in reversed(applied):
-            old=originals[str(target)]
-            if old=="" and not any(target==p and c["expected_sha256"]!=digest("") for c,(_,p,_) in zip(changes,files)):
+            old,existed=originals[str(target)]
+            if not existed:
                 target.unlink(missing_ok=True)
             else:
                 target.write_text(old,encoding="utf-8")
