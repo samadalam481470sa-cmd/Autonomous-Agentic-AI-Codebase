@@ -44,3 +44,9 @@ The model's actual name can be inspected via `http://127.0.0.1:8088/v1/models`. 
 Rust improves service efficiency and throughput control, but does not inherently reduce model VRAM. The primary VRAM savings come from Q4 model quantization, smaller context windows, and partial GPU offload. Context budgeting here uses a **character-based heuristic**, not exact token counting. No automatic model installation, GPU driver management, model benchmarks, or Windows desktop backend bundling is included.
 
 All three services run on the **user's computer**, not a remote inference data center, when local-only mode is enabled. Keep them bound to loopback; the Rust gateway does not provide authentication and must not be exposed to a network.
+
+## 4. Browser live chat
+
+With `LOCAL_MODEL_ONLY=1`, open the main chat page and enable **Stream local chat**. The FastAPI `/api/chat/stream` bridge authenticates the user, reads recent project history, and sends an OpenAI-compatible `stream: true` request only to the configured loopback Rust gateway. It emits JSON-encoded `delta`, `done`, and `error` SSE events. It only persists finished nonempty answers; disconnected or invalid responses are not recorded. Output and token counts are bounded.
+
+This opt-in path is **text chat only** and intentionally uses `tool_choice: none`. The existing non-streamed `/api/chat` is still the agent/tool-enabled workflow. Future work includes streamed tool events, cancellation, checkpoint integration and actual on-device GPU inference benchmarks.

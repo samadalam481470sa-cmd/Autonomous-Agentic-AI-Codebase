@@ -102,3 +102,7 @@ The local SQLite [project store](services/api/project_store.py) uses indexed tra
 Desktop setup uses a supervised loopback-only llama.cpp process with serialized startup, GPU-to-CPU fallback in Auto mode, explicit manual-offload behavior, and local gateway reachability checks. GPU detection alone is not called GPU acceleration: the setup only confirms offload when llama.cpp emits recognizable nonzero GPU-layer evidence. These tests exercise the startup control path; no real NVIDIA, AMD or Apple GPU inference run is certified yet. See [GPU setup](docs/GPU_SETUP_GUIDE.md) and [the desktop CI](.github/workflows/desktop.yml).
 
 The proposed Code-OSS-based editor, streaming model router, worktree sandbox and 300k+ first-party LOC roadmap are future architecture goals, not implemented features of this Monaco-based desktop build.
+
+### Opt-in local streaming chat
+
+The main browser chat has a **Stream local chat** checkbox. It calls the authenticated `POST /api/chat/stream` endpoint when `LOCAL_MODEL_ONLY=1`, which relays SSE token deltas through the loopback Rust gateway. Completed answers are saved with the user message as an atomic SQLite pair. Errors, interrupted streams and missing end markers are not saved as completed answers. Streaming chat intentionally disables model tool calls; keep the checkbox off for the existing agent/tool chat. No model weights, GPU drivers or inference engine are bundled.

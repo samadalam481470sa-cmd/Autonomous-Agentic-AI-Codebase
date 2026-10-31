@@ -1,7 +1,7 @@
 """FastAPI app and standalone browser UI."""
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Header
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .engine import history, respond, tool, workspace
@@ -54,6 +54,18 @@ async def chat(body:ChatRequest, authorization: str | None = Header(default=None
     require_admin(authorization)
     try: return {"answer":await respond(body.project,body.message)}
     except Exception as e: raise HTTPException(502,"Model provider error: "+type(e).__name__)
+@app.post("/api/chat/stream")
+async def chat_stream(body:ChatRequest, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
+    if os.getenv("LOCAL_MODEL_ONLY")!="1":
+        raise HTTPException(409,"Local streaming requires LOCAL_MODEL_ONLY=1; use /api/chat otherwise")
+    from .chat_stream import stream_local_chat
+    return StreamingResponse(
+        stream_local_chat(body.project,body.message),
+        media_type="text/event-stream",
+        headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no","X-Content-Type-Options":"nosniff"}
+    )
+
 @app.post("/api/tool")
 def execute(body:ToolRequest, authorization: str | None = Header(default=None)):
     require_admin(authorization)
