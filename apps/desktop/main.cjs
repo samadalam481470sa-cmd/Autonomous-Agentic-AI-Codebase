@@ -7,9 +7,10 @@ const {spawn}=require('node:child_process');
 const http=require('node:http');
 const https=require('node:https');
 const {pipeline}=require('node:stream/promises');
-const {inspectEngine,selectOffload}=require('./hardware.cjs');
+const {inspectEngine}=require('./hardware.cjs');
+const {startLocalModel,probeHttp,GATEWAY_URL}=require('./model-runtime.cjs');
 const SERVER='http://127.0.0.1:8000';
-let win,backend,modelServer,rustGateway,starting=false,adminToken='';
+let win,backend,modelServer,rustGateway,starting=false,modelStarting=false,adminToken='';
 function backendPath(){
  const exe=process.platform==='win32'?'agentic-backend.exe':'agentic-backend';
  return app.isPackaged?path.join(process.resourcesPath,'backend',exe):path.resolve(__dirname,'../../dist/backend',exe);
@@ -147,41 +148,34 @@ function waitFor(url,timeoutMs=120000,processHandle=null){
 }
 ipcMain.handle('start-model',async (event,settings)=>{
  requireSetup(event);
- if(modelServer||rustGateway)throw new Error('Model is already starting');
- if(!settings||typeof settings.model!=='string'||typeof settings.engine!=='string')throw new Error('Choose model and inference engine');
- const model=path.resolve(settings.model),engine=path.resolve(settings.engine);
- if(path.extname(model).toLowerCase()!=='.gguf'||!fs.statSync(model).isFile()||!fs.statSync(engine).isFile())throw new Error('Select valid model and engine files');
- const rust=runtimeBinary();
- if(!fs.existsSync(rust))throw new Error('Bundled Rust gateway missing');
- const mode=settings.mode || 'auto';
- const layers=Number(settings.layers??0);
- const devices=await inspectEngine(engine);
- const offload=selectOffload(mode,devices,layers);
- let effectiveMode=offload.mode;
- const launchModel=async(gpuLayers)=>{
-  modelServer=spawn(engine,['-m',model,'--host','127.0.0.1','--port','9931','-c','4096','-ngl',gpuLayers,'--jinja','--alias','local-model'],{windowsHide:true,stdio:'ignore'});
-  modelServer.on('error',error=>{if(modelServer)modelServer.startError=error.message});
-  try{await waitFor('http://127.0.0.1:9931/v1/models',120000,modelServer)}
-  catch(error){modelServer.kill();modelServer=null;throw error}
- };
- try{
-  // CUDA, Metal, ROCm, Vulkan and other backends are handled inside the user's own llama-server.
-  // A CPU-only executable or a system without a supported accelerator starts in CPU mode.
-  try{await launchModel(offload.layers)}
-  catch(error){
-   if(mode!=='auto'||offload.mode!=='gpu')throw error;
-   effectiveMode='cpu-fallback';
-   await launchModel('0');
-  }
+ if(modelStarting||modelServer||rustGateway)throw new Error('Local model is already starting or running');
+ modelStarting=true;
+ try {
+  if(!settings||typeof settings.model!=='string'||typeof settings.engine!=='string')throw new Error('Choose model and inference engine');
+  const model=path.resolve(settings.model),engine=path.resolve(settings.engine);
+  if(path.extname(model).toLowerCase()!=='.gguf'||!fs.statSync(model).isFile()||!fs.statSync(engine).isFile())throw new Error('Select valid model and engine files');
+  const rust=runtimeBinary();
+  if(!fs.existsSync(rust))throw new Error('Bundled Rust gateway missing');
+  if(await probeHttp(GATEWAY_URL))throw new Error('Port 8088 is already occupied; stop the existing service');
+  const result=await startLocalModel({
+   model,engine,mode:settings.mode||'auto',layers:Number(settings.layers??0)
+  });
+  modelServer=result.process;
   rustGateway=spawn(rust,['serve'],{windowsHide:true,stdio:'ignore',env:{...process.env,LLAMA_UPSTREAM:'http://127.0.0.1:9931/v1'}});
-  rustGateway.on('error',error=>{if(rustGateway)rustGateway.startError=error.message});
-  await waitFor('http://127.0.0.1:8088/health',120000,rustGateway);
-  return {ok:true,mode:effectiveMode,offloadedLayers:effectiveMode==='cpu-fallback'?'0':offload.layers,
-          gpuDetected:devices.gpuAvailable,deviceDescriptions:devices.gpu};
+  const gateway=rustGateway;
+  gateway.on('error',error=>{gateway.startError=error.message});
+  await waitFor(GATEWAY_URL,120000,gateway);
+  // Gateway readiness alone is insufficient: confirm it can reach this model.
+  await waitFor('http://127.0.0.1:8088/v1/models',15000,gateway);
+  return {ok:true,mode:result.mode,offloadedLayers:result.offloadedLayers,
+          gpuDetected:result.gpuDetected,gpuConfirmed:result.gpuConfirmed,
+          deviceDescriptions:result.deviceDescriptions};
  }catch(e){
   if(rustGateway){rustGateway.kill();rustGateway=null}
   if(modelServer){modelServer.kill();modelServer=null}
   throw e;
+ }finally{
+  modelStarting=false;
  }
 });
 ipcMain.handle('open-studio',async(event)=>{requireSetup(event);const old=win;await create(adminToken);if(old&&!old.isDestroyed())old.close();return true});

@@ -96,3 +96,9 @@ The [desktop packaging workflow](.github/workflows/desktop.yml) now builds a bun
 The app **does not bundle llama.cpp or GPU drivers**. A downloaded GGUF alone cannot run without a compatible llama.cpp binary. Installer builds, real GPU inference and clean-machine startup have not yet been verified. This is not a production release for thousands of users.
 
 The local SQLite [project store](services/api/project_store.py) uses indexed transactional project/task/artifact/event tables. A separate [PostgreSQL multi-tenant reference schema](database/postgres/001_multi_tenant.sql) and [launch gates](docs/LAUNCH_READINESS.md) document the architecture required before any hosted multi-user launch; the hosted PostgreSQL service is **not implemented**.
+
+## Local inference runtime verification
+
+Desktop setup uses a supervised loopback-only llama.cpp process with serialized startup, GPU-to-CPU fallback in Auto mode, explicit manual-offload behavior, and local gateway reachability checks. GPU detection alone is not called GPU acceleration: the setup only confirms offload when llama.cpp emits recognizable nonzero GPU-layer evidence. These tests exercise the startup control path; no real NVIDIA, AMD or Apple GPU inference run is certified yet. See [GPU setup](docs/GPU_SETUP_GUIDE.md) and [the desktop CI](.github/workflows/desktop.yml).
+
+The proposed Code-OSS-based editor, streaming model router, worktree sandbox and 300k+ first-party LOC roadmap are future architecture goals, not implemented features of this Monaco-based desktop build.

@@ -8,7 +8,8 @@
     "start": "electron .",
     "package:win": "electron-builder --win nsis",
     "package:mac": "electron-builder --mac dmg",
-    "package:linux": "electron-builder --linux AppImage"
+    "package:linux": "electron-builder --linux AppImage",
+    "test": "node --test hardware.test.cjs model-runtime.test.cjs"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -22,7 +23,8 @@
       "preload.cjs",
       "setup.html",
       "package.json",
-      "hardware.cjs"
+      "hardware.cjs",
+      "model-runtime.cjs"
     ],
     "extraResources": [
       {

@@ -17,3 +17,11 @@ Install llama.cpp from its official repository and Rust/Cargo. Download a model 
 ## Distribution status
 
 Packaging jobs are configured for Windows, macOS and Linux, but a successful workflow run does not establish that installers are signed, notarized, GPU-compatible or safe for broad distribution. Test each installer on a clean machine before release.
+
+## Supervised desktop model lifecycle (October 2026)
+
+The Electron setup runs the selected `llama-server` on the **downloader's computer**, bound to `127.0.0.1:9931`. The packaged Rust gateway remains bound to `127.0.0.1:8088`. These are fixed ports for the experimental release. Startup rejects occupied ports rather than trusting an unidentified pre-existing service. Simultaneous startup attempts are rejected.
+
+The selected llama.cpp executable is probed for accelerator backends. Auto mode attempts GPU offload and retries with `-ngl 0` if startup fails; manual mode never silently falls back. Successful HTTP readiness is not proof of GPU usage. Only a recognized llama.cpp log line showing a nonzero number of layers offloaded to GPU counts as **confirmed** offload; otherwise GPU offload is explicitly **unverified**. Engine/device/driver compatibility and actual token generation still require clean-machine testing.
+
+Unit tests simulate GPU startup failure, fallback, CPU-only hardware, occupied ports, and local process shutdown. The desktop does **not** package a GPU driver, llama.cpp binary, or model weights; source and binaries selected by users must be trusted. Do not expose the local services to the network.
