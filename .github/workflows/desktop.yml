@@ -1,6 +1,13 @@
 name: Desktop packaging
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'apps/desktop/**'
+      - 'scripts/build_backend.py'
+      - 'scripts/desktop_backend.py'
+      - 'services/runtime-rust/**'
+      - '.github/workflows/desktop.yml'
 jobs:
   package:
     strategy:
@@ -25,6 +32,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: python -m pip install -r requirements.txt pyinstaller
       - run: python scripts/build_backend.py
+      - run: python -m pytest -q
+      - run: node --check apps/desktop/main.cjs
+      - run: node --check apps/desktop/preload.cjs
       - run: cargo build --release --manifest-path services/runtime-rust/Cargo.toml
       - name: Stage Rust gateway
         shell: bash
