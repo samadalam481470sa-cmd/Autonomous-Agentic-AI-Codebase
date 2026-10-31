@@ -116,8 +116,48 @@ def copy_overlay(source: Path) -> None:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(item, dst)
 
+def patch_local_first_build(source: Path) -> None:
+    """Exclude hosted Copilot from this pinned independent desktop package.
+
+    Upstream Code-OSS 1.144.0 unconditionally shims GitHub Copilot when
+    packaging, even after defaultChatAgent is removed from product.json.
+    Neither that hosted extension nor its native SDK is part of this build.
+    The pinned source patch is intentionally narrow and idempotent.
+    """
+    build_file = source / "build" / "gulpfile.vscode.ts"
+    original = build_file.read_text(encoding="utf-8")
+    changed = original
+    needles = (
+        "\t\t\tcompileCopilotExtensionBuildTask,\n",
+        "\t\t\tprepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)\n",
+    )
+    for needle in needles:
+        if original.count(needle) == 1:
+            changed = changed.replace(needle, "", 1)
+        elif needle in original:
+            raise RuntimeError("Ambiguous upstream Code-OSS build task")
+        else:
+            # Another application of our own patch must be harmless, but an
+            # upstream change to the pinned checkout is never silently accepted.
+            if "compileCopilotExtensionBuildTask," in original and needle.startswith("\t\t\tcompile"):
+                raise RuntimeError("Unexpected upstream Copilot extension build task")
+            if "prepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)" in original and needle.startswith("\t\t\tprepare"):
+                raise RuntimeError("Unexpected upstream Copilot package task")
+    build_file.write_text(changed, encoding="utf-8")
+
+
+def check_local_first_build(source: Path) -> None:
+    file = source / "build" / "gulpfile.vscode.ts"
+    text = file.read_text(encoding="utf-8")
+    if "\t\t\tcompileCopilotExtensionBuildTask,\n" in text or (
+        "\t\t\tprepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)\n" in text
+    ):
+        raise RuntimeError("Hosted Copilot is still included in desktop packaging tasks")
+
+
 def validate_overlay(source: Path) -> None:
     check_product(json.loads((source / "product.json").read_text(encoding="utf-8")))
+    check_local_first_build(source)
     for item in EXTENSION.rglob("*"):
         if not item.is_file():
             continue
@@ -145,6 +185,7 @@ def main() -> None:
     check_product(product)
     product_file.write_text(json.dumps(product, indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
     copy_overlay(source)
+    patch_local_first_build(source)
     validate_overlay(source)
     print(f"Prepared Agentic Workbench overlay on Code-OSS {PINNED_TAG} ({PINNED_COMMIT})")
     print("This does not build or sign a Code-OSS desktop installer.")
