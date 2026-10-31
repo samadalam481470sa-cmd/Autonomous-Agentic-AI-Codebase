@@ -8,6 +8,8 @@ from .engine import history, respond, tool, workspace
 app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.2.0")
 from .studio import router as studio_router
 app.include_router(studio_router)
+from .execution import router as execution_router
+app.include_router(execution_router)
 WEB=Path(__file__).resolve().parents[2]/"apps"/"web"/"index.html"
 class ChatRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
