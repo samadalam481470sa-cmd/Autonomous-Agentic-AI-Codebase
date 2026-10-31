@@ -1,0 +1,27 @@
+name: Million-line SQLite index benchmark
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/benchmark_million_line_index.py'
+      - '.github/workflows/million-line-benchmark.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - run: python scripts/benchmark_million_line_index.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: million-line-index-results
+          path: reports/million_line_benchmark.json
+          if-no-files-found: warn
