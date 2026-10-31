@@ -91,7 +91,7 @@ ipcMain.handle('start-model',async (_event,settings)=>{
  const rust=runtimeBinary();
  if(!fs.existsSync(rust))throw new Error('Bundled Rust gateway missing');
  try{
-  modelServer=spawn(engine,['-m',model,'--host','127.0.0.1','--port','9931','-c','4096','-ngl',String(layers),'--jinja'],{windowsHide:true,stdio:'ignore'});
+  modelServer=spawn(engine,['-m',model,'--host','127.0.0.1','--port','9931','-c','4096','-ngl',String(layers),'--jinja','--alias','local-model'],{windowsHide:true,stdio:'ignore'});
   await waitFor('http://127.0.0.1:9931/v1/models');
   rustGateway=spawn(rust,['serve'],{windowsHide:true,stdio:'ignore',env:{...process.env,LLAMA_UPSTREAM:'http://127.0.0.1:9931/v1'}});
   await waitFor('http://127.0.0.1:8088/health');
