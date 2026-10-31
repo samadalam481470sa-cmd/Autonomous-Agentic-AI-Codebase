@@ -1,5 +1,6 @@
 //! Rust workspace scanner. No shell execution, model loading, or network access.
 use serde::Serialize;
+mod gateway;
 use std::{env,fs,path::{Path,PathBuf},process};
 
 #[derive(Serialize)]
@@ -34,10 +35,15 @@ fn scan(root:&Path,limit:usize)->Result<Report,String>{
     files.sort_by(|a,b|a.path.cmp(&b.path));
     Ok(Report{files,total_bytes,truncated})
 }
-fn main(){
+#[tokio::main]
+async fn main(){
     let args:Vec<String>=env::args().collect();
+    if args.len()==2 && args[1]=="serve" {
+        if let Err(e)=gateway::serve().await {eprintln!("Gateway error: {e}");process::exit(1)}
+        return;
+    }
     if args.len()!=3 || args[1]!="scan" {
-        eprintln!("Usage: agentic-runtime scan <workspace-directory>");
+        eprintln!("Usage: agentic-runtime scan <workspace-directory> | serve");
         process::exit(2);
     }
     match scan(&PathBuf::from(&args[2]),10000){
