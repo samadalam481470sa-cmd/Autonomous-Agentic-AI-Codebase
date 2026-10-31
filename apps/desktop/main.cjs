@@ -5,6 +5,8 @@ const os=require('node:os');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
 const http=require('node:http');
+const https=require('node:https');
+const {pipeline}=require('node:stream/promises');
 const SERVER='http://127.0.0.1:8000';
 let win,backend,modelServer,rustGateway,starting=false,adminToken='';
 function backendPath(){
@@ -54,6 +56,54 @@ async function setupWindow(){
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  await win.loadFile(path.join(__dirname,'setup.html'));
 }
+function trustedModelURL(value){
+ const u=new URL(value);
+ const h=u.hostname.toLowerCase();
+ if(u.protocol!=='https:'||u.username||u.password||u.port||!(h==='huggingface.co'||h.endsWith('.huggingface.co')||h==='hf.co'||h.endsWith('.hf.co')||h.endsWith('.xethub.hf.co')))throw new Error('Only trusted Hugging Face HTTPS download URLs are supported');
+ return u;
+}
+async function requestModel(url,redirects=0){
+ if(redirects>6)throw new Error('Too many redirects');
+ const u=trustedModelURL(url);
+ return new Promise((resolve,reject)=>{
+  const req=https.get(u,{timeout:30000,headers:{'User-Agent':'Autonomous-Agentic-AI/0.3'}},res=>{
+   if([301,302,303,307,308].includes(res.statusCode)){
+    const location=res.headers.location;
+    res.resume();
+    if(!location)return reject(new Error('Redirect missing location'));
+    return resolve(requestModel(new URL(location,u).toString(),redirects+1));
+   }
+   if(res.statusCode!==200){res.resume();return reject(new Error('Model download HTTP '+res.statusCode))}
+   resolve(res);
+  });
+  req.on('timeout',()=>req.destroy(new Error('Download timed out')));
+  req.on('error',reject);
+ });
+}
+ipcMain.handle('download-model',async (_event,details)=>{
+ if(!details||details.licenseAccepted!==true)throw new Error('Confirm model license and download permission');
+ if(typeof details.url!=='string'||typeof details.sha256!=='string'||!/^[a-f0-9]{64}$/i.test(details.sha256))throw new Error('A valid HTTPS URL and SHA256 checksum are required');
+ const url=trustedModelURL(details.url);
+ if(!url.pathname.toLowerCase().endsWith('.gguf'))throw new Error('Download URL must point to a .gguf file');
+ const dir=path.join(app.getPath('userData'),'models');fs.mkdirSync(dir,{recursive:true});
+ const destination=path.join(dir,details.sha256.toLowerCase()+'.gguf');
+ if(fs.existsSync(destination))return destination;
+ const temporary=destination+'.partial-'+crypto.randomBytes(6).toString('hex');
+ let total=0;const hash=crypto.createHash('sha256');
+ try{
+  const stream=await requestModel(url.toString());
+  const writer=fs.createWriteStream(temporary,{flags:'wx',mode:0o600});
+  stream.on('data',chunk=>{
+   total+=chunk.length;
+   if(total>20*1024*1024*1024)stream.destroy(new Error('Model exceeds 20 GB limit'));
+   hash.update(chunk);
+  });
+  await pipeline(stream,writer);
+  if(hash.digest('hex')!==details.sha256.toLowerCase())throw new Error('SHA256 checksum mismatch');
+  fs.renameSync(temporary,destination);
+  return destination;
+ }catch(e){try{fs.unlinkSync(temporary)}catch(_){}throw e}
+});
 ipcMain.handle('choose-file',async (_event,kind)=>{
  if(kind!=='model'&&kind!=='engine')throw new Error('Invalid file type');
  const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:kind==='model'?[{name:'GGUF model',extensions:['gguf']}]:[]});
