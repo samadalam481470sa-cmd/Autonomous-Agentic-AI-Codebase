@@ -84,7 +84,10 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          assets=(release-assets/*)
+          assets=()
+          for f in release-assets/*; do
+            if [[ -f "$f" && ( "$f" == *.exe || "$f" == *.dmg || "$f" == *.AppImage ) ]]; then assets+=("$f"); fi
+          done
           if [ "${#assets[@]}" -eq 0 ]; then echo "No installers produced"; exit 1; fi
           tag="${GITHUB_REF_NAME}"
           if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then tag="v0.3.0-beta.${GITHUB_RUN_NUMBER}"; fi
