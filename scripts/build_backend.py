@@ -8,7 +8,7 @@ cmd=[sys.executable,"-m","PyInstaller","--noconfirm","--clean","--onedir","--nam
      "--distpath",str(root/"dist"/"backend-stage"),
      "--workpath",str(root/"build"/"pyinstaller"),
      "--specpath",str(root/"build"),
-     "--collect-all","uvicorn",
+     "--collect-all","uvicorn","--collect-submodules","services.api",
      "--add-data",f"{root/'apps'/'web'}{separator}apps/web",
      str(root/"scripts"/"desktop_backend.py")]
 subprocess.check_call(cmd,cwd=root)
