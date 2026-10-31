@@ -83,6 +83,26 @@ def save(project,role,content):
     with db() as con:
         con.execute("INSERT INTO messages(id,project,role,content) VALUES(?,?,?,?)",(str(uuid.uuid4()),project,role,content))
 
+
+def bounded_local_history(messages,budget):
+    """Approximate prompt-size bound; preserves system and most recent user turn."""
+    budget=max(2000,min(int(budget),100000))
+    if not messages:return []
+    head=messages[:1]
+    kept=[]
+    used=sum(len(str(x.get("content",""))) for x in head)
+    for item in reversed(messages[1:]):
+        cost=len(str(item.get("content","")))
+        if used+cost>budget:
+            if not kept:
+                item=dict(item)
+                item["content"]=str(item.get("content",""))[-max(1000,budget-used):]
+                kept.append(item)
+            break
+        kept.append(item)
+        used+=cost
+    return head+list(reversed(kept))
+
 async def respond(project,message):
     save(project,"user",message)
     local=os.getenv("LOCAL_MODEL_ONLY")=="1"
@@ -94,12 +114,16 @@ async def respond(project,message):
         settings=model_settings()
         base=settings["base_url"]
         model=settings["model"]
+        msgs=bounded_local_history(msgs,os.getenv("LOCAL_CONTEXT_CHAR_BUDGET","12000"))
     else:
         base=os.getenv("MODEL_BASE_URL","https://api.openai.com/v1").rstrip("/")
         model=os.getenv("MODEL_NAME","gpt-4.1-mini")
-    async with httpx.AsyncClient(timeout=90) as client:
+    max_output=max(64,min(int(os.getenv("LOCAL_MAX_OUTPUT_TOKENS","1024")),8192)) if local else None
+    async with httpx.AsyncClient(timeout=180) as client:
         for _ in range(8):
-            r=await client.post(base+"/chat/completions",headers={"Authorization":"Bearer "+key},json={"model":model,"messages":msgs,"tools":TOOLS,"tool_choice":"auto"})
+            payload={"model":model,"messages":msgs,"tools":TOOLS,"tool_choice":"auto"}
+            if local:payload["max_tokens"]=max_output
+            r=await client.post(base+"/chat/completions",headers={"Authorization":"Bearer "+key},json=payload)
             r.raise_for_status()
             choice=r.json()["choices"][0]["message"]
             calls=choice.get("tool_calls") or []
@@ -113,6 +137,7 @@ async def respond(project,message):
                 try: args=json.loads(fn.get("arguments","{}"))
                 except json.JSONDecodeError: args={}
                 result=tool(project,fn["name"],args)
+                if local and len(result)>3000:result=result[:3000]+"\\n[tool output truncated]"
                 msgs.append({"role":"tool","tool_call_id":call["id"],"content":result})
         answer="Reached the tool-call limit. Review project files and continue in a new turn."
         save(project,"assistant",answer)
