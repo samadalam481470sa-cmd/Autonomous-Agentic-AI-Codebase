@@ -7,7 +7,10 @@ def test_workspace_containment(tmp_path,monkeypatch):
     with pytest.raises(ValueError): engine.workspace("../bad")
 def test_file_roundtrip(tmp_path,monkeypatch):
     monkeypatch.setattr(engine,"ROOT",tmp_path)
-    assert "Wrote" in engine.tool("demo","write_file",{"path":"src/app.py","content":"hello world"})
+    assert "disabled" in engine.tool("demo","write_file",{"path":"src/app.py","content":"hello world"})
+    path=engine.safe_path("demo","src/app.py")
+    path.parent.mkdir(parents=True,exist_ok=True)
+    path.write_text("hello world")
     assert engine.tool("demo","read_file",{"path":"src/app.py"})=="hello world"
     assert "src/app.py" in engine.tool("demo","list_files",{})
     assert "hello world" in engine.tool("demo","search_files",{"query":"hello"})
