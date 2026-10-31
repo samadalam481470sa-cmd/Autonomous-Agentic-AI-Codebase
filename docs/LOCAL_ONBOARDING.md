@@ -2,7 +2,7 @@
 
 The desktop app now opens a setup screen with basic hardware information, model and llama-server file pickers, GPU-layer selection, and a button to launch local inference. The packaged Rust gateway is started automatically after the llama.cpp server responds. The bundled Python API starts when the app launches.
 
-Users must **independently download and install** a compatible llama.cpp binary and a licensed GGUF model. The app does not yet provide a verified in-app download catalog, checksum verification, model license acceptance or GPU benchmark. The setup UI is not a driver installer.
+Users must independently install a compatible llama.cpp binary. The setup UI now supports downloading a GGUF model from a trusted Hugging Face HTTPS URL **only with a user-supplied SHA256 checksum and license confirmation**. It verifies the checksum before storing the model in app data. There is no curated model catalog, trusted publisher verification, automated license review, GPU benchmark, or resume support. Users may also select an existing GGUF file. The setup UI is not a driver installer.
 
 To use the app immediately without a model, choose **Open Code Studio without AI**. The editor, file explorer and approved saves remain available; AI chat requires successful local inference.
 
