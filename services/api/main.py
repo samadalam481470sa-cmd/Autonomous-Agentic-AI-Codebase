@@ -14,6 +14,8 @@ from .languages import router as languages_router
 from .local_model import router as local_model_router
 app.include_router(languages_router)
 app.include_router(local_model_router)
+from .project_store import router as project_router
+app.include_router(project_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
