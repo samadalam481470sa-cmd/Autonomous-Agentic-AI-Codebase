@@ -6,7 +6,7 @@ The existing desktop app is an Electron + Monaco **experimental fallback**. This
 
 - Base: `microsoft/vscode`, MIT license, Git tag `1.144.0` (October 28, 2026).
 - **Pin:** `2c33b50b16c472efe58357d1d2a8a5414bc23fbf`. The preparation script checks the exact SHA before modifying a source tree.
-- The Code-OSS tree is an **upstream checkout**, *not yet a fork in the GitHub repository graph*, and lives in `.local/code-oss` (gitignored). A future repository fork / merge strategy requires a separately authorized fork action.
+- The Code-OSS tree is now a **git submodule** at `upstream/code-oss`, pinned to the exact upstream release SHA. This is not a GitHub fork in the repository graph; project changes remain in the first-party overlay so upstream licensing and update provenance stay visible. A separately authorized GitHub fork can replace the submodule strategy later.
 - First-party overlay source lives in `code_oss_integration/extension/`. Do not count upstream LOC as original authored code.
 - Product identity uses independent names, protocol, data folders, platform IDs, and Windows registration IDs. Gallery endpoints use the [official Open VSX adapter](https://github.com/eclipse-openvsx/openvsx/wiki/Using-Open-VSX-in-VS-Code).
 - Upstream bundled branding assets and the whole set of vendor URLs have **not** been audited or replaced; do not release the fork until branding, legal, update and telemetry review are complete.
@@ -17,8 +17,9 @@ The existing desktop app is an Electron + Monaco **experimental fallback**. This
 With Python 3.12+, Node.js, Git, the build tools required by upstream Code-OSS and sufficient local disk space:
 
 ```bash
-python scripts/code_oss_migrate.py --clone --source .local/code-oss
-python scripts/code_oss_migrate.py --verify --source .local/code-oss
+git submodule update --init upstream/code-oss
+python scripts/code_oss_migrate.py
+python scripts/code_oss_migrate.py --verify
 ```
 
 The script checks out the upstream MIT source at the pinned tag, validates the commit, patches `product.json`, and places the extension in `extensions/agentic-local/`. It refuses an unreviewed upstream commit. It is safe to re-run on the exact pinned checkout, but it changes files in that separate checkout.
@@ -26,7 +27,7 @@ The script checks out the upstream MIT source at the pinned tag, validates the c
 For an interactive source build, follow Microsoft's [Code-OSS source build prerequisites](https://github.com/microsoft/vscode/wiki/How-to-Contribute). On Linux/macOS the development command is typically:
 
 ```bash
-cd .local/code-oss
+cd upstream/code-oss
 npm install
 ./scripts/code.sh --extensionDevelopmentPath="$(pwd)/extensions/agentic-local"
 ```
@@ -70,3 +71,5 @@ The original experimental Electron desktop generates a random backend token inte
 ## Test and release gates
 
 Main CI tests the first-party patcher, extension JSON and SSE parser without downloading upstream code. The **Code-OSS upstream overlay validation** workflow can be triggered manually to download the exact pinned release, apply the patch, and verify the resulting source tree. Neither workflow should be labeled a complete IDE parity or Code-OSS production release test.
+
+To prepare a separate working tree without modifying the git submodule checkout, use `python scripts/code_oss_migrate.py --clone --source .local/code-oss`. That scratch checkout remains gitignored.

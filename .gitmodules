@@ -1,0 +1,3 @@
+[submodule "upstream/code-oss"]
+	path = upstream/code-oss
+	url = https://github.com/microsoft/vscode.git

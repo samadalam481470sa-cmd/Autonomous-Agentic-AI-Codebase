@@ -127,7 +127,7 @@ def validate_overlay(source: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=ROOT / ".local" / "code-oss")
+    parser.add_argument("--source", type=Path, default=ROOT / "upstream" / "code-oss")
     parser.add_argument("--clone", action="store_true", help="Clone the pinned upstream release")
     parser.add_argument("--verify", action="store_true", help="Only inspect an existing prepared tree")
     args = parser.parse_args()

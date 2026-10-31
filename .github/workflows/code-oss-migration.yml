@@ -7,6 +7,7 @@ on:
       - 'scripts/code_oss_migrate.py'
       - 'code_oss_integration/**'
       - '.github/workflows/code-oss-migration.yml'
+      - '.gitmodules'
 permissions:
   contents: read
 jobs:
