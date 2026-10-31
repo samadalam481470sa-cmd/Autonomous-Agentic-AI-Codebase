@@ -16,7 +16,8 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
-from .studio import authorize, current, digest, resolve
+from .studio import authorize, current, digest, resolve, WRITE_LOCK
+from . import checkpoints
 from .engine import workspace
 from .code_agent import config, strip_fence
 
@@ -104,6 +105,10 @@ async def propose_batch(body:BatchRequest,authorization:str|None=Header(default=
     return create_record(body.project,changes)
 
 def apply_record(project,proposal_id,proposal_hash):
+    with WRITE_LOCK:
+        return _apply_record_locked(project,proposal_id,proposal_hash)
+
+def _apply_record_locked(project,proposal_id,proposal_hash):
     source=store_path(project,proposal_id)
     if not source.is_file():
         raise HTTPException(404,"Proposal not found")
@@ -115,6 +120,14 @@ def apply_record(project,proposal_id,proposal_hash):
     for (name,_,old),c in zip(files,changes):
         if digest(old)!=c["expected_sha256"]:
             raise HTTPException(409,"Source changed since proposal: "+name)
+    # Save pre-apply snapshots before changing any source file. Each restore
+    # checks the corresponding applied digest, so stale snapshots cannot
+    # overwrite later work without explicit review.
+    checkpoint_ids=[]
+    for (name,target,old),c in zip(files,changes):
+        checkpoint_ids.append(checkpoints.snapshot(
+            project,name,old,target.is_file(),c["content"]
+        ))
     # Write replacement files to sibling staging files first. Roll back on errors.
     staged=[]
     originals={str(path):(old,path.exists()) for _,path,old in files}
@@ -142,7 +155,8 @@ def apply_record(project,proposal_id,proposal_hash):
     finally:
         for temporary,_ in staged:
             temporary.unlink(missing_ok=True)
-    return {"applied":len(applied),"paths":[c["path"] for c in changes],"proposal_id":proposal_id}
+    return {"applied":len(applied),"paths":[c["path"] for c in changes],
+            "proposal_id":proposal_id,"checkpoint_ids":checkpoint_ids}
 
 @router.post("/apply")
 def apply_batch(body:ApplyRequest,authorization:str|None=Header(default=None),

@@ -106,3 +106,9 @@ The proposed Code-OSS-based editor, streaming model router, worktree sandbox and
 ### Opt-in local streaming chat
 
 The main browser chat has a **Stream local chat** checkbox. It calls the authenticated `POST /api/chat/stream` endpoint when `LOCAL_MODEL_ONLY=1`, which relays SSE token deltas through the loopback Rust gateway. Completed answers are saved with the user message as an atomic SQLite pair. Errors, interrupted streams and missing end markers are not saved as completed answers. Streaming chat intentionally disables model tool calls; keep the checkbox off for the existing agent/tool chat. No model weights, GPU drivers or inference engine are bundled.
+
+## Approved-edit checkpoints and guarded restore
+
+Studio saves record the previous UTF-8 file in the user's **local SQLite database** before replacing it. The Studio **Restore checkpoint** button restores the most recent version only with explicit approval and only if the file still matches the version that checkpoint created. Restoration creates its own inverse checkpoint, allowing the restoration to be undone. Newly created files can be removed by restoring their initial checkpoint; the inverse checkpoint can recreate them. Approved multi-file batch applies also record per-file snapshots.
+
+Checkpoints are limited to small files (200 KB), are scoped by project and file, and are not a substitute for Git, backups, or a crash-consistent multi-file transaction. The lock protects writes within this single Python process; external programs and multiple server workers can still change files concurrently. The feature has automated conflict and authorization tests but is **not** a guarantee of production-grade recovery.
