@@ -132,7 +132,7 @@ function waitFor(url,timeoutMs=120000,processHandle=null){
  return new Promise(async(resolve,reject)=>{
   const started=Date.now();
   while(Date.now()-started<timeoutMs){
-   if(processHandle && (processHandle.startError || processHandle.exitCode!==null))throw new Error('Local inference service exited before readiness: '+(processHandle.startError||processHandle.exitCode));
+   if(processHandle && (processHandle.startError || processHandle.exitCode!==null)){reject(new Error('Local inference service exited before readiness: '+(processHandle.startError||processHandle.exitCode)));return;}
    try{
     const ready=await new Promise(done=>{
      const request=http.get(url,{timeout:1500},r=>{r.resume();done(r.statusCode===200)});
