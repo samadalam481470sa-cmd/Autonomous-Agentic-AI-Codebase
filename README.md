@@ -72,3 +72,9 @@ The Electron desktop client in [apps/desktop](apps/desktop) opens the local Code
 Run compatible open-weight models locally using an OpenAI-compatible loopback endpoint, such as Ollama. Set `LOCAL_MODEL_ONLY=1`, `LOCAL_MODEL_BASE_URL=http://127.0.0.1:11434/v1`, and `LOCAL_MODEL_NAME=qwen2.5-coder:7b`. When local-only mode is enabled, the agent uses the loopback endpoint instead of a remote inference API. GPU use depends on compatible hardware and installed model runtime; see [setup and limitations](docs/LOCAL_GPU_AND_LANGUAGES.md).
 
 The [language catalog](services/api/languages.py) recognizes dozens of programming languages and file types; arbitrary UTF-8 source files can be edited. PostgreSQL and SQLite starter migrations are in [database/templates](database/templates). **This does not imply every language can be compiled, debugged or executed**, or that the app can provision arbitrary databases yet. Local inference avoids metered remote API usage but does not remove finite model context, VRAM or processing limits.
+
+## Rust + llama.cpp inference pipeline
+
+The new Rust gateway in [services/runtime-rust](services/runtime-rust) supports `agentic-runtime serve` alongside the workspace scanner. It forwards bounded OpenAI-compatible requests to a **locally running llama.cpp server**. Python agent orchestration can use it through `LOCAL_MODEL_ONLY=1` and `LOCAL_MODEL_BASE_URL=http://127.0.0.1:8088/v1`. The local gateway enforces a concurrent-request limit, output token cap and request-size limit. Python additionally trims earlier conversation history using a character budget.
+
+See [complete local inference setup](docs/RUST_LLAMA_INTEGRATION.md) for GGUF Q4 quantization, GPU offload and exact startup commands. llama.cpp itself (C/C++) executes the model; Rust is the efficient gateway/indexing layer. **No claim of zero GPU usage, unlimited context, automatic model downloads or validated hardware compatibility is made.**
