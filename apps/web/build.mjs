@@ -3,7 +3,7 @@
  * All third-party notices are preserved in assets.
  */
 import esbuild from 'esbuild';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +33,13 @@ await esbuild.build({
   legalComments:'linked',
   logLevel:'info'
 });
-const license = readFileSync(resolve(root,'node_modules','monaco-editor','LICENSE.txt'),'utf8');
+const licenseCandidates = [
+  resolve(root,'node_modules','monaco-editor','LICENSE'),
+  resolve(root,'node_modules','monaco-editor','LICENSE.txt'),
+  resolve(root,'..','..','third_party','monaco-editor','LICENSE.txt')
+];
+const licenseFile = licenseCandidates.find(existsSync);
+if (!licenseFile) throw new Error('Monaco MIT license notice is missing');
+const license = readFileSync(licenseFile,'utf8');
 writeFileSync(resolve(assets,'MONACO_LICENSE.txt'),license);
 console.log('Monaco editor and workers bundled for local use.');
