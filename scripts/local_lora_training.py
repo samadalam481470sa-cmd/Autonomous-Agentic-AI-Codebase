@@ -107,13 +107,27 @@ def make_features(tokenizer, rows, max_tokens):
         raise ValueError("No usable training examples")
     return result
 
-def evaluate(model, features, torch):
+def select_training_device(torch):
+    """Use the downloader's NVIDIA/ROCm CUDA-compatible GPU or Apple MPS device.
+
+    PyTorch exposes supported AMD ROCm builds under torch.cuda. A machine with
+    no supported accelerator must opt out; training never silently moves to a
+    cloud service or spins on an unexpected CPU.
+    """
+    if torch.cuda.is_available():
+        return "cuda"
+    mps = getattr(getattr(torch, "backends", None), "mps", None)
+    if mps is not None and mps.is_available():
+        return "mps"
+    raise RuntimeError("No compatible local GPU detected; install a CUDA/ROCm or Apple MPS PyTorch build")
+
+def evaluate(model, features, torch, device):
     model.eval()
     losses = []
     with torch.no_grad():
         for ids, labels in features:
-            input_ids = torch.tensor([ids], device="cuda")
-            label_ids = torch.tensor([labels], device="cuda")
+            input_ids = torch.tensor([ids], device=device)
+            label_ids = torch.tensor([labels], device=device)
             output = model(input_ids=input_ids, labels=label_ids)
             value = float(output.loss.detach().float().cpu())
             if not math.isfinite(value):
@@ -129,8 +143,7 @@ def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
         from peft import LoraConfig, get_peft_model
     except ImportError as exc:
         raise RuntimeError("Install requirements-training.txt first") from exc
-    if not torch.cuda.is_available():
-        raise RuntimeError("CUDA GPU is required; no silent CPU/cloud training fallback")
+    device = select_training_device(torch)
     model_dir = Path(base_model).resolve()
     if not model_dir.is_dir():
         raise ValueError("Pass a downloaded local Hugging Face-format model directory, not GGUF")
@@ -146,8 +159,8 @@ def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
     model = AutoModelForCausalLM.from_pretrained(str(model_dir), local_files_only=True,
                                                   trust_remote_code=False,
                                                   torch_dtype=torch.float16)
-    model.to("cuda")
-    baseline = evaluate(model, test_data, torch)
+    model.to(device)
+    baseline = evaluate(model, test_data, torch, device)
     adapter = get_peft_model(model, LoraConfig(
         task_type="CAUSAL_LM", r=8, lora_alpha=16, lora_dropout=0.05,
         bias="none", target_modules=targets))
@@ -165,9 +178,9 @@ def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
         loss.backward()
         torch.nn.utils.clip_grad_norm_((p for p in adapter.parameters() if p.requires_grad), 1.0)
         optimizer.step()
-    candidate = evaluate(adapter, test_data, torch)
+    candidate = evaluate(adapter, test_data, torch, device)
     if not should_promote(baseline, candidate, minimum_gain):
-        return {"promoted": False, "baseline_loss": baseline, "candidate_loss": candidate,
+        return {"promoted": False, "device": device, "baseline_loss": baseline, "candidate_loss": candidate,
                 "examples_trained": len(train_data), "examples_evaluated": len(test_data)}
     version = uuid.uuid4().hex
     versions = root / ".agent" / "models" / "versions"
@@ -178,7 +191,7 @@ def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
             raise RuntimeError("Adapter was not saved correctly")
         os.replace(temporary, versions / version)
     record = activate(root, version, baseline, candidate, model_dir)
-    return {"promoted": True, "version": version, "baseline_loss": baseline,
+    return {"promoted": True, "device": device, "version": version, "baseline_loss": baseline,
             "candidate_loss": candidate, "examples_trained": len(train_data),
             "examples_evaluated": len(test_data), "previous": record["previous"]}
 

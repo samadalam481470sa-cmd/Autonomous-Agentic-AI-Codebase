@@ -31,3 +31,14 @@ def test_adapter_activation_and_rollback(tmp_path):
     assert rolled["active"]=="one"
     with pytest.raises(ValueError):
         rollback(tmp_path)
+
+
+def test_local_accelerator_selection():
+    from types import SimpleNamespace
+    from scripts.local_lora_training import select_training_device
+    cuda=SimpleNamespace(cuda=SimpleNamespace(is_available=lambda:True), backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda:False)))
+    apple=SimpleNamespace(cuda=SimpleNamespace(is_available=lambda:False), backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda:True)))
+    cpu=SimpleNamespace(cuda=SimpleNamespace(is_available=lambda:False), backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda:False)))
+    assert select_training_device(cuda)=="cuda"
+    assert select_training_device(apple)=="mps"
+    with pytest.raises(RuntimeError):select_training_device(cpu)
