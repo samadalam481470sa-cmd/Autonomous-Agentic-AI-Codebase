@@ -21,6 +21,8 @@ jobs:
           node --check code_oss_integration/extension/extension.js
           node --check code_oss_integration/extension/sse.js
           node --test code_oss_integration/extension/sse.test.cjs
+          node --check code_oss_integration/extension/rewrite-selection.js
+          node --test code_oss_integration/extension/rewrite-selection.test.cjs
       - run: python scripts/check_inline_scripts.py
       - run: python scripts/code_metrics.py
       - run: pytest -q

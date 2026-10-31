@@ -1,0 +1,81 @@
+name: Build experimental full Code-OSS IDE (Linux)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'code_oss_integration/**'
+      - 'scripts/code_oss_migrate.py'
+      - '.github/workflows/code-oss-full-ide.yml'
+permissions:
+  contents: read
+concurrency:
+  group: code-oss-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux-ide:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CI: '1'
+      npm_config_audit: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install native Code-OSS build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libx11-dev libxkbfile-dev libxkbcommon-dev libkrb5-dev
+          df -h .
+      - name: Initialize pinned MIT Code-OSS workbench
+        run: git submodule update --init --depth 1 upstream/code-oss
+      - name: Brand and install first-party AI extension
+        run: python scripts/code_oss_migrate.py
+      - name: Verify pinned sources and native AI JavaScript
+        run: |
+          python scripts/code_oss_migrate.py --verify
+          node --check code_oss_integration/extension/extension.js
+          node --check code_oss_integration/extension/rewrite-selection.js
+          node --test code_oss_integration/extension/*.test.cjs
+      - name: Install upstream dependencies with exact upstream Node release
+        working-directory: upstream/code-oss
+        run: npm install --no-audit --no-fund
+      - name: Compile and package Linux x64 Code-OSS desktop workbench
+        working-directory: upstream/code-oss
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: npm run gulp -- vscode-linux-x64
+      - name: Validate assembled IDE and included AI extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="upstream/VSCode-linux-x64"
+          test -d "$root"
+          test -f "$root/resources/app/product.json"
+          test -f "$root/resources/app/extensions/agentic-local/extension.js"
+          test -f "$root/resources/app/extensions/agentic-local/package.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('upstream/VSCode-linux-x64/resources/app')
+          product=json.loads((root/'product.json').read_text())
+          extension=json.loads((root/'extensions/agentic-local/package.json').read_text())
+          assert product['applicationName']=='agentic-workbench',product.get('applicationName')
+          assert product['extensionsGallery']['serviceUrl']=='https://open-vsx.org/vscode/gallery'
+          assert extension['contributes']['viewsContainers']['activitybar']
+          assert extension['contributes']['commands']
+          print('Validated full IDE bundle with original local AI extension')
+          PY
+      - name: Archive experimental unsigned Linux workbench
+        run: tar -C upstream -czf agentic-workbench-code-oss-linux-x64.tar.gz VSCode-linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agentic-workbench-code-oss-linux-x64
+          path: agentic-workbench-code-oss-linux-x64.tar.gz
+          retention-days: 7
+          if-no-files-found: error

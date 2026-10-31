@@ -73,3 +73,12 @@ The original experimental Electron desktop generates a random backend token inte
 Main CI tests the first-party patcher, extension JSON and SSE parser without downloading upstream code. The **Code-OSS upstream overlay validation** workflow can be triggered manually to download the exact pinned release, apply the patch, and verify the resulting source tree. Neither workflow should be labeled a complete IDE parity or Code-OSS production release test.
 
 To prepare a separate working tree without modifying the git submodule checkout, use `python scripts/code_oss_migrate.py --clone --source .local/code-oss`. That scratch checkout remains gitignored.
+
+
+## Native full-workbench build and inline editing
+
+The `Build experimental full Code-OSS IDE (Linux)` workflow now compiles and packages the full upstream Code-OSS workbench, not a standalone Monaco text control. It uses upstream Node.js 24.22.1 and `npm run gulp -- vscode-linux-x64`, validates the branded product JSON and bundled first-party extension, and uploads a Linux x64 tarball **only when the assembly succeeds**. It does not sign or notarize the build, and does not demonstrate a graphical smoke test. Windows/macOS Code-OSS packaging requires separate CI and platform-specific validation. The original Electron/Monaco installer is still a fallback, not the Code-OSS installer.
+
+The first-party extension now supports **Local AI: Rewrite Selection (Review Diff)** in Code-OSS. It sends only explicitly selected code and the user's instruction to the authenticated local `/api/ide/rewrite` service. This endpoint returns replacement text **without writing any files** and requires `LOCAL_MODEL_ONLY=1`. Code-OSS opens the selection and proposal in a native diff editor, then asks for explicit user approval. On approval, a single undoable `WorkspaceEdit` replaces only the original selection after checking the document version and content have not changed. The user saves the file separately. This is not yet streaming inline diffs, semantic Tab completion, or an agent-run checkpoint implementation.
+
+Code-OSS includes native file explorer, source control, debugger, terminal, search, command palette and extension host from its upstream platform. The application does not yet ship all AI-parity features, local model weights, drivers, signed packages, remote sync or clean-machine GPU guarantees.
