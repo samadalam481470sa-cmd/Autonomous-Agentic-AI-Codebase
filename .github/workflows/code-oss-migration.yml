@@ -1,6 +1,12 @@
 name: Code-OSS upstream overlay validation
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/code_oss_migrate.py'
+      - 'code_oss_integration/**'
+      - '.github/workflows/code-oss-migration.yml'
 permissions:
   contents: read
 jobs:
