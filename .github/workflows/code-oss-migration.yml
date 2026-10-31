@@ -1,0 +1,29 @@
+name: Code-OSS upstream overlay validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-overlay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Checkout pinned MIT Code-OSS source and apply first-party extension overlay
+        run: python scripts/code_oss_migrate.py --source .local/code-oss --clone
+      - name: Check upstream commit, branded product, Open VSX and extension copies
+        run: python scripts/code_oss_migrate.py --source .local/code-oss --verify
+      - name: Validate extension-host JavaScript
+        run: |
+          node --check .local/code-oss/extensions/agentic-local/extension.js
+          node --test .local/code-oss/extensions/agentic-local/sse.test.cjs
+      - name: Report scope
+        run: |
+          echo "Source overlay preparation passed; no full upstream Code-OSS desktop compile was run."
+          git -C .local/code-oss rev-parse HEAD

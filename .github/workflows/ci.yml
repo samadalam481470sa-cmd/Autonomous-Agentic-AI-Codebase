@@ -16,6 +16,11 @@ jobs:
       - run: node --check apps/web/monaco-entry.js
       - run: node --check apps/web/build.mjs
       - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs
+      - name: Verify Code-OSS extension transport and source syntax
+        run: |
+          node --check code_oss_integration/extension/extension.js
+          node --check code_oss_integration/extension/sse.js
+          node --test code_oss_integration/extension/sse.test.cjs
       - run: python scripts/check_inline_scripts.py
       - run: python scripts/code_metrics.py
       - run: pytest -q

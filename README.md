@@ -112,3 +112,9 @@ The main browser chat has a **Stream local chat** checkbox. It calls the authent
 Studio saves record the previous UTF-8 file in the user's **local SQLite database** before replacing it. The Studio **Restore checkpoint** button restores the most recent version only with explicit approval and only if the file still matches the version that checkpoint created. Restoration creates its own inverse checkpoint, allowing the restoration to be undone. Newly created files can be removed by restoring their initial checkpoint; the inverse checkpoint can recreate them. Approved multi-file batch applies also record per-file snapshots.
 
 Checkpoints are limited to small files (200 KB), are scoped by project and file, and are not a substitute for Git, backups, or a crash-consistent multi-file transaction. The lock protects writes within this single Python process; external programs and multiple server workers can still change files concurrently. The feature has automated conflict and authorization tests but is **not** a guarantee of production-grade recovery.
+
+## Code-OSS workbench migration (in progress)
+
+The [Code-OSS migration guide](docs/CODE_OSS_MIGRATION.md) now provides an exact upstream source pin, branded `product.json` overlay using Open VSX, and a first-party local-chat sidebar extension. This is the initial workbench migration path rather than a claim that the finished desktop app has switched from Monaco. Run `python scripts/code_oss_migrate.py --clone` to prepare a separate MIT-licensed source checkout for local development, then follow the upstream build instructions. The Python/Rust local model server remains separate and reusable.
+
+**Current status:** The existing Monaco desktop installers are still the downloadable experimental builds. The Code-OSS source overlay and extension must pass dedicated source-build, extension-host, GPU inference and clean-install acceptance tests before becoming the default IDE.
