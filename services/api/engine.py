@@ -35,7 +35,7 @@ def tool(project,name,args):
     try:
         if name=="list_files":
             p=safe_path(project,args.get("path","."))
-            return json.dumps(sorted(str(x.relative_to(workspace(project))) for x in p.rglob("*") if x.is_file())[:200])
+            return json.dumps(sorted(x.relative_to(workspace(project)).as_posix() for x in p.rglob("*") if x.is_file())[:200])
         if name=="read_file":
             p=safe_path(project,args["path"])
             if p.stat().st_size>100_000: return "File exceeds 100KB limit"
