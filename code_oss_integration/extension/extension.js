@@ -3,6 +3,7 @@
 const vscode = require('vscode');
 const crypto = require('node:crypto');
 const {parseAvailable, localEndpoint, validProject} = require('./sse.js');
+const {rewriteSelection}=require('./rewrite-selection.js');
 
 const SECRET = 'agenticLocal.adminToken';
 function escapeHtml(value) {return String(value).replace(/[&<>"']/g, c => ({
@@ -127,6 +128,7 @@ async function activate(context) {
     await context.secrets.store(SECRET,secret);
     vscode.window.showInformationMessage('Local AI token saved in VS Code SecretStorage (not the workspace).');
   }));
+  context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.rewriteSelection',()=>rewriteSelection(vscode,context,SECRET)));
   context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.askSelection',async()=>{
     const editor=vscode.window.activeTextEditor;
     if(!editor){vscode.window.showWarningMessage('Open a file and select code first');return;}

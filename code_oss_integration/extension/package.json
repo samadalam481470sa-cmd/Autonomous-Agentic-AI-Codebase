@@ -2,8 +2,8 @@
   "name": "agentic-local",
   "publisher": "agentic-workbench",
   "displayName": "Agentic Local AI",
-  "description": "Private local AI chat inside the Code-OSS workbench",
-  "version": "0.1.0",
+  "description": "Native Code-OSS local AI chat and approved selection rewrites",
+  "version": "0.2.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.144.0"
@@ -12,7 +12,8 @@
   "activationEvents": [
     "onView:agenticLocal.chat",
     "onCommand:agenticLocal.connect",
-    "onCommand:agenticLocal.askSelection"
+    "onCommand:agenticLocal.askSelection",
+    "onCommand:agenticLocal.rewriteSelection"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -46,6 +47,10 @@
       {
         "command": "agenticLocal.askSelection",
         "title": "Local AI: Explain Selection"
+      },
+      {
+        "command": "agenticLocal.rewriteSelection",
+        "title": "Local AI: Rewrite Selection (Review Diff)"
       }
     ],
     "menus": {
@@ -54,6 +59,11 @@
           "command": "agenticLocal.askSelection",
           "when": "editorHasSelection",
           "group": "navigation@20"
+        },
+        {
+          "command": "agenticLocal.rewriteSelection",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "navigation@21"
         }
       ]
     },
