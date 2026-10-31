@@ -1,0 +1,10 @@
+[package]
+name = "agentic-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Lightweight local workspace indexer for Autonomous Agentic AI"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

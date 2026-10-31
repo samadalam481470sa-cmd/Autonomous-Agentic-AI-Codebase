@@ -1,0 +1,21 @@
+name: Rust runtime
+on:
+  push:
+    paths:
+      - 'services/runtime-rust/**'
+      - '.github/workflows/rust.yml'
+  pull_request:
+    paths:
+      - 'services/runtime-rust/**'
+      - '.github/workflows/rust.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/runtime-rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+      - run: cargo build --release
