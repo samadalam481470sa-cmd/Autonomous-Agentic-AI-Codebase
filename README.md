@@ -78,3 +78,11 @@ The [language catalog](services/api/languages.py) recognizes dozens of programmi
 The new Rust gateway in [services/runtime-rust](services/runtime-rust) supports `agentic-runtime serve` alongside the workspace scanner. It forwards bounded OpenAI-compatible requests to a **locally running llama.cpp server**. Python agent orchestration can use it through `LOCAL_MODEL_ONLY=1` and `LOCAL_MODEL_BASE_URL=http://127.0.0.1:8088/v1`. The local gateway enforces a concurrent-request limit, output token cap and request-size limit. Python additionally trims earlier conversation history using a character budget.
 
 See [complete local inference setup](docs/RUST_LLAMA_INTEGRATION.md) for GGUF Q4 quantization, GPU offload and exact startup commands. llama.cpp itself (C/C++) executes the model; Rust is the efficient gateway/indexing layer. **No claim of zero GPU usage, unlimited context, automatic model downloads or validated hardware compatibility is made.**
+
+## Experimental downloadable desktop beta (2026)
+
+The [desktop packaging workflow](.github/workflows/desktop.yml) now builds a bundled Python backend and Rust inference gateway on Windows, macOS and Linux. The Electron app starts the local Python service, displays a hardware/setup screen, lets users select a llama.cpp executable and GGUF model, and can launch both the model and Rust gateway locally. The onboarding screen also supports user-initiated Hugging Face HTTPS model downloads with a **required user-supplied SHA256 checksum and explicit license confirmation**. Model downloads are capped at 20 GB. See [local onboarding](docs/LOCAL_ONBOARDING.md).
+
+The app **does not bundle llama.cpp or GPU drivers**. A downloaded GGUF alone cannot run without a compatible llama.cpp binary. Installer builds, real GPU inference and clean-machine startup have not yet been verified. This is not a production release for thousands of users.
+
+The local SQLite [project store](services/api/project_store.py) uses indexed transactional project/task/artifact/event tables. A separate [PostgreSQL multi-tenant reference schema](database/postgres/001_multi_tenant.sql) and [launch gates](docs/LAUNCH_READINESS.md) document the architecture required before any hosted multi-user launch; the hosted PostgreSQL service is **not implemented**.
