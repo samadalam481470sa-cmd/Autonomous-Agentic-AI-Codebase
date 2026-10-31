@@ -1,0 +1,54 @@
+name: Vendor pinned Monaco editor source
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vendor-monaco.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Retrieve version-pinned MIT-licensed Monaco editor sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=d61824269f1377111d34306e4a47172327777083
+          git clone --depth 1 --branch v0.57.0 https://github.com/microsoft/monaco-editor.git /tmp/agentic-monaco-src
+          actual="$(git -C /tmp/agentic-monaco-src rev-parse HEAD)"
+          test "$actual" = "$expected"
+          mkdir -p third_party/monaco-editor
+          cp -R /tmp/agentic-monaco-src/src third_party/monaco-editor/
+          cp /tmp/agentic-monaco-src/LICENSE.txt third_party/monaco-editor/LICENSE.txt
+          cp /tmp/agentic-monaco-src/ThirdPartyNotices.txt third_party/monaco-editor/ThirdPartyNotices.txt
+          printf 'Source: https://github.com/microsoft/monaco-editor\nVersion: v0.57.0\nCommit: %s\nLicense: MIT; see LICENSE.txt and ThirdPartyNotices.txt\n' "$actual" > third_party/monaco-editor/PROVENANCE.txt
+      - name: Verify actual licensed source line count
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(find third_party/monaco-editor/src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' \) | wc -l)"
+          lines="$(find third_party/monaco-editor/src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' \) -print0 | xargs -0 wc -l | tail -1 | awk '{print $1}')"
+          echo "Upstream Monaco source files: $files"
+          echo "Upstream Monaco source lines: $lines"
+          test "$lines" -ge 50000
+          test -s third_party/monaco-editor/LICENSE.txt
+          test -s third_party/monaco-editor/ThirdPartyNotices.txt
+      - name: Commit licensed source snapshot to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add third_party/monaco-editor
+          if git diff --cached --quiet; then
+            echo "Snapshot already installed"
+            exit 0
+          fi
+          git commit -m "Vendor MIT-licensed Monaco Editor v0.57.0 source for offline code editor"
+          git push origin HEAD:main
