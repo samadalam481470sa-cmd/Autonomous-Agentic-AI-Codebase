@@ -10,4 +10,8 @@ jobs:
           python-version: '3.12'
       - run: pip install -e '.[dev]'
       - run: python -m compileall -q services
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python scripts/check_inline_scripts.py
       - run: pytest -q
