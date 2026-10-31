@@ -25,7 +25,7 @@ def benchmark():
         initial, initial_seconds = timed(lambda: code_index.index_project("million_lines", 10000))
         assert initial["indexed_files"] == 1000, initial
         assert initial["indexed_lines"] == 1_000_000, initial
-        match, search_seconds = timed(lambda: code_index.search_project("million_lines", "item_00500_500"))
+        match, search_seconds = timed(lambda: code_index.search_project("million_lines", "item_500_500"))
         assert any(row["path"] == "module_00500.py" for row in match), match
         repeat, repeat_seconds = timed(lambda: code_index.index_project("million_lines", 10000))
         assert repeat["unchanged"] == 1000, repeat
