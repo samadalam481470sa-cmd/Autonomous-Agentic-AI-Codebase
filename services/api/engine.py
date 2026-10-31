@@ -85,13 +85,21 @@ def save(project,role,content):
 
 async def respond(project,message):
     save(project,"user",message)
-    key=os.getenv("MODEL_API_KEY","")
-    if not key: return "Configure MODEL_API_KEY, MODEL_BASE_URL and MODEL_NAME to enable model responses."
+    local=os.getenv("LOCAL_MODEL_ONLY")=="1"
+    key="local" if local else os.getenv("MODEL_API_KEY","")
+    if not key: return "Configure MODEL_API_KEY or enable LOCAL_MODEL_ONLY=1 with a running local model."
     msgs=[{"role":"system","content":"You are an AI software engineer. Use tools to inspect and edit project files. Do not claim to have executed actions without tool results. Ask before risky or destructive actions."}]+history(project)
-    base=os.getenv("MODEL_BASE_URL","https://api.openai.com/v1").rstrip("/")
+    if local:
+        from .local_model import model_settings
+        settings=model_settings()
+        base=settings["base_url"]
+        model=settings["model"]
+    else:
+        base=os.getenv("MODEL_BASE_URL","https://api.openai.com/v1").rstrip("/")
+        model=os.getenv("MODEL_NAME","gpt-4.1-mini")
     async with httpx.AsyncClient(timeout=90) as client:
         for _ in range(8):
-            r=await client.post(base+"/chat/completions",headers={"Authorization":"Bearer "+key},json={"model":os.getenv("MODEL_NAME","gpt-4.1-mini"),"messages":msgs,"tools":TOOLS,"tool_choice":"auto"})
+            r=await client.post(base+"/chat/completions",headers={"Authorization":"Bearer "+key},json={"model":model,"messages":msgs,"tools":TOOLS,"tool_choice":"auto"})
             r.raise_for_status()
             choice=r.json()["choices"][0]["message"]
             calls=choice.get("tool_calls") or []
