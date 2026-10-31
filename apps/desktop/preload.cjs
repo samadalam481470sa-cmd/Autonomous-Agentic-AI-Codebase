@@ -1,1 +1,8 @@
-// Intentionally exposes no Node or Electron APIs to the renderer.
+const {contextBridge,ipcRenderer}=require('electron');
+contextBridge.exposeInMainWorld('localSetup',Object.freeze({
+ chooseModel:()=>ipcRenderer.invoke('choose-file','model'),
+ chooseEngine:()=>ipcRenderer.invoke('choose-file','engine'),
+ hardware:()=>ipcRenderer.invoke('hardware'),
+ startModel:settings=>ipcRenderer.invoke('start-model',settings),
+ openStudio:()=>ipcRenderer.invoke('open-studio')
+}));
