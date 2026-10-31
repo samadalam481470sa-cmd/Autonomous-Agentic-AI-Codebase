@@ -45,7 +45,7 @@ export LOCAL_MODEL_NAME=local-model
 python -m uvicorn services.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Run these commands in the repository root, using the appropriate environment-variable syntax for your OS. Copy the generated token privately into the extension via **Local AI: Connect to This Computer**. The extension saves the token using VS Code `SecretStorage`; the token is **not sent to the webview**, written to workspace settings, or uploaded to a cloud server. Do not share the token.
+Run these commands in the repository root, using the appropriate environment-variable syntax for your OS. Copy the generated token privately into the extension via **Local AI: Connect to This Computer**. The extension is marked `extensionKind: [\"ui\"]` so local operations stay in the desktop UI extension host even when a remote workspace is open. The extension saves the token using VS Code `SecretStorage`; the token is **not sent to the webview**, written to workspace settings, or uploaded to a cloud server. Do not share the token.
 
 The original experimental Electron desktop generates a random backend token internally; that token is not intended for this separate Code-OSS build. Start the backend explicitly with a known secret as above. Do not run two local backends on port 8000.
 

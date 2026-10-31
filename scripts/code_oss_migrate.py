@@ -64,6 +64,7 @@ def branded_product(original: dict) -> dict:
         "linuxDesktopName": "dev.autonomous.AgenticWorkbench",
         "linuxIconName": "agentic-workbench",
         "urlProtocol": "agentic-workbench",
+        "reportIssueUrl": "https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/issues/new",
         "serverApplicationName": "agentic-workbench-server",
         "serverDataFolderName": ".agentic-workbench-server",
         "tunnelApplicationName": "agentic-workbench-tunnel",

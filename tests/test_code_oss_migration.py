@@ -39,6 +39,7 @@ def test_overlay_writes_only_first_party_extension_and_validates(tmp_path):
     manifest=json.loads((source/"extensions"/"agentic-local"/"package.json").read_text())
     assert manifest["publisher"]=="agentic-workbench"
     assert manifest["main"]=="./extension.js"
+    assert manifest["extensionKind"]==["ui"]
     assert (source/"extensions"/"agentic-local"/"extension.js").is_file()
     # Source files are linked in this repository, never mistaken for upstream.
     assert (migration.EXTENSION/"extension.js").read_bytes()==(source/"extensions"/"agentic-local"/"extension.js").read_bytes()
