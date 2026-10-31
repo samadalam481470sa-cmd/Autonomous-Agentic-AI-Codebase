@@ -26,6 +26,8 @@ from .voice import router as local_voice_router
 app.include_router(local_voice_router)
 from .learning import router as learning_router
 app.include_router(learning_router)
+from .repair_trial import router as repair_trial_router
+app.include_router(repair_trial_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
