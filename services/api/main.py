@@ -24,6 +24,8 @@ from .multi_file_agent import router as multi_file_agent_router
 app.include_router(multi_file_agent_router)
 from .voice import router as local_voice_router
 app.include_router(local_voice_router)
+from .learning import router as learning_router
+app.include_router(learning_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
