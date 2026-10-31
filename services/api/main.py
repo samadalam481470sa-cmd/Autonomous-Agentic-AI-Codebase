@@ -5,7 +5,9 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from .engine import history, respond, tool, workspace
 
-app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.1.0")
+app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.2.0")
+from .studio import router as studio_router
+app.include_router(studio_router)
 WEB=Path(__file__).resolve().parents[2]/"apps"/"web"/"index.html"
 class ChatRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
@@ -19,15 +21,18 @@ def home(): return WEB.read_text()
 @app.get("/health")
 def health(): return {"status":"ok"}
 @app.get("/api/projects/{project}/history")
-def get_history(project:str):
+def get_history(project:str, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
     try: workspace(project);return {"messages":history(project)}
     except ValueError as e: raise HTTPException(400,str(e))
 @app.post("/api/chat")
-async def chat(body:ChatRequest):
+async def chat(body:ChatRequest, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
     try: return {"answer":await respond(body.project,body.message)}
     except Exception as e: raise HTTPException(502,"Model provider error: "+type(e).__name__)
 @app.post("/api/tool")
-def execute(body:ToolRequest):
+def execute(body:ToolRequest, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
     if body.name=="run_command": raise HTTPException(403,"Commands cannot be invoked via the public tool endpoint")
     try: return {"result":tool(body.project,body.name,body.arguments)}
     except ValueError as e: raise HTTPException(400,str(e))
@@ -71,3 +76,8 @@ def get_project_plan(project: str, authorization: str | None = Header(default=No
         return load_plan(project)
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(404, str(exc))
+
+
+@app.get("/studio",response_class=HTMLResponse)
+def studio_page():
+    return (WEB.parent/"studio.html").read_text(encoding="utf-8")
