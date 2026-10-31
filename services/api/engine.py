@@ -70,9 +70,14 @@ def tool(project,name,args):
         return "Tool error: "+str(e)
 
 def db():
+    """Local single-user persistence with WAL, busy timeout and indexed history."""
     DB.parent.mkdir(parents=True,exist_ok=True)
-    con=sqlite3.connect(DB)
+    con=sqlite3.connect(DB,timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    con.execute("PRAGMA journal_mode=WAL")
+    con.execute("PRAGMA foreign_keys=ON")
     con.execute("CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, project TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_messages_project_history ON messages(project,created_at DESC,id DESC)")
     return con
 
 def history(project):
