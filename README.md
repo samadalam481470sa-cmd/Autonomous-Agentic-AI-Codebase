@@ -1,15 +1,25 @@
 # Autonomous Agentic AI Codebase
 
-A self-hostable, original **agentic coding assistant** foundation. Inspired by the workflows of ChatGPT, Claude, and Cursor, but not affiliated with or a copy of their proprietary software.
+A self-hostable **agentic coding assistant** with original application code and a separately licensed upstream editor component. Inspired by the workflows of ChatGPT, Claude, and Cursor, but not affiliated with or a copy of their proprietary software.
+
+## Verified scale and current build status
+
+- **324,257 licensed upstream Monaco Editor source lines** were committed from Microsoft Monaco v0.57.0 (MIT), verified by [the vendor workflow](https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/actions/workflows/vendor-monaco.yml). These are not first-party authored lines. Run `python scripts/code_metrics.py` for separate line counts.
+- **One-million-line SQLite FTS5 indexing test passed** on a generated 1,000-file sample. Measured initial index **4.406 seconds**, search **0.013 seconds**, unchanged reindex **0.052 seconds** on GitHub's Linux runner. This validates lexical indexing only, not autonomous full-repository comprehension. [Benchmark workflow](https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/actions/workflows/million-line-benchmark.yml).
+- Desktop setup now probes each installed local llama-server for actual available GPU backends; Auto selects `-ngl auto` when GPU devices are confirmed and otherwise uses CPU. If GPU startup fails, the app retries CPU. No cloud GPU is required; an appropriate backend, driver and licensed GGUF model are still prerequisites.
+- Desktop installers are unsigned experimental artifacts; consult [GitHub Actions](https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/actions) and [Releases](https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/releases) for verified build states, and test on a clean machine before distributing.
 
 ## Working features
 - Chat workspace with project selection and saved conversations
 - OpenAI-compatible model gateway (works with compatible hosted or local endpoints)
 - Multi-step tool-use loop with explicit tool schema and bounded iterations
-- Read, list, write and search workspace files; command execution only with explicit opt-in
+- Read, list and search workspace files; AI edits are proposed as diffs and require approval before applying
 - Workspace path containment and human confirmation for shell commands
-- SQLite persistence, FastAPI HTTP API, React-free standalone TypeScript-ready web shell
-- Unit tests and GitHub CI
+- SQLite persistence, incremental FTS5 code index, FastAPI HTTP API, offline Monaco Editor integration
+- Bounded multi-file coding trials, explicit Docker-based test approval and up to three offline retries
+- Optional local microphone transcription with whisper.cpp, separately run AgenticSeek browsing adapter, and SQLite feedback evaluation
+- Optional local CUDA LoRA training script with held-out regression gate and versioned adapter rollback (not automatic GGUF loading)
+- Unit tests, local hardware tests, GitHub CI, and a million-line index benchmark
 
 ## Start
 
@@ -43,11 +53,11 @@ docs/                    Architecture and roadmap
 
 ## Open source and legal provenance
 
-This repository contains original implementation code. Study external projects' architecture and APIs, but do not reproduce proprietary ChatGPT, Claude, Cursor, or Microsoft source or branding. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed; third-party dependencies require license review and preservation of notices. No third-party source is vendored here.
+This repository contains original app implementation and a **separately attributed MIT-licensed Monaco Editor source snapshot** in `third_party/monaco-editor`. Monaco's original copyright, MIT license and third-party notices are preserved. The compiled editor is built locally from the corresponding pinned npm release. Do not represent vendored Monaco lines as originally authored app code. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed; third-party dependencies require license review and preservation of notices. See [upstream provenance and code size](docs/REPOSITORY_CODE_SIZE.md).
 
 ## Scope
 
-This is an initial **working foundation**, not a million-line implementation or a feature-complete ChatGPT/Cursor replacement. A million lines of code is a possible long-term scale, not a measure of product quality. See docs/ROADMAP.md for phased milestones.
+This is an **experimental developer preview**, not a million-line first-party implementation or a feature-complete ChatGPT/Cursor replacement. A million lines of code is a possible long-term scale, not a measure of product quality. See docs/ROADMAP.md for phased milestones.
 
 ## Optional AgenticSeek integration
 
@@ -59,13 +69,13 @@ An opt-in, separate-process bridge is available. Review [integration and licensi
 
 Set `AGENT_ADMIN_TOKEN` to a strong random secret in `.env` or your process environment. Start the app and visit **http://127.0.0.1:8000/studio**. Enter the admin token, select a project, refresh files, open or create a file, edit its contents, click **Review diff**, then **Approve & save**. HTML preview uses a sandboxed iframe with scripts disabled. The chat workspace also requires the same token.
 
-**Security boundaries:** This is an authenticated local development console, not a multi-user IDE. The browser token is held in page memory. The model's existing file-writing tool is not subject to Studio's human-approval workflow; do not connect untrusted models or users. The HTML preview is not an OS-level sandbox. Arbitrary command execution remains disabled by default, and a hardened per-task container execution service is **not yet implemented**. GitHub integration, PR creation and resumable background jobs are also future work.
+**Security boundaries:** This is an authenticated local development console, not a multi-user IDE. The browser token is held in page memory. Direct model file-writing tools are disabled; Studio and batch proposals require explicit approval. Do not connect untrusted models or users. The HTML preview is not an OS-level sandbox. Allowlisted Docker execution requires an explicit approval header and remains disabled by default. Docker containment is not a complete security boundary against container escapes. GitHub integration, PR creation and resumable background jobs are also future work.
 
 ## Desktop IDE and controlled execution (new)
 
 The Electron desktop client in [apps/desktop](apps/desktop) opens the local Code Studio and can be packaged for Windows, macOS, and Linux. See [desktop and execution setup](docs/DESKTOP_AND_EXECUTION.md). A minimal VS Code bridge lives in [apps/vscode-extension](apps/vscode-extension). The optional execution endpoint uses a locked-down Docker container with an explicit allowlist, a user approval header, no networking, and resource limits. It is disabled by default.
 
-**Security change:** AI tool calls can no longer directly write project files or execute host commands. Human-approved edits remain available in Code Studio. This limits the current agent's autonomous coding ability until an approved patch-proposal workflow is added. Do not describe this as feature parity with Cursor, a standalone installer, or a production-secure autonomous agent. GitHub Actions includes a manual desktop packaging workflow; unsigned installers must be evaluated before distribution.
+**Security change:** AI tool calls can no longer directly write project files or execute host commands. Human-approved edits, one-file/multi-file proposals, and bounded local test-retry workflows are available in Code Studio. Do not describe this as feature parity with Cursor, a standalone installer, or a production-secure autonomous agent. GitHub Actions includes a manual desktop packaging workflow; unsigned installers must be evaluated before distribution.
 
 ## Local GPU inference and multi-language database development
 
