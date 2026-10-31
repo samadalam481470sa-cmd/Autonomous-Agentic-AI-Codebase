@@ -31,3 +31,43 @@ def execute(body:ToolRequest):
     if body.name=="run_command": raise HTTPException(403,"Commands cannot be invoked via the public tool endpoint")
     try: return {"result":tool(body.project,body.name,body.arguments)}
     except ValueError as e: raise HTTPException(400,str(e))
+
+
+# Optional, explicitly authorized delegation to an independently deployed agent.
+import hmac
+import os
+from fastapi import Header
+from .agenticseek import delegate, AgenticSeekUnavailable
+from .agents import plan as create_plan, load as load_plan
+
+
+def require_admin(authorization: str | None):
+    secret = os.getenv('AGENT_ADMIN_TOKEN', '')
+    if not secret or not authorization or not hmac.compare_digest(authorization, 'Bearer ' + secret):
+        raise HTTPException(403, 'Agent admin token required; set AGENT_ADMIN_TOKEN')
+
+@app.post('/api/integrations/agenticseek/query')
+async def agenticseek_query(body: ChatRequest, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
+    try:
+        return await delegate(body.message)
+    except AgenticSeekUnavailable as exc:
+        raise HTTPException(503, str(exc))
+    except Exception:
+        raise HTTPException(502, 'External agent unavailable')
+
+@app.post('/api/projects/plan')
+def create_project_plan(body: ChatRequest, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
+    try:
+        return create_plan(body.project, body.message)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+@app.get('/api/projects/{project}/plan')
+def get_project_plan(project: str, authorization: str | None = Header(default=None)):
+    require_admin(authorization)
+    try:
+        return load_plan(project)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(404, str(exc))
