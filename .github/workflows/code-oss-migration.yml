@@ -35,4 +35,4 @@ jobs:
       - name: Report scope
         run: |
           echo "Source overlay preparation passed; no full upstream Code-OSS desktop compile was run."
-          git -C .local/code-oss rev-parse HEAD
+          git -C upstream/code-oss rev-parse HEAD
