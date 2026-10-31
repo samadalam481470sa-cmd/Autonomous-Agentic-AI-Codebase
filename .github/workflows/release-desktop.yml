@@ -1,0 +1,48 @@
+name: Stage desktop beta release
+on:
+  workflow_run:
+    workflows: ["Desktop packaging"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Successful desktop packaging workflow run ID"
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  draft:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect successful build artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.run_id || github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          gh run download "$RUN_ID" -R "$REPO" -D staging
+          find staging -type f -maxdepth 3 -print
+          test -d staging/desktop-windows-latest
+          test -d staging/desktop-macos-latest
+          test -d staging/desktop-ubuntu-latest
+          find staging -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' \) -print > installers.txt
+          test "$(wc -l < installers.txt)" -ge 3
+          mkdir -p release-files
+          while IFS= read -r file; do cp "$file" "release-files/$(basename "$file")"; done < installers.txt
+          cd release-files
+          sha256sum * > SHA256SUMS.txt
+      - name: Create draft prerelease with installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.run_id || github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="desktop-beta-build-$RUN_ID"
+          gh release create "$tag" release-files/* -R "$REPO" --draft --prerelease --title "Autonomous Agentic AI desktop beta (build $RUN_ID)" --notes "UNSIGNED EXPERIMENTAL BUILD. Not production verified. Requires a separately installed compatible llama.cpp server and GGUF model. Check hardware support, source and SHA256SUMS before running. This release is a draft pending manual clean-machine testing."
