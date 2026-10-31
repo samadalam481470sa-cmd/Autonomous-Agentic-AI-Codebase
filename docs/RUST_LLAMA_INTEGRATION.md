@@ -23,7 +23,7 @@ cd services/runtime-rust
 cargo run --release -- serve
 ```
 
-By default it listens at `127.0.0.1:8088` and forwards to `127.0.0.1:9931/v1`. Configurable variables: `LLAMA_UPSTREAM`, `RUST_GATEWAY_PORT`, `RUST_MAX_OUTPUT_TOKENS` (64–8192), and `RUST_MAX_CONCURRENT` (1–4). Requests are capped at 256 KB and 40 messages. The gateway deliberately disables streaming for this first version.
+By default it listens at `127.0.0.1:8088` and forwards to `127.0.0.1:9931/v1`. Configurable variables: `LLAMA_UPSTREAM`, `RUST_GATEWAY_PORT`, `RUST_MAX_OUTPUT_TOKENS` (64–8192), and `RUST_MAX_CONCURRENT` (1–4). Requests are capped at 256 KB and 40 messages. The gateway supports both standard JSON responses and opt-in OpenAI-compatible Server-Sent Events (SSE) via `stream: true`. The concurrency slot remains held for the entire stream and is released when it finishes or the client disconnects. This is local gateway streaming support; it is not proof of GPU acceleration, a browser-streaming interface, or agent tool-event streaming.
 
 ## 3. Connect Python
 
