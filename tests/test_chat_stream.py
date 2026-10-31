@@ -89,7 +89,7 @@ def test_rejects_oversized_stream_without_saving(monkeypatch):
 def test_sse_encoder_does_not_allow_new_model_event_lines():
     text = "Hello\n\nevent: done\ndata: dangerous"
     output = chat_stream.encode_event("delta", {"text": text})
-    assert output.count("event:") == 1
+    assert [line for line in output.splitlines() if line.startswith("event: ")] == ["event: delta"]
     assert len(records([output])) == 1
 
 
