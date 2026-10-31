@@ -43,7 +43,7 @@ async function create(token){
  win=new BrowserWindow({width:1440,height:920,minWidth:900,minHeight:620,backgroundColor:'#0c1220',webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,preload:path.join(__dirname,'preload.cjs')}});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(event,url)=>{if(!url.startsWith(SERVER+'/'))event.preventDefault()});
- win.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
+ win.webContents.session.setPermissionRequestHandler((wc,permission,callback,details)=>{const types=details?.mediaTypes||[];const isAudioOnly=permission==='media'&&types.includes('audio')&&!types.includes('video');const sameOrigin=wc.getURL().startsWith(SERVER+'/');callback(Boolean(isAudioOnly&&sameOrigin));});
  await win.loadURL(SERVER+'/studio');
  await win.webContents.executeJavaScript("document.getElementById('token').value="+JSON.stringify(token)+";document.getElementById('refresh').click();");
 }
