@@ -1,0 +1,33 @@
+name: Publish GitHub Package
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/client/**'
+      - '.github/workflows/publish-client-package.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@samadalam481470sa-cmd'
+      - name: Check package syntax
+        run: node --check packages/client/index.js
+      - name: Validate package metadata
+        working-directory: packages/client
+        run: npm pack --dry-run
+      - name: Publish package to GitHub Packages
+        working-directory: packages/client
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

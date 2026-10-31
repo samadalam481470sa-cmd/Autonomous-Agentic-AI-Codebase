@@ -1,0 +1,23 @@
+{
+  "name": "@samadalam481470sa-cmd/autonomous-agentic-ai-client",
+  "version": "0.1.0",
+  "description": "Typed-free lightweight client for the Autonomous Agentic AI local backend",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
