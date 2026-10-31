@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/benchmark_million_line_index.py'
+      - 'services/api/code_index.py'
       - '.github/workflows/million-line-benchmark.yml'
   workflow_dispatch:
 permissions:

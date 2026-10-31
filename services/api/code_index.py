@@ -118,11 +118,11 @@ def index_project(project, max_files=10000):
                 "max_files": max_files}
 
 def search_project(project, query, limit=30):
-    terms = re.findall(r"[^\W_]{2,}[\w]*", query, flags=re.UNICODE)[:12]
+    terms = re.findall(r"[^\W_]{2,}", query, flags=re.UNICODE)[:12]
     if not terms:
         return []
     # Always quote tokens so user input cannot become FTS5 query operators.
-    expression = " OR ".join('"' + item.replace('"', '""') + '"' for item in terms)
+    expression = " AND ".join('"' + item.replace('"', '""') + '"' for item in terms)
     with closing(db(project)) as con:
         rows = con.execute(
             "SELECT path,line,snippet(chunks,2,'[',']','...',20) AS excerpt,bm25(chunks) AS score "
