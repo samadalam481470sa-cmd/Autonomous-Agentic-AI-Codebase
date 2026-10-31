@@ -13,9 +13,8 @@ DB = Path(os.getenv("DB_PATH", "./database/agent.sqlite3")).resolve()
 TOOLS = [
  {"type":"function","function":{"name":"list_files","description":"List project files","parameters":{"type":"object","properties":{"path":{"type":"string"}}}}},
  {"type":"function","function":{"name":"read_file","description":"Read UTF-8 file","parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
- {"type":"function","function":{"name":"write_file","description":"Write UTF-8 file","parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
- {"type":"function","function":{"name":"search_files","description":"Search text in project files","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
- {"type":"function","function":{"name":"run_command","description":"Run command only when operator enabled it; never automatically on untrusted installations","parameters":{"type":"object","properties":{"command":{"type":"string"}},"required":["command"]}}}
+ 
+ {"type":"function","function":{"name":"search_files","description":"Search text in project files","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}
 ]
 def workspace(project):
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}",project): raise ValueError("Invalid project name")
@@ -30,6 +29,9 @@ def safe_path(project,path):
     return result
 
 def tool(project,name,args):
+    if name in ("write_file","run_command"):
+        return "Direct agent writes and host commands are disabled. Use the authenticated Studio diff/approval workflow or approved isolated execution endpoint."
+
     try:
         if name=="list_files":
             p=safe_path(project,args.get("path","."))
