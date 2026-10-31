@@ -11,6 +11,10 @@ on:
       - 'scripts/build_backend.py'
       - 'scripts/desktop_backend.py'
       - 'services/runtime-rust/**'
+      - 'services/api/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
       - '.github/workflows/desktop.yml'
 permissions:
   contents: read
