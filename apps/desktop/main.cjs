@@ -11,7 +11,7 @@ const SERVER='http://127.0.0.1:8000';
 let win,backend,modelServer,rustGateway,starting=false,adminToken='';
 function backendPath(){
  const exe=process.platform==='win32'?'agentic-backend.exe':'agentic-backend';
- return app.isPackaged?path.join(process.resourcesPath,'backend','agentic-backend',exe):path.resolve(__dirname,'../../dist/backend/agentic-backend',exe);
+ return app.isPackaged?path.join(process.resourcesPath,'backend',exe):path.resolve(__dirname,'../../dist/backend',exe);
 }
 function checkReady(){
  return new Promise(resolve=>{
