@@ -22,14 +22,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Checkout pinned MIT Code-OSS source and apply first-party extension overlay
-        run: python scripts/code_oss_migrate.py --source .local/code-oss --clone
+      - name: Initialize pinned MIT Code-OSS git submodule
+        run: git submodule update --init --depth 1 upstream/code-oss
+      - name: Apply original Agentic Workbench branding and extension overlay
+        run: python scripts/code_oss_migrate.py
       - name: Check upstream commit, branded product, Open VSX and extension copies
-        run: python scripts/code_oss_migrate.py --source .local/code-oss --verify
+        run: python scripts/code_oss_migrate.py --verify
       - name: Validate extension-host JavaScript
         run: |
-          node --check .local/code-oss/extensions/agentic-local/extension.js
-          node --test .local/code-oss/extensions/agentic-local/sse.test.cjs
+          node --check upstream/code-oss/extensions/agentic-local/extension.js
+          node --test upstream/code-oss/extensions/agentic-local/sse.test.cjs
       - name: Report scope
         run: |
           echo "Source overlay preparation passed; no full upstream Code-OSS desktop compile was run."
