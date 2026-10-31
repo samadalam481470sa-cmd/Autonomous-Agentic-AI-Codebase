@@ -30,7 +30,7 @@ jobs:
       - name: Install native Code-OSS build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libx11-dev libxkbfile-dev libxkbcommon-dev libkrb5-dev
+          sudo apt-get install -y libsecret-1-dev libx11-dev libxkbfile-dev libxkbcommon-dev libkrb5-dev xvfb xauth libgtk-3-0 libnss3 libasound2t64 libgbm1
           df -h .
       - name: Initialize pinned MIT Code-OSS workbench
         run: git submodule update --init --depth 1 upstream/code-oss
@@ -73,6 +73,36 @@ jobs:
           PY
       - name: Archive experimental unsigned Linux workbench
         run: tar -C upstream -czf agentic-workbench-code-oss-linux-x64.tar.gz VSCode-linux-x64
+      - name: Install compiled Code-OSS IDE in a fresh test directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/agentic-ide-install"
+          mkdir -p "$prefix"
+          tar -xzf agentic-workbench-code-oss-linux-x64.tar.gz -C "$prefix"
+          echo "AGENTIC_IDE_TEST_PREFIX=$prefix/VSCode-linux-x64" >> "$GITHUB_ENV"
+      - name: Verify installed binary and launch headless Linux workbench
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$AGENTIC_IDE_TEST_PREFIX"
+          test -x "$root/bin/agentic-workbench"
+          test -x "$root/agentic-workbench"
+          test -f "$root/resources/app/extensions/agentic-local/extension.js"
+          test ! -d "$root/resources/app/extensions/copilot"
+          echo "Installed Code-OSS CLI version:"
+          xvfb-run -a "$root/bin/agentic-workbench" --no-sandbox --version
+          echo "Smoke testing actual Electron workbench startup with isolated local profile"
+          mkdir -p "$RUNNER_TEMP/agentic-smoke-user" "$RUNNER_TEMP/agentic-smoke-extensions" "$RUNNER_TEMP/agentic-smoke-project"
+          set +e
+          xvfb-run -a timeout --signal=TERM 15s "$root/agentic-workbench" --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-updates --skip-welcome --skip-release-notes --new-window --user-data-dir="$RUNNER_TEMP/agentic-smoke-user" --extensions-dir="$RUNNER_TEMP/agentic-smoke-extensions" "$RUNNER_TEMP/agentic-smoke-project"
+          status=$?
+          set -e
+          if [ "$status" -ne 124 ]; then
+            echo "Electron exited before smoke-test interval (status $status)."
+            exit 1
+          fi
+          echo "Electron remained running for the smoke-test interval."
       - uses: actions/upload-artifact@v4
         with:
           name: agentic-workbench-code-oss-linux-x64

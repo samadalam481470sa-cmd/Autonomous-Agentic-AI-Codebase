@@ -38,10 +38,10 @@ def create_upstream_build(source):
     build = source / "build"
     build.mkdir(parents=True)
     (build / "gulpfile.vscode.ts").write_text(
-        "const tasks = [\\n"
-        "            compileCopilotExtensionBuildTask,\\n"
-        "            prepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)\\n"
-        "];\\n",
+        "const tasks = [\n"
+        "\t\t\tcompileCopilotExtensionBuildTask,\n"
+        "\t\t\tprepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)\n"
+        "];\n",
         encoding="utf-8",
     )
     migration.patch_local_first_build(source)
@@ -82,8 +82,8 @@ def test_local_first_build_patch_idempotent_and_rejects_unpatched(tmp_path):
     build.mkdir(parents=True)
     file=build/"gulpfile.vscode.ts"
     file.write_text(
-        "        compileCopilotExtensionBuildTask,\\n"
-        "        prepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)\\n"
+        "\t\t\tcompileCopilotExtensionBuildTask,\n"
+        "\t\t\tprepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)\n"
     )
     with pytest.raises(RuntimeError,match="Hosted Copilot"):
         migration.check_local_first_build(source)
