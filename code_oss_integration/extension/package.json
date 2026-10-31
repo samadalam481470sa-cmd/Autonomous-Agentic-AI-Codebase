@@ -1,0 +1,76 @@
+{
+  "name": "agentic-local",
+  "publisher": "agentic-workbench",
+  "displayName": "Agentic Local AI",
+  "description": "Private local AI chat inside the Code-OSS workbench",
+  "version": "0.1.0",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.144.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onView:agenticLocal.chat",
+    "onCommand:agenticLocal.connect",
+    "onCommand:agenticLocal.askSelection"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Requires an independently running local model service and an explicitly provided admin token."
+    }
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agenticLocal",
+          "title": "Local AI",
+          "icon": "media/agent.svg"
+        }
+      ]
+    },
+    "views": {
+      "agenticLocal": [
+        {
+          "id": "agenticLocal.chat",
+          "name": "Local AI Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agenticLocal.connect",
+        "title": "Local AI: Connect to This Computer"
+      },
+      {
+        "command": "agenticLocal.askSelection",
+        "title": "Local AI: Explain Selection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "agenticLocal.askSelection",
+          "when": "editorHasSelection",
+          "group": "navigation@20"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Agentic Local AI",
+      "properties": {
+        "agenticLocal.project": {
+          "type": "string",
+          "default": "demo",
+          "description": "Project name in the local backend (letters, numbers, underscores, hyphens only)."
+        },
+        "agenticLocal.endpoint": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000",
+          "description": "Loopback FastAPI endpoint; non-loopback endpoints are deliberately rejected."
+        }
+      }
+    }
+  }
+}
