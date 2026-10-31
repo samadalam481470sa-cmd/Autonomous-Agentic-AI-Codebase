@@ -44,6 +44,10 @@ jobs:
           node-version: '22'
       - uses: dtolnay/rust-toolchain@stable
       - run: python -m pip install -r requirements.txt pyinstaller 'pytest>=8,<10'
+      - name: Install offline Monaco editor build dependencies
+        run: npm install --prefix apps/web --no-audit --no-fund
+      - name: Bundle Monaco and local language workers
+        run: npm run build --prefix apps/web
       - run: python scripts/build_backend.py
       - run: python -m pytest -q
       - run: node --test apps/desktop/hardware.test.cjs

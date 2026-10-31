@@ -2,6 +2,7 @@
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .engine import history, respond, tool, workspace
 
@@ -31,6 +32,7 @@ app.include_router(repair_trial_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
+app.mount('/assets',StaticFiles(directory=str(WEB.parent/'assets')),name='assets')
 class ChatRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     message:str=Field(min_length=1,max_length=12000)
