@@ -12,7 +12,7 @@ def test_file_roundtrip(tmp_path,monkeypatch):
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text("hello world")
     assert engine.tool("demo","read_file",{"path":"src/app.py"})=="hello world"
-    assert "src/app.py" in engine.tool("demo","list_files",{})
+    assert "src/app.py" in engine.tool("demo","list_files",{}).replace("\\\\","/")
     assert "hello world" in engine.tool("demo","search_files",{"query":"hello"})
 def test_commands_disabled(tmp_path,monkeypatch):
     monkeypatch.setattr(engine,"ROOT",tmp_path)
