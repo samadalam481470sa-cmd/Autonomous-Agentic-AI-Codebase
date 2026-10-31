@@ -9,7 +9,7 @@ def original():
         "nameShort":"Code - OSS","nameLong":"Code - OSS",
         "applicationName":"code-oss","licenseName":"MIT",
         "win32x64AppId":"{old}","defaultChatAgent":{"extensionId":"old"},
-        "voiceWsUrl":"wss://vendor.example","retainMe":"untouched",
+        "voiceWsUrl":"wss://vendor.example","retainMe":"untouched","linuxIconName":"code-oss",
     }
 
 def test_branded_product_removes_service_defaults_but_preserves_license():
@@ -18,7 +18,11 @@ def test_branded_product_removes_service_defaults_but_preserves_license():
     assert product["applicationName"]=="agentic-workbench"
     assert product["licenseName"]=="MIT"
     assert product["retainMe"]=="untouched"
+    assert product["win32x64AppId"].startswith("{{")
+    assert product["win32x64AppId"].endswith("}")
     assert product["win32x64AppId"]!="{old}"
+    assert product["darwinProfileUUID"].count("-")==4
+    assert product["linuxIconName"]=="code-oss"
     assert product["extensionsGallery"]["serviceUrl"]=="https://open-vsx.org/vscode/gallery"
     assert "defaultChatAgent" not in product
     assert "voiceWsUrl" not in product

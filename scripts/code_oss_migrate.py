@@ -62,7 +62,6 @@ def branded_product(original: dict) -> dict:
         "win32AppUserModelId": "Agentic.Workbench",
         "darwinBundleIdentifier": "dev.autonomous.agenticworkbench",
         "linuxDesktopName": "dev.autonomous.AgenticWorkbench",
-        "linuxIconName": "agentic-workbench",
         "urlProtocol": "agentic-workbench",
         "reportIssueUrl": "https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/issues/new",
         "serverApplicationName": "agentic-workbench-server",
@@ -76,10 +75,15 @@ def branded_product(original: dict) -> dict:
     })
     # Stable UUIDs avoid collision with the stock Code-OSS distribution.
     for field in (
-        "win32x64AppId", "win32arm64AppId", "win32x64UserAppId",
-        "win32arm64UserAppId", "darwinProfileUUID", "darwinProfilePayloadUUID",
+        "win32x64AppId", "win32arm64AppId",
+        "win32x64UserAppId", "win32arm64UserAppId",
     ):
-        result[field] = "{" + str(uuid.uuid5(uuid.NAMESPACE_DNS, f"agentic-workbench:{field}")).upper() + "}"
+        # Upstream Inno Setup AppId strings use the '{{UUID}' syntax.
+        generated = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"agentic-workbench:{field}")).upper()
+        result[field] = "{{" + generated + "}"
+    for field in ("darwinProfileUUID", "darwinProfilePayloadUUID"):
+        # macOS profile identifiers are bare UUIDs (no enclosing braces).
+        result[field] = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"agentic-workbench:{field}")).upper()
     # These upstream fields refer to product-specific hosted services that
     # are not a capability of this independent local-first distribution.
     for field in ("defaultChatAgent", "voiceWsUrl", "agentsTelemetryAppName",
