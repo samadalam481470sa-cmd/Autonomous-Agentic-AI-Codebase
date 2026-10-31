@@ -1,2 +1,50 @@
-# Autonomous-Agentic-AI-Codebase
-Aetherion OmniForge AI is an enterprise-grade autonomous multi-agent AI engineering platform that plans, codes, tests, debugs, and builds full-stack applications, dashboards, and automation workflows. Built with React, TypeScript, Rust, Python, Go, PostgreSQL, Redis, Docker, and Kubernetes, featuring secure tool execution, LLM orchestration etc.
+# Autonomous Agentic AI Codebase
+
+A self-hostable, original **agentic coding assistant** foundation. Inspired by the workflows of ChatGPT, Claude, and Cursor, but not affiliated with or a copy of their proprietary software.
+
+## Working features
+- Chat workspace with project selection and saved conversations
+- OpenAI-compatible model gateway (works with compatible hosted or local endpoints)
+- Multi-step tool-use loop with explicit tool schema and bounded iterations
+- Read, list, write and search workspace files; command execution only with explicit opt-in
+- Workspace path containment and human confirmation for shell commands
+- SQLite persistence, FastAPI HTTP API, React-free standalone TypeScript-ready web shell
+- Unit tests and GitHub CI
+
+## Start
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+python -m uvicorn services.api.main:app --reload
+```
+
+Open http://127.0.0.1:8000. Set MODEL_API_KEY, MODEL_BASE_URL, MODEL_NAME for real LLM responses. For a local model, point MODEL_BASE_URL at its compatible API.
+
+**Security:** Command execution is disabled unless ALLOW_COMMANDS=1. If enabled, commands are run on the host; **do not enable for untrusted users**. This prototype is not a secure execution sandbox. Production requires isolated per-task containers or VMs, egress restrictions, authentication, tenant isolation, approval workflows, rate limits, and security review.
+
+## Project architecture
+
+```text
+apps/web/                Browser chat/agent interface
+services/api/            FastAPI, model gateway, agent tools, storage
+services/worker/         Reserved for durable background execution
+services/runtime-rust/   Reserved for hardened execution engine
+packages/contracts/      Shared tool and API contracts
+database/                Local SQLite (dev only)
+infrastructure/          Docker deployment
+security/                Security policy and risk register
+tests/                   Automated tests
+docs/                    Architecture and roadmap
+.github/workflows/       CI
+```
+
+## Open source and legal provenance
+
+This repository contains original implementation code. Study external projects' architecture and APIs, but do not reproduce proprietary ChatGPT, Claude, Cursor, or Microsoft source or branding. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed; third-party dependencies require license review and preservation of notices. No third-party source is vendored here.
+
+## Scope
+
+This is an initial **working foundation**, not a million-line implementation or a feature-complete ChatGPT/Cursor replacement. A million lines of code is a possible long-term scale, not a measure of product quality. See docs/ROADMAP.md for phased milestones.
