@@ -1,0 +1,6 @@
+# Optional only: install in a separate environment with a compatible local CUDA GPU.
+# The Electron installers do not bundle large GPU training libraries or weights.
+torch>=2.3,<3
+transformers>=4.46,<5
+peft>=0.13,<1
+safetensors>=0.4,<1
