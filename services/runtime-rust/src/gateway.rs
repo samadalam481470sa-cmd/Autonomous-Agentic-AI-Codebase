@@ -26,12 +26,12 @@ fn parse_upstream(raw:&str)->Result<String,String>{
     Ok(raw.trim_end_matches('/').to_string())
 }
 fn sanitize(mut value:Value,max_output:u64)->Result<Value,String>{
-    let obj=value.as_object_mut().ok_or("Expected JSON object")?;
-    let messages=obj.get("messages").and_then(Value::as_array).ok_or("messages must be an array")?;
-    if messages.is_empty() || messages.len()>40{return Err("Message count out of range".into());}
     if serde_json::to_vec(&value).map_err(|e|e.to_string())?.len()>256_000 {
         return Err("Request exceeds 256 KB".into());
     }
+    let obj=value.as_object_mut().ok_or("Expected JSON object")?;
+    let messages=obj.get("messages").and_then(Value::as_array).ok_or("messages must be an array")?;
+    if messages.is_empty() || messages.len()>40{return Err("Message count out of range".into());}
     obj.insert("stream".into(),Value::Bool(false));
     let asked=obj.get("max_tokens").and_then(Value::as_u64).unwrap_or(max_output);
     obj.insert("max_tokens".into(),json!(asked.clamp(1,max_output)));
