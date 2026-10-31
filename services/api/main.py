@@ -10,6 +10,10 @@ from .studio import router as studio_router
 app.include_router(studio_router)
 from .execution import router as execution_router
 app.include_router(execution_router)
+from .languages import router as languages_router
+from .local_model import router as local_model_router
+app.include_router(languages_router)
+app.include_router(local_model_router)
 WEB=Path(__file__).resolve().parents[2]/"apps"/"web"/"index.html"
 class ChatRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
