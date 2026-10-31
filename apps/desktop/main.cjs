@@ -56,6 +56,10 @@ async function setupWindow(){
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  await win.loadFile(path.join(__dirname,'setup.html'));
 }
+function requireSetup(event){
+ const sender=BrowserWindow.fromWebContents(event.sender);
+ if(!sender||sender!==win||!event.sender.getURL().startsWith('file://')||!event.sender.getURL().endsWith('/setup.html'))throw new Error('Setup-only action');
+}
 function trustedModelURL(value){
  const u=new URL(value);
  const h=u.hostname.toLowerCase();
@@ -80,7 +84,8 @@ async function requestModel(url,redirects=0){
   req.on('error',reject);
  });
 }
-ipcMain.handle('download-model',async (_event,details)=>{
+ipcMain.handle('download-model',async (event,details)=>{
+ requireSetup(event);
  if(!details||details.licenseAccepted!==true)throw new Error('Confirm model license and download permission');
  if(typeof details.url!=='string'||typeof details.sha256!=='string'||!/^[a-f0-9]{64}$/i.test(details.sha256))throw new Error('A valid HTTPS URL and SHA256 checksum are required');
  const url=trustedModelURL(details.url);
@@ -104,12 +109,14 @@ ipcMain.handle('download-model',async (_event,details)=>{
   return destination;
  }catch(e){try{fs.unlinkSync(temporary)}catch(_){}throw e}
 });
-ipcMain.handle('choose-file',async (_event,kind)=>{
+ipcMain.handle('choose-file',async (event,kind)=>{
+ requireSetup(event);
  if(kind!=='model'&&kind!=='engine')throw new Error('Invalid file type');
  const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:kind==='model'?[{name:'GGUF model',extensions:['gguf']}]:[]});
  return result.canceled?null:result.filePaths[0];
 });
-ipcMain.handle('hardware',async()=>{
+ipcMain.handle('hardware',async(event)=>{
+ requireSetup(event);
  const result={platform:process.platform,architecture:process.arch,cpus:os.cpus().length,memoryGB:Math.round(os.totalmem()/1073741824)};
  if(process.platform==='darwin'&&process.arch==='arm64')result.gpu='Apple Silicon / Metal may be available';
  else result.gpu='Check vendor drivers and GPU compatibility';
@@ -131,7 +138,8 @@ function waitFor(url,timeoutMs=120000){
   reject(new Error('Local service did not become ready: '+url));
  });
 }
-ipcMain.handle('start-model',async (_event,settings)=>{
+ipcMain.handle('start-model',async (event,settings)=>{
+ requireSetup(event);
  if(modelServer||rustGateway)throw new Error('Model is already starting');
  if(!settings||typeof settings.model!=='string'||typeof settings.engine!=='string')throw new Error('Choose model and inference engine');
  const model=path.resolve(settings.model),engine=path.resolve(settings.engine);
@@ -152,7 +160,7 @@ ipcMain.handle('start-model',async (_event,settings)=>{
   throw e;
  }
 });
-ipcMain.handle('open-studio',async()=>{const old=win;await create(adminToken);if(old&&!old.isDestroyed())old.close();return true});
+ipcMain.handle('open-studio',async(event)=>{requireSetup(event);const old=win;await create(adminToken);if(old&&!old.isDestroyed())old.close();return true});
 app.whenReady().then(startBackend);
 app.on('before-quit',()=>{for(const p of [rustGateway,modelServer,backend])if(p&&!p.killed)p.kill()});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
