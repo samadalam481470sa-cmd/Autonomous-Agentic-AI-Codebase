@@ -6,7 +6,7 @@ The user-supplied `agenticSeek.zip` was inspected **statically** before integrat
 
 ## Design decision
 
-AgenticSeek is GPL-3.0; Microsoft's Agent Framework is MIT-licensed. To avoid silently relicensing the entire repository or copying code without preserving obligations, this repository **does not vendor or modify AgenticSeek**. Instead it contains an original, optional HTTP adapter calling AgenticSeek's documented `POST /query` API with `{query, tts_enabled:false}`. The adapter reads the answer, status, and agent name. This is a separate-process integration, not a guarantee about whether any particular deployment's distribution arrangement triggers GPL obligations; consult counsel if distributing a combined product.
+AgenticSeek is GPL-3.0; Microsoft's Agent Framework is MIT-licensed. To avoid silently relicensing the entire repository or copying code without preserving obligations, this repository **does not import or modify AgenticSeek inside the first-party runtime**. Its upstream GPL-3.0 source is separately referenced as the pinned optional Git submodule `upstream/agenticseek`, outside the application build. The uploaded ZIP is not copied or automatically executed. Instead it contains an original, optional HTTP adapter calling AgenticSeek's documented `POST /query` API with `{query, tts_enabled:false}`. The adapter reads the answer, status, and agent name. This is a separate-process integration, not a guarantee about whether any particular deployment's distribution arrangement triggers GPL obligations; consult counsel if distributing a combined product.
 
 ## Setup
 
@@ -16,7 +16,7 @@ AgenticSeek is GPL-3.0; Microsoft's Agent Framework is MIT-licensed. To avoid si
 4. Configure `AGENTICSEEK_URL=http://127.0.0.1:8001` and `AGENTICSEEK_API_TOKEN=<your-secret>` on this app.
 5. Invoke `POST /api/integrations/agenticseek/query` with `{project, message}` only on a **trusted, local** deployment. The adapter is opt-in and disabled when unconfigured.
 
-**Warning:** The integration endpoint is not yet authenticated. Do not expose this app to other users or networks. Delegated actions may cause side effects; this MVP has no per-action approval UI.
+**Warning:** The integration endpoint requires the local `AGENT_ADMIN_TOKEN` bearer administrator token, but this is not equivalent to per-action approvals or a secure execution sandbox. Do not expose this app to other users or networks. Delegated actions may cause side effects; this MVP has no per-action approval UI.
 
 ## Static scan observations
 
@@ -29,3 +29,5 @@ AgenticSeek is GPL-3.0; Microsoft's Agent Framework is MIT-licensed. To avoid si
 ## Future work
 
 Add authenticated access, human approvals, sandbox isolation, malware scanning (e.g. ClamAV and YARA), SBOM and dependency advisories, signed artifact provenance, and independent security testing before allowing arbitrary user-supplied agents.
+
+For uploaded artifact provenance and the distinct pinned upstream submodule, see [UPLOADED_SOURCE_PROVENANCE.md](UPLOADED_SOURCE_PROVENANCE.md). The upstream commit has not been established as byte-identical to the uploaded ZIP.
