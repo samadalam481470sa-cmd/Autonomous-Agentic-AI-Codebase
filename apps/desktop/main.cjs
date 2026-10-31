@@ -102,7 +102,7 @@ ipcMain.handle('start-model',async (_event,settings)=>{
   throw e;
  }
 });
-ipcMain.handle('open-studio',async()=>{if(win){win.close();win=null}await create(adminToken);return true});
+ipcMain.handle('open-studio',async()=>{const old=win;await create(adminToken);if(old&&!old.isDestroyed())old.close();return true});
 app.whenReady().then(startBackend);
 app.on('before-quit',()=>{for(const p of [rustGateway,modelServer,backend])if(p&&!p.killed)p.kill()});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
