@@ -1,0 +1,13 @@
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS customers (
+ id INTEGER PRIMARY KEY,
+ email TEXT NOT NULL UNIQUE,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS orders (
+ id INTEGER PRIMARY KEY,
+ customer_id INTEGER NOT NULL REFERENCES customers(id),
+ total_cents INTEGER NOT NULL CHECK(total_cents>=0),
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS orders_customer_idx ON orders(customer_id);
