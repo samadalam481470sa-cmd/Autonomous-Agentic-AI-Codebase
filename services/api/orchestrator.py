@@ -21,7 +21,7 @@ from pathlib import Path
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import events, semantic
+from . import device, events, semantic
 from .engine import workspace
 from .studio import authorize
 
@@ -62,6 +62,17 @@ def _db_path() -> Path:
     path = Path(os.getenv("ORCHESTRATOR_DB_PATH", "./database/agent_runs.sqlite3")).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def project_rules(project: str) -> str:
+    """Operator-authored project rules, loaded into every run as trusted text."""
+    try:
+        path = Path(workspace(project)) / "AETHERION.md"
+        if path.is_file():
+            return path.read_text(encoding="utf-8", errors="replace")[:4000]
+    except (OSError, ValueError):
+        return ""
+    return ""
 
 
 def _connect() -> sqlite3.Connection:
@@ -203,12 +214,14 @@ async def _complete(system: str, user: str, max_tokens: int = 1200) -> str:
 
 
 def _prompt(goal: str, role: str, instruction: str, prior: list[dict],
-            context: str) -> str:
+            context: str, rules: str = "") -> str:
     parts = [
         "Goal: " + goal,
         "Your role: " + role,
         "Role instructions: " + instruction,
     ]
+    if rules:
+        parts.append("Project rules (operator-authored, trusted):\n" + rules)
     if prior:
         history = []
         for step in prior[-3:]:
@@ -242,6 +255,15 @@ async def advance_run(run_id: str) -> dict:
         )
         if target is None:
             return _serialize(con, run)
+        if os.getenv("DEVICE_THERMAL_GUARD", "1") != "0":
+            gate = device.admission()
+            if not gate.get("allowed", True):
+                raise HTTPException(
+                    409,
+                    "Device cooling pause: " + str(gate.get("reason") or "thermal limit"),
+                    headers={"Retry-After": str(max(1, int(gate.get("retry_after") or 15)))},
+                )
+        device.touch_keep_awake()
         now = int(time.time())
         with con:
             con.execute("UPDATE runs SET status='running',updated_at=? WHERE id=?", (now, run_id))
@@ -262,7 +284,7 @@ async def advance_run(run_id: str) -> dict:
         except Exception:
             retrieved = {"text": ""}
         user = _prompt(run["goal"], target["role"], target["instruction"], prior,
-                       retrieved.get("text", ""))
+                       retrieved.get("text", ""), project_rules(run["project"]))
         try:
             output = await _complete(SYSTEM_PROMPT, user, 1200)
         except Exception:

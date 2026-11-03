@@ -73,6 +73,30 @@ The product is being built as seven gated phases: contracts/events, the Code-OSS
 
 Phase 0 added [shared contracts](packages/contracts/schemas.json) with generated TypeScript, Python, Rust and Go bindings, an append-only run event log with redaction and SSE resume, and a [30-task benchmark](evals/benchmark/README.md) whose committed starter baseline is 0/30. Phase 2 added a single [policy gate](services/api/policy.py), [git worktrees](services/api/worktrees.py), evented orchestrator steps, streaming chat that can call read-only tools, and a [bounded lead executor](services/api/executor.py). The Code-OSS overlay now includes an Agent Runs webview for creating, advancing and auditing runs.
 
+## Run on your own computer (new)
+
+Download the bundle from a tagged release or Actions artifact, verify its
+SHA-256, then run `./run.sh` (Linux/macOS) or `run.bat` (Windows). The launcher
+creates a local virtual environment, prints an administrator token, binds only
+to `127.0.0.1`, and opens `/dashboard`.
+
+```bash
+git clone https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase.git
+cd Autonomous-Agentic-AI-Codebase
+./run.sh              # or: python aetherion.py
+python aetherion.py --check   # hardware, thermal and backend report
+```
+
+The app runs on your CPU, GPU and RAM with SQLite. Docker, PostgreSQL, Redis and
+Kubernetes are not required for local use. The **Device** page shows hardware,
+temperatures, the thermal governor, local model backends and a keep-awake toggle.
+Agent runs pause automatically when the device runs hot, and the launcher holds
+the machine awake for long sessions with a TTL and automatic release.
+
+Build the downloadable archive with `python scripts/package_local.py`. Full
+details, model sizing, thresholds and troubleshooting: [docs/LOCAL_RUNTIME.md](docs/LOCAL_RUNTIME.md).
+Framework status: [docs/FRAMEWORK_COMPLIANCE.md](docs/FRAMEWORK_COMPLIANCE.md).
+
 ## Project architecture
 
 ```text

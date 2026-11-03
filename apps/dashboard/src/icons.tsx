@@ -136,3 +136,37 @@ export function BotIcon({ size }: IconProps) {
     </svg>
   );
 }
+
+export function DeviceIcon({ size }: IconProps) {
+  return (
+    <svg {...frame(size)}>
+      <rect x="7" y="7" width="10" height="10" rx="2" />
+      <path d="M9.5 3.5V7M14.5 3.5V7M9.5 17v3.5M14.5 17v3.5M3.5 9.5H7M3.5 14.5H7M17 9.5h3.5M17 14.5h3.5" />
+    </svg>
+  );
+}
+
+export function ThermometerIcon({ size }: IconProps) {
+  return (
+    <svg {...frame(size)}>
+      <path d="M10 14.2V5.5a2 2 0 1 1 4 0v8.7a3.6 3.6 0 1 1-4 0Z" />
+      <path d="M12 9v7" />
+    </svg>
+  );
+}
+
+export function BoltIcon({ size }: IconProps) {
+  return (
+    <svg {...frame(size)}>
+      <path d="M13.5 3.5 6.5 13h4.5l-.5 7.5 7-9.5H13Z" />
+    </svg>
+  );
+}
+
+export function DownloadIcon({ size }: IconProps) {
+  return (
+    <svg {...frame(size)}>
+      <path d="M12 4v10M8 10.5l4 4 4-4M5 19h14" />
+    </svg>
+  );
+}

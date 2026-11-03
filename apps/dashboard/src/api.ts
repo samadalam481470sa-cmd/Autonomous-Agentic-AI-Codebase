@@ -1,6 +1,7 @@
 import type {
   AgentRun,
   AskResponse,
+  DeviceStatus,
   FileRead,
   HistoryResponse,
   IndexReport,
@@ -120,6 +121,12 @@ export const api = {
     request<AgentRun>(`/api/agents/runs/${runId}/advance`, { method: 'POST' }),
   cancelRun: (runId: string) =>
     request<AgentRun>(`/api/agents/runs/${runId}/cancel`, { method: 'POST' }),
+  device: () => request<DeviceStatus>('/api/device'),
+  setKeepAwake: (enabled: boolean, ttlMinutes = 480) =>
+    request<DeviceStatus>('/api/device/keep-awake', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, ttl_minutes: ttlMinutes }),
+    }),
 };
 
 /**

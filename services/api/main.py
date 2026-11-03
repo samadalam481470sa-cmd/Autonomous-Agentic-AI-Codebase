@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
 from .engine import history, respond, tool, workspace
 from .security import SecurityMiddleware, status as security_status
 
@@ -14,11 +15,13 @@ async def lifespan(app):
     # Start the always-on worker only when explicitly enabled. It runs while
     # this computer is on and stops with the process (or the /stop switch).
     from .worker import maybe_start, runtime
+    from .device import shutdown as shutdown_device
     maybe_start()
     try:
         yield
     finally:
         runtime.stop()
+        shutdown_device()
 
 app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.3.0",lifespan=lifespan)
 app.add_middleware(SecurityMiddleware)
@@ -56,6 +59,8 @@ from .polyglot import router as polyglot_router
 app.include_router(polyglot_router)
 from .worker import router as worker_router
 app.include_router(worker_router)
+from .device import router as device_router
+app.include_router(device_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"

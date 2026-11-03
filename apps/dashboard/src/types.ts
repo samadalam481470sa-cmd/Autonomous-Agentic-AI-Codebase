@@ -117,3 +117,110 @@ export interface ChatMessage {
 export interface HistoryResponse {
   messages: ChatMessage[];
 }
+
+export interface ThermalSensor {
+  label: string;
+  celsius: number;
+}
+
+export interface ThermalEvent {
+  at: number;
+  from: string;
+  to: string;
+  celsius: number | null;
+}
+
+export interface ThermalStatus {
+  state: string;
+  max_c: number | null;
+  ewma_c: number | null;
+  slope_c_per_min: number;
+  predicted_c: number | null;
+  sensors: ThermalSensor[];
+  thresholds: { warn: number; hot: number; critical: number; resume: number };
+  cooldown_remaining: number;
+  duty_cycle: number;
+  sensors_available: boolean;
+  note: string;
+  history: { t: number; c: number }[];
+  events: ThermalEvent[];
+  sample_seconds: number;
+  admission: { allowed: boolean; reason: string; retry_after: number; mode: string };
+}
+
+export interface DeviceStatus {
+  platform: {
+    system: string;
+    release: string;
+    machine: string;
+    python: string;
+    hostname: string;
+    apple_silicon: boolean;
+    container: boolean;
+  };
+  cpu: {
+    model: string;
+    logical_cores: number | null;
+    physical_cores: number | null;
+    max_frequency_mhz: number | null;
+    architecture: string;
+  };
+  memory: {
+    total_mb: number | null;
+    available_mb: number | null;
+    used_percent: number | null;
+    source: string;
+  };
+  disk: { total_gb: number; free_gb: number; used_percent: number } | null;
+  gpus: {
+    vendor: string;
+    name: string;
+    vram_mb: number | null;
+    used_mb: number | null;
+    temp_c: number | null;
+    utilization_pct: number | null;
+    driver: string | null;
+    unified_memory?: boolean;
+  }[];
+  battery: {
+    present: boolean;
+    percent: number | null;
+    plugged: boolean | null;
+    status: string;
+  } | null;
+  thermal: ThermalStatus;
+  keep_awake: {
+    active: boolean;
+    backend: string | null;
+    pid: number | null;
+    started_at: number | null;
+    expires_at: number | null;
+    ttl_remaining_seconds: number | null;
+    note: string;
+    supported: boolean;
+  };
+  session: {
+    started_at: number;
+    uptime_seconds: number;
+    keep_awake_seconds: number;
+    max_hours: number;
+  };
+  recommendation: {
+    name: string;
+    runtime: string;
+    context_tokens: number;
+    gpu_layers: number;
+    estimated_vram_gb: number | null;
+    reason: string;
+    pull_command: string;
+    env: Record<string, string>;
+  };
+  backends: {
+    name: string;
+    url: string;
+    status: string;
+    models: string[];
+  }[];
+  limits: Record<string, number>;
+  privacy: string;
+}

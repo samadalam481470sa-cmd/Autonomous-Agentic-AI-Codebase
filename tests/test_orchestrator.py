@@ -20,6 +20,7 @@ def project(tmp_path, monkeypatch):
     monkeypatch.setenv("SECURITY_DB_PATH", str(tmp_path / "security.sqlite3"))
     monkeypatch.delenv("AGENT_TOTP_SECRET", raising=False)
     monkeypatch.setenv("SEMANTIC_RAG", "0")
+    monkeypatch.setenv("DEVICE_THERMAL_GUARD", "0")
     security.reset()
     root = engine.workspace("demo")
     (root / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
@@ -84,6 +85,21 @@ def test_model_failure_blocks_and_can_be_retried(project, monkeypatch):
     recovered = asyncio.run(orchestrator.advance_run(run["id"]))
     assert recovered["steps"][0]["status"] == "completed"
     assert recovered["status"] == "queued"
+
+
+def test_thermal_pause_blocks_advance_until_cooled(project, monkeypatch):
+    monkeypatch.setenv("DEVICE_THERMAL_GUARD", "1")
+    monkeypatch.setattr(orchestrator.device, "admission", lambda: {
+        "allowed": False, "reason": "device is hot", "retry_after": 12,
+    })
+    monkeypatch.setattr(orchestrator.device, "touch_keep_awake", lambda *args, **kwargs: None)
+    run = orchestrator.create_run("demo", "Implement a health endpoint")
+    with pytest.raises(Exception) as error:
+        asyncio.run(orchestrator.advance_run(run["id"]))
+    assert getattr(error.value, "status_code", 0) == 409
+    assert "hot" in str(getattr(error.value, "detail", error.value))
+    assert getattr(error.value, "headers", {}).get("Retry-After") == "12"
+    assert orchestrator.get_run(run["id"])["status"] == "queued"
 
 
 def test_cancel_prevents_further_advance(project, monkeypatch):
