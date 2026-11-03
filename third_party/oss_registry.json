@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "description": "Permissively licensed open-source projects this repository consumes, vendors or links. Entries are checked by scripts/check_oss_licenses.py.",
+  "allowed_spdx": [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "0BSD",
+    "Unlicense"
+  ],
+  "repositories": [
+    {
+      "name": "monaco-editor",
+      "repo": "https://github.com/microsoft/monaco-editor",
+      "license": "MIT",
+      "usage": "vendored",
+      "pin": "0.57.0",
+      "notice": "third_party/monaco-editor/LICENSE.txt",
+      "bundled": true,
+      "notes": "Editor source snapshot and third-party notices are preserved in third_party/monaco-editor."
+    },
+    {
+      "name": "vscode",
+      "repo": "https://github.com/microsoft/vscode",
+      "license": "MIT",
+      "usage": "submodule",
+      "pin": "submodule upstream/code-oss",
+      "notice": null,
+      "bundled": false,
+      "notes": "Pinned Code-OSS workbench source, built by the operator; not redistributed from this repository."
+    },
+    {
+      "name": "llama.cpp",
+      "repo": "https://github.com/ggml-org/llama.cpp",
+      "license": "MIT",
+      "usage": "optional-runtime",
+      "pin": "operator-installed",
+      "notice": null,
+      "bundled": false,
+      "notes": "Local inference executable supplied by the operator; never bundled or downloaded automatically."
+    },
+    {
+      "name": "agenticSeek",
+      "repo": "https://github.com/Fosowl/agenticSeek",
+      "license": "GPL-3.0-only",
+      "usage": "submodule",
+      "pin": "submodule upstream/agenticseek",
+      "notice": null,
+      "bundled": false,
+      "isolation": "Optional separately running service reached over an authenticated HTTP bridge. GPL source is not linked, bundled, imported or redistributed by this repository.",
+      "notes": "Requires independent review before any combined distribution."
+    },
+    {
+      "name": "fastapi",
+      "repo": "https://github.com/fastapi/fastapi",
+      "license": "MIT",
+      "usage": "dependency",
+      "pin": ">=0.115,<1",
+      "notice": null,
+      "bundled": false,
+      "notes": "Installed from PyPI; license metadata ships with the package."
+    },
+    {
+      "name": "uvicorn",
+      "repo": "https://github.com/encode/uvicorn",
+      "license": "BSD-3-Clause",
+      "usage": "dependency",
+      "pin": ">=0.34,<1",
+      "notice": null,
+      "bundled": false
+    },
+    {
+      "name": "httpx",
+      "repo": "https://github.com/encode/httpx",
+      "license": "BSD-3-Clause",
+      "usage": "dependency",
+      "pin": ">=0.27,<1",
+      "notice": null,
+      "bundled": false
+    },
+    {
+      "name": "pydantic",
+      "repo": "https://github.com/pydantic/pydantic",
+      "license": "MIT",
+      "usage": "dependency",
+      "pin": ">=2.9,<3",
+      "notice": null,
+      "bundled": false
+    },
+    {
+      "name": "pytest",
+      "repo": "https://github.com/pytest-dev/pytest",
+      "license": "MIT",
+      "usage": "dev-dependency",
+      "pin": ">=8,<10",
+      "notice": null,
+      "bundled": false
+    },
+    {
+      "name": "electron",
+      "repo": "https://github.com/electron/electron",
+      "license": "MIT",
+      "usage": "dev-dependency",
+      "pin": "^33.0.0",
+      "notice": null,
+      "bundled": false
+    },
+    {
+      "name": "esbuild",
+      "repo": "https://github.com/evanw/esbuild",
+      "license": "MIT",
+      "usage": "dev-dependency",
+      "pin": "0.25.12",
+      "notice": null,
+      "bundled": false
+    },
+    {
+      "name": "agent-framework",
+      "repo": "https://github.com/microsoft/agent-framework",
+      "license": "MIT",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Architecture reference for agent orchestration; no source copied."
+    },
+    {
+      "name": "tree-sitter",
+      "repo": "https://github.com/tree-sitter/tree-sitter",
+      "license": "MIT",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Candidate parser backend for future symbol indexing; not yet integrated."
+    },
+    {
+      "name": "tokenizers",
+      "repo": "https://github.com/huggingface/tokenizers",
+      "license": "Apache-2.0",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Reference for tokenisation design; the shipped embedding model is original pure-Python code."
+    },
+    {
+      "name": "sentence-transformers",
+      "repo": "https://github.com/UKPLab/sentence-transformers",
+      "license": "Apache-2.0",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Optional future embedding backend if the operator installs it; not imported at runtime."
+    },
+    {
+      "name": "faiss",
+      "repo": "https://github.com/facebookresearch/faiss",
+      "license": "MIT",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Reference for approximate nearest-neighbour indexing; not required for the bounded local index."
+    },
+    {
+      "name": "tiktoken",
+      "repo": "https://github.com/openai/tiktoken",
+      "license": "MIT",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Reference for token budgeting; runtime budgeting uses character bounds instead."
+    },
+    {
+      "name": "pyotp",
+      "repo": "https://github.com/pyauth/pyotp",
+      "license": "MIT",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Reference for RFC 6238 TOTP semantics; the shipped implementation is original stdlib hmac/base64 code with no runtime dependency."
+    },
+    {
+      "name": "gitleaks",
+      "repo": "https://github.com/gitleaks/gitleaks",
+      "license": "MIT",
+      "usage": "reference",
+      "pin": "documentation-reference",
+      "notice": null,
+      "bundled": false,
+      "notes": "Reference for credential-detection patterns; services/api/content_safety.py is an original conservative pattern plus entropy implementation."
+    }
+  ]
+}

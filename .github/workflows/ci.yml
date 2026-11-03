@@ -25,4 +25,6 @@ jobs:
           node --test code_oss_integration/extension/rewrite-selection.test.cjs
       - run: python scripts/check_inline_scripts.py
       - run: python scripts/code_metrics.py
+      - name: Verify third-party licenses and notices
+        run: python scripts/check_oss_licenses.py
       - run: pytest -q

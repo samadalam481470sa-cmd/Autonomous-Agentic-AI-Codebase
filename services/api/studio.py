@@ -15,15 +15,15 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from .engine import safe_path, workspace
 from . import checkpoints
+from .security import authorize as _authorize
 
 router=APIRouter(prefix="/api/studio",tags=["studio"])
 MAX_BYTES=200_000
 WRITE_LOCK=threading.RLock()
 
-def authorize(value):
-    secret=os.getenv("AGENT_ADMIN_TOKEN","")
-    if not secret or not value or not hmac.compare_digest(value,"Bearer "+secret):
-        raise HTTPException(403,"Administrator token required")
+def authorize(value, scope="admin"):
+    """Compatibility wrapper around the shared hardened authenticator."""
+    _authorize(value, scope)
 
 class FileRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")

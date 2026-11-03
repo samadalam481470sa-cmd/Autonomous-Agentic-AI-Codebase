@@ -16,6 +16,10 @@ A self-hostable **agentic coding assistant** with original application code and 
 - Read, list and search workspace files; AI edits are proposed as diffs and require approval before applying
 - Workspace path containment and human confirmation for shell commands
 - SQLite persistence, incremental FTS5 code index, FastAPI HTTP API, offline Monaco Editor integration
+- Local code-aware embedding index with hybrid vector + FTS5 search, similar-file lookup and retrieval-augmented chat (no model download, no network, deterministic)
+- Learned retrieval: local 👍/👎 feedback re-ranks hybrid results with decayed, smoothed acceptance (no training job or model download), plus a security scan that redacts credentials and flags prompt-injection attempts before any excerpt reaches a model
+- Hardened API: digest-compared admin token, optional TOTP two-factor codes, brute-force lockouts with exponential backoff, per-address rate limits, CSP and security headers, origin checks, body caps and an audit log
+- License-verified third-party registry with an automated permissive-license and notice check
 - Bounded multi-file coding trials, explicit Docker-based test approval and up to three offline retries
 - Optional local microphone transcription with whisper.cpp, separately run AgenticSeek browsing adapter, and SQLite feedback evaluation
 - Optional local CUDA LoRA training script with held-out regression gate and versioned adapter rollback (not automatic GGUF loading)
@@ -28,12 +32,29 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 cp .env.example .env
-python -m uvicorn services.api.main:app --reload
+python -m uvicorn services.api.main:app --reload --no-server-header
 ```
 
-Open http://127.0.0.1:8000. Set MODEL_API_KEY, MODEL_BASE_URL, MODEL_NAME for real LLM responses. For a local model, point MODEL_BASE_URL at its compatible API.
+Open http://127.0.0.1:8000. Set `AGENT_ADMIN_TOKEN` to a strong random secret (the UIs and every API route require it; see [.env.example](.env.example)). Set MODEL_API_KEY, MODEL_BASE_URL, MODEL_NAME for real LLM responses. For a local model, point MODEL_BASE_URL at its compatible API.
 
-**Security:** Command execution is disabled unless ALLOW_COMMANDS=1. If enabled, commands are run on the host; **do not enable for untrusted users**. This prototype is not a secure execution sandbox. Production requires isolated per-task containers or VMs, egress restrictions, authentication, tenant isolation, approval workflows, rate limits, and security review.
+**Security:** Set `AGENT_ADMIN_TOKEN` (24+ random characters) before starting; every API route except `/health` requires it. Command execution remains disabled unless `ALLOW_COMMANDS=1`, and enabling it runs commands on the host — **do not enable for untrusted users**. Authentication, brute-force lockouts, rate limits, security headers, origin checks and an audit log are implemented, but this prototype still has **no multi-user accounts or TLS** and is **not a secure execution sandbox**. Do not expose it to the public internet; see [hardening](docs/SECURITY_HARDENING.md) and the [threat model](security/THREAT_MODEL.md). Production also requires per-task containers or VMs, egress restrictions, tenant isolation and security review.
+
+## AI code intelligence and hardened API (new)
+
+A local retrieval engine in [services/api/semantic.py](services/api/semantic.py) indexes the workspace incrementally. Embeddings are computed offline from code-aware tokens (camelCase/snake_case splitting, character 4-grams) with signed feature hashing and query-time IDF; there is **no model download, GPU requirement or network call**. Vectors are stored sparsely in SQLite next to the FTS5 index, and hybrid ranking fuses cosine similarity with BM25 by reciprocal rank.
+
+- `POST /api/ai/index/refresh` — incremental embedding of changed files only
+- `POST /api/ai/search` — hybrid, semantic or lexical search with excerpts and line numbers
+- `POST /api/ai/context` — budgeted, deduplicated citations
+- `POST /api/ai/similar` — structurally similar files
+- `POST /api/ai/ask` — repository Q&A grounded in retrieved excerpts
+- `GET /api/ai/{project}/stats`, `GET /api/ai/health`
+
+Chat (`/api/chat`) and local streaming chat (`/api/chat/stream`) automatically inject budgeted retrieved context when `SEMANTIC_RAG=1`; excerpts are explicitly labelled untrusted. Studio and the browser chat now expose **Index project**, **Search** and **Ask codebase** controls, plus a **Security** posture view.
+
+All API routes are protected by [services/api/security.py](services/api/security.py): constant-time digest comparison, optional digest-only token storage (`AGENT_ADMIN_TOKEN_SHA256`), a persistent per-address failure ledger with exponential lockouts (a correct token always bypasses the lockout), sliding-window rate limits with `Retry-After`, method/body/origin limits, encoded-traversal rejection, CSP and security headers, request IDs, and a capped audit log exposed only to authenticated callers. Configuration is documented in [.env.example](.env.example) and the controls in [security hardening](docs/SECURITY_HARDENING.md); retrieval internals are in [local semantic retrieval](docs/SEMANTIC_RETRIEVAL.md).
+
+This is hardening for a local single-operator tool, not a production internet service. Multi-user identity, TLS termination, global rate limiting and independent penetration testing remain outstanding.
 
 ## Project architecture
 
@@ -53,7 +74,7 @@ docs/                    Architecture and roadmap
 
 ## Open source and legal provenance
 
-This repository contains original app implementation and a **separately attributed MIT-licensed Monaco Editor source snapshot** in `third_party/monaco-editor`. Monaco's original copyright, MIT license and third-party notices are preserved. The compiled editor is built locally from the corresponding pinned npm release. Do not represent vendored Monaco lines as originally authored app code. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed; third-party dependencies require license review and preservation of notices. See [upstream provenance and code size](docs/REPOSITORY_CODE_SIZE.md).
+This repository contains original app implementation and a **separately attributed MIT-licensed Monaco Editor source snapshot** in `third_party/monaco-editor`. Monaco's original copyright, MIT license and third-party notices are preserved. Every vendored, linked and referenced project is registered with its SPDX license, pin and notice path in [third_party/oss_registry.json](third_party/oss_registry.json); `python scripts/check_oss_licenses.py` fails the build if a bundled component is not permissively licensed or a notice is missing. The policy and attribution table are in [legal open source](docs/LEGAL_OPEN_SOURCE.md). The compiled editor is built locally from the corresponding pinned npm release. Do not represent vendored Monaco lines as originally authored app code. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed; third-party dependencies require license review and preservation of notices. See [upstream provenance and code size](docs/REPOSITORY_CODE_SIZE.md).
 
 ## Scope
 
