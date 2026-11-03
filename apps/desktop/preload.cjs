@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld('localSetup',Object.freeze({
  hardware:()=>ipcRenderer.invoke('hardware'),
  probeEngine:file=>ipcRenderer.invoke('probe-engine',file),
  startModel:settings=>ipcRenderer.invoke('start-model',settings),
+ getAlwaysOn:()=>ipcRenderer.invoke('get-always-on'),
+ setAlwaysOn:enabled=>ipcRenderer.invoke('set-always-on',enabled===true),
  openStudio:()=>ipcRenderer.invoke('open-studio')
 }));

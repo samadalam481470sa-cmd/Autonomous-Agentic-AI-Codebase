@@ -1,5 +1,6 @@
 """FastAPI app and standalone browser UI."""
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -8,7 +9,18 @@ from pydantic import BaseModel, Field
 from .engine import history, respond, tool, workspace
 from .security import SecurityMiddleware, status as security_status
 
-app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.2.0")
+@asynccontextmanager
+async def lifespan(app):
+    # Start the always-on worker only when explicitly enabled. It runs while
+    # this computer is on and stops with the process (or the /stop switch).
+    from .worker import maybe_start, runtime
+    maybe_start()
+    try:
+        yield
+    finally:
+        runtime.stop()
+
+app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.3.0",lifespan=lifespan)
 app.add_middleware(SecurityMiddleware)
 from .studio import router as studio_router
 app.include_router(studio_router)
@@ -38,6 +50,12 @@ from .ai_features import router as ai_features_router
 app.include_router(ai_features_router)
 from .orchestrator import router as orchestrator_router
 app.include_router(orchestrator_router)
+from .executor import router as executor_router
+app.include_router(executor_router)
+from .polyglot import router as polyglot_router
+app.include_router(polyglot_router)
+from .worker import router as worker_router
+app.include_router(worker_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
@@ -118,6 +136,11 @@ def get_project_plan(project: str, authorization: str | None = Header(default=No
 @app.get("/studio",response_class=HTMLResponse)
 def studio_page():
     return (WEB.parent/"studio.html").read_text(encoding="utf-8")
+
+
+@app.get("/control",response_class=HTMLResponse)
+def control_page():
+    return (WEB.parent/"control.html").read_text(encoding="utf-8")
 
 
 DASHBOARD = BASE / "apps" / "dashboard" / "dist"

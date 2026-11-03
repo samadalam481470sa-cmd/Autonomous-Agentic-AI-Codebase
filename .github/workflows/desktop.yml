@@ -55,8 +55,9 @@ jobs:
         run: python -c "from pathlib import Path; root=Path('apps/web/assets'); names=('monaco-entry.js','monaco-entry.css','editor.worker.js','ts.worker.js','MONACO_LICENSE.txt'); assert all((root/name).is_file() for name in names), 'Offline editor bundle incomplete'"
       - run: python scripts/build_backend.py
       - run: python -m pytest -q
-      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs
+      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs
       - run: node --check apps/desktop/main.cjs
+      - run: node --check apps/desktop/energy.cjs
       - run: node --check apps/desktop/preload.cjs
       - run: cargo build --release --manifest-path services/runtime-rust/Cargo.toml
       - name: Stage Rust gateway

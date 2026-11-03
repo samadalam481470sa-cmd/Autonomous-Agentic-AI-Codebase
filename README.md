@@ -23,6 +23,9 @@ A self-hostable **agentic coding assistant** with original application code and 
 - Bounded multi-file coding trials, explicit Docker-based test approval and up to three offline retries
 - Optional local microphone transcription with whisper.cpp, separately run AgenticSeek browsing adapter, and SQLite feedback evaluation
 - Optional local CUDA LoRA training script with held-out regression gate and versioned adapter rollback (not automatic GGUF loading)
+- Polyglot toolchain registry for 64 language families with local detection, starter scaffolding, check/build/test/run planning and argv-only execution
+- Autonomous generate → compile/test → retry loop that writes to a trial directory first, then applies checkpointed changes in any language whose toolchain is installed
+- Durable always-on local worker with retryable SQLite jobs, a persisted stop switch, `always`/`ac_only`/`manual`/`off` policies, active hours and a GPU thermal guard; optional sign-in autostart
 - Unit tests, local hardware tests, GitHub CI, and a million-line index benchmark
 
 ## Start
@@ -63,6 +66,12 @@ An original React 18 + TypeScript dashboard is served at **http://127.0.0.1:8000
 The multi-agent backend in [services/api/orchestrator.py](services/api/orchestrator.py) stores durable runs in local SQLite. `build` runs architect → coder → tester → security → reviewer; `plan` runs architect → reviewer. Every step is operator-advanced, receives bounded and redacted repository context, is capped by `ORCHESTRATOR_MAX_STEPS`, and **never writes files or executes commands**. Endpoints live under `/api/agents`, require the administrator token and are rate limited.
 
 Build the UI with `cd apps/dashboard && npm ci && npm run build`. The Dockerfile builds it in a Node stage; `deploy/k8s/platform.yaml` provides hardened blueprint manifests. PostgreSQL and Redis are not runtime dependencies in this build, and there is no Go service; the local inference gateway is Rust and the API is Python. These are documented as scope limits rather than hidden.
+
+## Seven-phase program (in progress)
+
+The product is being built as seven gated phases: contracts/events, the Code-OSS workbench, the agent core, context and sandboxing, language packs and connectors, scale/learning, then the hosted platform. Only Phase 0 and part of Phase 2 pass their current gates; this is **not** an enterprise-grade release, and the GitHub description should say experimental until the Phase 0/1 gates pass. See [seven-phase status](docs/SEVEN_PHASES.md) for exactly what exists and what does not.
+
+Phase 0 added [shared contracts](packages/contracts/schemas.json) with generated TypeScript, Python, Rust and Go bindings, an append-only run event log with redaction and SSE resume, and a [30-task benchmark](evals/benchmark/README.md) whose committed starter baseline is 0/30. Phase 2 added a single [policy gate](services/api/policy.py), [git worktrees](services/api/worktrees.py), evented orchestrator steps, streaming chat that can call read-only tools, and a [bounded lead executor](services/api/executor.py). The Code-OSS overlay now includes an Agent Runs webview for creating, advancing and auditing runs.
 
 ## Project architecture
 
@@ -113,6 +122,12 @@ The Electron desktop client in [apps/desktop](apps/desktop) opens the local Code
 Run compatible open-weight models locally using an OpenAI-compatible loopback endpoint, such as Ollama. Set `LOCAL_MODEL_ONLY=1`, `LOCAL_MODEL_BASE_URL=http://127.0.0.1:11434/v1`, and `LOCAL_MODEL_NAME=qwen2.5-coder:7b`. When local-only mode is enabled, the agent uses the loopback endpoint instead of a remote inference API. GPU use depends on compatible hardware and installed model runtime; see [setup and limitations](docs/LOCAL_GPU_AND_LANGUAGES.md).
 
 The [language catalog](services/api/languages.py) recognizes dozens of programming languages and file types; arbitrary UTF-8 source files can be edited. PostgreSQL and SQLite starter migrations are in [database/templates](database/templates). **This does not imply every language can be compiled, debugged or executed**, or that the app can provision arbitrary databases yet. Local inference avoids metered remote API usage but does not remove finite model context, VRAM or processing limits.
+
+## Polyglot autonomous coding and always-on local worker (new)
+
+The agent can work in any language the owner's machine can actually build. [services/api/toolchains.py](services/api/toolchains.py) declares probes, check/build/test/run commands, starter files and install hints for 64 language families (Python, JS/TS, Rust, Go, Java, Kotlin, C/C++, C#, Swift, Dart, Ruby, PHP, Elixir, Haskell, Zig, COBOL, Fortran, Solidity, Verilog and more). Commands are argv lists executed **without a shell**, so file names and model output cannot inject commands. Missing toolchains are reported with an install hint instead of being faked. Unknown languages can be added at runtime with `POST /api/polyglot/register` and are persisted locally.
+
+`POST /api/polyglot/scaffold` writes a runnable starter project and verifies it with the real toolchain. `POST /api/polyglot/solve` runs a bounded generate → compile/test → retry loop in a disposable trial directory and applies the result only with approval or `AGENT_AUTONOMY=1` (the desktop default); applied files get normal checkpoints. [services/api/worker.py](services/api/worker.py) provides a SQLite-backed always-on queue that runs while the computer is on, prefers the local model and GPU, and stops with the machine, the persisted Stop control, or the `off` policy. Power, active-hours and GPU-temperature limits are available. A browser control page is at **http://127.0.0.1:8000/control**. See [polyglot and always-on](docs/POLYGLOT_ALWAYS_ON.md) for endpoints, autostart and limits. Host toolchain execution stays opt-in (`AGENT_HOST_TOOLCHAIN=1`), no model, compiler, driver or GPU is bundled, and no certified GPU-inference or clean-machine test is claimed.
 
 ## Rust + llama.cpp inference pipeline
 

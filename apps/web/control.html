@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agentic Control — polyglot and always-on worker</title>
+<style>
+:root{color-scheme:dark;font:14px system-ui}
+*{box-sizing:border-box}
+body{margin:0;background:#090e19;color:#e7edff}
+header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 20px;background:#131c30;border-bottom:1px solid #34415b}
+header strong{font-size:19px}
+input,select,textarea,button{font:inherit;border-radius:8px}
+input,select,textarea{color:#eef3ff;background:#101a2d;border:1px solid #3c4d6a;padding:9px}
+input,select{width:150px}
+textarea{width:100%;min-height:80px;resize:vertical}
+button{border:0;background:#5769ed;color:#fff;padding:10px 14px;cursor:pointer}
+button.secondary{background:#2c3953}
+button:disabled{opacity:.45}
+a{color:#b4c5ff}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+.card{background:#131c30;border:1px solid #34415b;border-radius:12px;padding:16px;min-width:0}
+.card h2{font-size:15px;margin:0 0 12px;letter-spacing:.02em}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.row label{display:flex;gap:6px;align-items:center;color:#aebdd6}
+pre{white-space:pre-wrap;overflow:auto;max-height:280px;background:#0b1220;border:1px solid #263450;border-radius:8px;padding:10px;font:12px/1.5 ui-monospace,monospace;margin:8px 0}
+.hint{color:#9db4df;font-size:12px;line-height:1.5}
+#status{color:#9db4df}
+</style>
+</head>
+<body>
+<header>
+<strong>✦ Agentic Control</strong>
+<label>Project <input id="project" value="demo"></label>
+<label>Admin token <input id="token" type="password" placeholder="AGENT_ADMIN_TOKEN"></label>
+<label>TOTP <input id="totp" inputmode="numeric" maxlength="6" placeholder="optional"></label>
+<button id="refresh">Refresh</button>
+<a href="/studio">Studio ↗</a>
+<a href="/dashboard">Dashboard ↗</a>
+</header>
+<main>
+<section class="card">
+<h2>Always-on worker</h2>
+<p class="hint">Runs while this computer is powered on, using the local model and GPU when configured. Pause stops new jobs; Stop is the persisted kill switch. Nothing is sent to a remote service.</p>
+<pre id="worker">Enter the admin token, then press Refresh.</pre>
+<div class="row">
+<button id="pause" class="secondary">Pause</button>
+<button id="resume" class="secondary">Resume</button>
+<button id="start" class="secondary">Start</button>
+<button id="stop">Stop</button>
+</div>
+<div class="row">
+<label>Policy <select id="policy"><option value="always">always</option><option value="ac_only">ac_only</option><option value="manual">manual</option><option value="off">off</option></select></label>
+<label>Active hours <input id="hours" value="0-24" title="0-24, 9-17 or 22-7"></label>
+<label>Max GPU °C <input id="temp" type="number" value="85" min="30" max="110" style="width:90px"></label>
+<button id="savePolicy" class="secondary">Save policy</button>
+</div>
+</section>
+
+<section class="card">
+<h2>Queue durable work</h2>
+<div class="row">
+<label>Kind <select id="kind"><option value="polyglot.solve">polyglot.solve</option><option value="polyglot.check">polyglot.check</option><option value="noop">noop</option></select></label>
+<label>Language <input id="jobLanguage" value="auto"></label>
+<label>File <input id="jobPath" placeholder="optional"></label>
+<label>Attempts <input id="jobAttempts" type="number" value="2" min="1" max="3" style="width:80px"></label>
+</div>
+<textarea id="instruction" placeholder="Describe what to build or fix; used by polyglot.solve"></textarea>
+<div class="row"><button id="enqueue" class="secondary">Enqueue</button><label>Job id <input id="jobId" placeholder="32 hex characters"></label><button id="cancelJob" class="secondary">Cancel job</button></div>
+<pre id="jobs">No jobs loaded.</pre>
+<p class="hint">Queued jobs run only while the worker is allowed to run. The worker must have AGENT_HOST_TOOLCHAIN=1 to build and test code.</p>
+</section>
+
+<section class="card">
+<h2>Languages and autonomous coding</h2>
+<div class="row"><button id="languages" class="secondary">Detect toolchains</button><button id="detect" class="secondary">Detect project languages</button></div>
+<pre id="languagesOut">Detect the toolchains installed on this computer.</pre>
+<div class="row"><label>Scaffold <input id="scaffoldLanguage" value="python"></label><button id="scaffold" class="secondary">Create starter</button></div>
+<div class="row"><label>Solve in <input id="solveLanguage" value="auto"></label><label>File <input id="solvePath" placeholder="optional"></label><label><input id="apply" type="checkbox" style="width:auto"> apply</label><button id="solve">Code it</button></div>
+<pre id="out">Pick a language and describe the task. The agent generates a file, runs the real toolchain in a trial directory, retries on failure, and applies checkpointed changes.</pre>
+<p class="hint">"Code it" can take minutes with a local model. Host execution and autonomous writes require AGENT_HOST_TOOLCHAIN=1 and AGENT_AUTONOMY=1 (both are on in the desktop app).</p>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const token=()=>$("token").value;
+const project=()=>$("project").value.trim();
+async function api(path,{method="GET",body,headers={}}={}){
+  const allHeaders={"Content-Type":"application/json",Authorization:"Bearer "+token(),...headers};
+  const code=$("totp").value.trim();
+  if(code)allHeaders["X-Agent-TOTP"]=code;
+  const response=await fetch(path,{method,headers:allHeaders,body:body?JSON.stringify(body):undefined});
+  const data=await response.json().catch(()=>({detail:"HTTP "+response.status}));
+  if(!response.ok)throw new Error(data.detail||("HTTP "+response.status));
+  return data;
+}
+function show(id,value){$(id).textContent=typeof value==="string"?value:JSON.stringify(value,null,2)}
+async function refreshWorker(){
+  try{
+    const data=await api("/api/worker/status");
+    show("worker",{decision:data.decision,state:data.state,queue:data.queue,gpu:data.gpu,power:data.power,worker:data.worker,usage:data.usage});
+    show("jobs",data.recent.length?data.recent.map(job=>job.status+"  "+job.kind+"  "+job.id+(job.error?"  "+job.error:"")).join("\n"):"Queue is empty.");
+    $("policy").value=data.state.policy; $("hours").value=data.state.active_hours; $("temp").value=data.state.max_gpu_temp_c;
+  }catch(error){show("worker","Worker: "+error.message)}
+}
+async function workerAction(action){try{await api("/api/worker/"+action,{method:"POST"});show("status",action+" requested");await refreshWorker()}catch(error){show("worker","Worker: "+error.message)}}
+$("refresh").onclick=async()=>{await refreshWorker()};
+$("pause").onclick=()=>workerAction("pause");
+$("resume").onclick=()=>workerAction("resume");
+$("start").onclick=()=>workerAction("start");
+$("stop").onclick=()=>workerAction("stop");
+$("savePolicy").onclick=async()=>{try{const saved=await api("/api/worker/policy",{method:"POST",body:{policy:$("policy").value,active_hours:$("hours").value.trim(),max_gpu_temp_c:Number($("temp").value)}});show("status","Policy saved");show("worker",saved);await refreshWorker()}catch(error){show("worker","Policy failed: "+error.message)}};
+$("enqueue").onclick=async()=>{
+  const kind=$("kind").value;
+  let payload={};
+  if(kind==="polyglot.solve")payload={project:project(),instruction:$("instruction").value.trim(),language:$("jobLanguage").value.trim()||"auto",path:$("jobPath").value.trim()||null,attempts:Number($("jobAttempts").value),apply:true};
+  if(kind==="polyglot.check")payload={project:project(),language:$("jobLanguage").value.trim(),path:$("jobPath").value.trim(),action:"check"};
+  if(kind==="noop")payload={hello:"world"};
+  if(kind==="polyglot.solve"&&payload.instruction.length<5){show("jobs","Describe the task first.");return}
+  try{const job=await api("/api/worker/jobs",{method:"POST",body:{kind,payload}});show("jobs","Queued "+job.kind+": "+job.job_id);await refreshWorker()}catch(error){show("jobs","Enqueue failed: "+error.message)}
+};
+$("cancelJob").onclick=async()=>{try{await api("/api/worker/jobs/"+$("jobId").value.trim()+"/cancel",{method:"POST"});show("jobs","Cancelled.");await refreshWorker()}catch(error){show("jobs","Cancel failed: "+error.message)}};
+$("languages").onclick=async()=>{try{const data=await api("/api/polyglot/languages");const installed=data.languages.filter(item=>item.installed);show("languagesOut",installed.length+" of "+data.language_count+" toolchains ready\n\n"+installed.map(item=>(item.language+"  "+(item.version||item.category)+"  ["+item.actions.join(", ")+"]")).join("\n"))}catch(error){show("languagesOut","Detection failed: "+error.message)}};
+$("detect").onclick=async()=>{try{const data=await api("/api/polyglot/detect",{method:"POST",body:{project:project()}});show("languagesOut",{files_scanned:data.files_scanned,languages:data.languages,missing_toolchains:data.missing_toolchains})}catch(error){show("languagesOut","Detection failed: "+error.message)}};
+$("scaffold").onclick=async()=>{const button=$("scaffold");button.disabled=true;try{const data=await api("/api/polyglot/scaffold",{method:"POST",headers:{"X-Confirm-Change":"approve"},body:{project:project(),language:$("scaffoldLanguage").value.trim(),verify:true}});show("out",data)}catch(error){show("out","Scaffold failed: "+error.message)}finally{button.disabled=false}};
+$("solve").onclick=async()=>{
+  const instruction=$("instruction").value.trim();
+  if(instruction.length<5){show("out","Describe the task first.");return}
+  const button=$("solve");button.disabled=true;show("out","Generating, compiling and testing with the local model…");
+  try{
+    const headers={"X-Confirm-Execution":"approve"};
+    if($("apply").checked)headers["X-Confirm-Change"]="approve";
+    const data=await api("/api/polyglot/solve",{method:"POST",headers,body:{project:project(),instruction,language:$("solveLanguage").value.trim()||"auto",path:$("solvePath").value.trim()||null,attempts:Number($("jobAttempts").value),apply:$("apply").checked}});
+    show("out",data);
+  }catch(error){show("out","Solve failed: "+error.message)}finally{button.disabled=false}
+};
+</script>
+</body>
+</html>

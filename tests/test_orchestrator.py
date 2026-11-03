@@ -15,6 +15,7 @@ def project(tmp_path, monkeypatch):
     monkeypatch.setattr(engine, "ROOT", tmp_path / "workspaces")
     monkeypatch.setattr(engine, "DB", tmp_path / "agent.sqlite3")
     monkeypatch.setenv("ORCHESTRATOR_DB_PATH", str(tmp_path / "runs.sqlite3"))
+    monkeypatch.setenv("EVENT_DB_PATH", str(tmp_path / "events.sqlite3"))
     monkeypatch.setenv("AGENT_ADMIN_TOKEN", TOKEN)
     monkeypatch.setenv("SECURITY_DB_PATH", str(tmp_path / "security.sqlite3"))
     monkeypatch.delenv("AGENT_TOTP_SECRET", raising=False)
@@ -110,6 +111,20 @@ def test_runs_never_touch_project_files(project, monkeypatch):
     run = orchestrator.create_run("demo", "Rewrite the entire application")
     asyncio.run(orchestrator.advance_run(run["id"]))
     assert source_snapshot(project) == before
+
+
+def test_every_step_is_written_to_the_append_only_event_log(project, monkeypatch):
+    from services.api import events
+    monkeypatch.setattr(orchestrator, "_complete", fake_complete)
+    run = orchestrator.create_run("demo", "Implement a health endpoint")
+    created = events.list_events(run["id"])
+    assert [item["type"] for item in created] == ["run.created"]
+    asyncio.run(orchestrator.advance_run(run["id"]))
+    types = [item["type"] for item in events.list_events(run["id"])]
+    assert types[:3] == ["run.created", "step.started", "step.completed"]
+    assert events.replay(run["id"])["contiguous"] is True
+    orchestrator.cancel_run(run["id"])
+    assert events.list_events(run["id"])[-1]["type"] == "run.cancelled"
 
 
 def test_agent_endpoints_require_auth_and_are_bounded(project, monkeypatch):

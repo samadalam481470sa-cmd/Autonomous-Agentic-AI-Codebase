@@ -4,6 +4,7 @@ const vscode = require('vscode');
 const crypto = require('node:crypto');
 const {parseAvailable, localEndpoint, validProject} = require('./sse.js');
 const {rewriteSelection}=require('./rewrite-selection.js');
+const {AgentPanel}=require('./agent-panel.js');
 
 const SECRET = 'agenticLocal.adminToken';
 function escapeHtml(value) {return String(value).replace(/[&<>"']/g, c => ({
@@ -117,8 +118,12 @@ if(m.type==='prefill')get('prompt').value=m.text;
 
 async function activate(context) {
   const view=new ChatView(context);
+  const agent=new AgentPanel(context);
   context.subscriptions.push(vscode.window.registerWebviewViewProvider('agenticLocal.chat',view));
-  context.subscriptions.push({dispose:()=>view.dispose()});
+  context.subscriptions.push(vscode.window.registerWebviewViewProvider('agenticLocal.agent',agent));
+  context.subscriptions.push({dispose:()=>{view.dispose();agent.dispose();}});
+  context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.openAgent',()=>
+    vscode.commands.executeCommand('workbench.view.extension.agenticLocal')));
   context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.connect',async()=>{
     const secret=await vscode.window.showInputBox({
       title:'Connect Local AI',prompt:'Enter AGENT_ADMIN_TOKEN from your local backend',
@@ -140,4 +145,5 @@ async function activate(context) {
   }));
 }
 function deactivate() {}
+module.exports.AgentPanel = AgentPanel;
 module.exports={activate,deactivate};

@@ -9,13 +9,14 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -e '.[dev]'
-      - run: python -m compileall -q services
+      - run: python -m compileall -q services scripts
+      - run: python scripts/generate_contracts.py --check
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: node --check apps/web/monaco-entry.js
       - run: node --check apps/web/build.mjs
-      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs
+      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs
       - name: Verify Code-OSS extension transport and source syntax
         run: |
           node --check code_oss_integration/extension/extension.js
@@ -23,6 +24,9 @@ jobs:
           node --test code_oss_integration/extension/sse.test.cjs
           node --check code_oss_integration/extension/rewrite-selection.js
           node --test code_oss_integration/extension/rewrite-selection.test.cjs
+          node --check code_oss_integration/extension/agent-panel.js
+          node --check code_oss_integration/extension/agent-state.js
+          node --test code_oss_integration/extension/agent-state.test.cjs
       - run: python scripts/check_inline_scripts.py
       - run: python scripts/code_metrics.py
       - name: Verify third-party licenses and notices

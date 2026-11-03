@@ -1,0 +1,512 @@
+[
+  {
+    "id": "py-fizzbuzz",
+    "language": "python",
+    "prompt": "Implement fizzbuzz(n) returning values 1..n as strings, using Fizz for multiples of 3, Buzz for 5, and FizzBuzz for both.",
+    "files": {
+      "solution.py": "def fizzbuzz(n):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import fizzbuzz\nassert fizzbuzz(5)==['1','2','Fizz','4','Buzz']\nassert fizzbuzz(15)[-1]=='FizzBuzz'"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-word-frequencies",
+    "language": "python",
+    "prompt": "Implement word_frequencies(text): lowercase alphanumeric words, return a dict of counts.",
+    "files": {
+      "solution.py": "def word_frequencies(text):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import word_frequencies\nassert word_frequencies('Hi hi, bye!')=={'hi':2,'bye':1}\nassert word_frequencies('')=={}"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-palindrome",
+    "language": "python",
+    "prompt": "Implement is_palindrome(text) ignoring case and non-alphanumeric characters.",
+    "files": {
+      "solution.py": "def is_palindrome(text):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import is_palindrome\nassert is_palindrome('A man, a plan, a canal: Panama')\nassert not is_palindrome('abc')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-binary-search",
+    "language": "python",
+    "prompt": "Implement binary_search(items, target) for a sorted list; return the index or -1.",
+    "files": {
+      "solution.py": "def binary_search(items, target):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import binary_search\nassert binary_search([1,3,5,7],5)==2\nassert binary_search([1,3],4)==-1\nassert binary_search([],1)==-1"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-flatten",
+    "language": "python",
+    "prompt": "Implement flatten(nested) that recursively flattens arbitrarily nested lists.",
+    "files": {
+      "solution.py": "def flatten(nested):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import flatten\nassert flatten([1,[2,[3]],4])==[1,2,3,4]\nassert flatten([])==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-roman",
+    "language": "python",
+    "prompt": "Implement roman_to_int(roman) for standard Roman numerals, including subtractive pairs.",
+    "files": {
+      "solution.py": "def roman_to_int(roman):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import roman_to_int\nassert roman_to_int('MCMXCIV')==1994\nassert roman_to_int('IX')==9"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-chunk",
+    "language": "python",
+    "prompt": "Implement chunk(items, size) returning a list of lists; size must be at least 1.",
+    "files": {
+      "solution.py": "def chunk(items, size):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import chunk\nassert chunk([1,2,3,4,5],2)==[[1,2],[3,4],[5]]\nassert chunk([],3)==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-merge-intervals",
+    "language": "python",
+    "prompt": "Implement merge_intervals(intervals) merging overlapping closed intervals and sorting the result.",
+    "files": {
+      "solution.py": "def merge_intervals(intervals):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import merge_intervals\nassert merge_intervals([[1,3],[2,6],[8,10]])==[[1,6],[8,10]]\nassert merge_intervals([])==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-group-anagrams",
+    "language": "python",
+    "prompt": "Implement group_anagrams(words) returning groups of anagrams; order of groups and members may vary.",
+    "files": {
+      "solution.py": "def group_anagrams(words):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import group_anagrams\nr=group_anagrams(['eat','tea','tan','ate','nat','bat'])\nassert sorted(sorted(g) for g in r)==[['ate','eat','tea'],['bat'],['nat','tan']]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-transpose",
+    "language": "python",
+    "prompt": "Implement transpose(matrix) returning the transpose of a rectangular list of lists.",
+    "files": {
+      "solution.py": "def transpose(matrix):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import transpose\nassert transpose([[1,2,3],[4,5,6]])==[[1,4],[2,5],[3,6]]\nassert transpose([])==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-caesar",
+    "language": "python",
+    "prompt": "Implement caesar(text, shift) shifting ASCII letters while preserving case and leaving other characters unchanged.",
+    "files": {
+      "solution.py": "def caesar(text, shift):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import caesar\nassert caesar('Abc Xyz!',3)=='Def Abc!'\nassert caesar('abc',-1)=='zab'"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-valid-parentheses",
+    "language": "python",
+    "prompt": "Implement is_valid(s) for strings containing only ()[]{}, requiring correctly nested and ordered brackets.",
+    "files": {
+      "solution.py": "def is_valid(s):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import is_valid\nassert is_valid('{[()]}')\nassert not is_valid('(]')\nassert not is_valid('(')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-two-sum",
+    "language": "python",
+    "prompt": "Implement two_sum(nums, target) returning the two indices whose values add to target, or None.",
+    "files": {
+      "solution.py": "def two_sum(nums, target):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import two_sum\nassert two_sum([2,7,11,15],9)==(0,1)\nassert two_sum([1,2],9) is None"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-run-length",
+    "language": "python",
+    "prompt": "Implement run_length_encode(text) returning a list of (character, count) pairs; '' yields [].",
+    "files": {
+      "solution.py": "def run_length_encode(text):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import run_length_encode\nassert run_length_encode('aaabbc')==[('a',3),('b',2),('c',1)]\nassert run_length_encode('')==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-slugify",
+    "language": "python",
+    "prompt": "Implement slugify(text): lowercase, replace runs of non-alphanumeric characters with one hyphen, and trim hyphens.",
+    "files": {
+      "solution.py": "def slugify(text):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import slugify\nassert slugify('  Hello, World!  ' )=='hello-world'\nassert slugify('A--B')=='a-b'"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-top-k",
+    "language": "python",
+    "prompt": "Implement top_k(words, k) returning the k most frequent words, ties sorted alphabetically.",
+    "files": {
+      "solution.py": "def top_k(words, k):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import top_k\nassert top_k(['b','a','b','c','a','b'],2)==['b','a']\nassert top_k([],3)==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-unique",
+    "language": "python",
+    "prompt": "Implement unique(items) preserving first occurrence order for hashable items.",
+    "files": {
+      "solution.py": "def unique(items):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import unique\nassert unique([3,1,3,2,1])==[3,1,2]\nassert unique([])==[]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-parse-bool",
+    "language": "python",
+    "prompt": "Implement parse_bool(value): accept true/1/yes/on and false/0/no/off case-insensitively; raise ValueError otherwise.",
+    "files": {
+      "solution.py": "def parse_bool(value):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import parse_bool\nassert parse_bool('YES') is True\nassert parse_bool('off') is False\ntry:\n    parse_bool('maybe')\n    raise AssertionError('expected ValueError')\nexcept ValueError:\n    pass"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-even-squares",
+    "language": "python",
+    "prompt": "Implement sum_even_squares(numbers): sum the squares of the even integers only.",
+    "files": {
+      "solution.py": "def sum_even_squares(numbers):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import sum_even_squares\nassert sum_even_squares([1,2,3,4])==20\nassert sum_even_squares([])==0"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "py-rotate",
+    "language": "python",
+    "prompt": "Implement rotate_90(matrix) rotating a square matrix clockwise without mutating the input.",
+    "files": {
+      "solution.py": "def rotate_90(matrix):\n    raise NotImplementedError\n"
+    },
+    "test": [
+      "{python}",
+      "-c",
+      "from solution import rotate_90\nm=[[1,2],[3,4]]\nassert rotate_90(m)==[[3,1],[4,2]]\nassert m==[[1,2],[3,4]]"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-sum",
+    "language": "javascript",
+    "prompt": "Implement sumArray(numbers) in solution.js and export it with module.exports.",
+    "files": {
+      "solution.js": "function sumArray(numbers) {\n  throw new Error('not implemented');\n}\nmodule.exports = { sumArray };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {sumArray}=require('./solution.js'); if(sumArray([1,2,3])!==6) throw new Error('bad sum'); if(sumArray([])!==0) throw new Error('bad empty')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-title-case",
+    "language": "javascript",
+    "prompt": "Implement titleCase(text) in solution.js, capitalizing each whitespace-separated word and lowercasing the rest.",
+    "files": {
+      "solution.js": "function titleCase(text) {\n  throw new Error('not implemented');\n}\nmodule.exports = { titleCase };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {titleCase}=require('./solution.js'); if(titleCase('hello WORLD')!=='Hello World') throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-unique-by",
+    "language": "javascript",
+    "prompt": "Implement uniqueBy(items, keyFn) preserving first occurrences based on the computed key.",
+    "files": {
+      "solution.js": "function uniqueBy(items, keyFn) {\n  throw new Error('not implemented');\n}\nmodule.exports = { uniqueBy };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {uniqueBy}=require('./solution.js'); const r=uniqueBy([{id:1},{id:2},{id:1}],x=>x.id); if(r.length!==2||r[1].id!==2) throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-deep-get",
+    "language": "javascript",
+    "prompt": "Implement deepGet(object, path, fallback) where path is dot-separated; return fallback when a segment is missing.",
+    "files": {
+      "solution.js": "function deepGet(object, path, fallback) {\n  throw new Error('not implemented');\n}\nmodule.exports = { deepGet };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {deepGet}=require('./solution.js'); if(deepGet({a:{b:2}},'a.b',0)!==2) throw new Error('bad'); if(deepGet({},'x.y',7)!==7) throw new Error('fallback')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-chunk",
+    "language": "javascript",
+    "prompt": "Implement chunkArray(items, size) returning an array of chunks; reject size below 1 with an Error.",
+    "files": {
+      "solution.js": "function chunkArray(items, size) {\n  throw new Error('not implemented');\n}\nmodule.exports = { chunkArray };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {chunkArray}=require('./solution.js'); const r=chunkArray([1,2,3,4,5],2); if(JSON.stringify(r)!=='[[1,2],[3,4],[5]]') throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-flatten",
+    "language": "javascript",
+    "prompt": "Implement flattenArray(items) recursively flattening nested arrays.",
+    "files": {
+      "solution.js": "function flattenArray(items) {\n  throw new Error('not implemented');\n}\nmodule.exports = { flattenArray };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {flattenArray}=require('./solution.js'); if(JSON.stringify(flattenArray([1,[2,[3]],4]))!=='[1,2,3,4]') throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-camel-case",
+    "language": "javascript",
+    "prompt": "Implement camelCase(text) converting space, hyphen and underscore separated words to lower camel case.",
+    "files": {
+      "solution.js": "function camelCase(text) {\n  throw new Error('not implemented');\n}\nmodule.exports = { camelCase };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {camelCase}=require('./solution.js'); if(camelCase('hello world-test')!=='helloWorldTest') throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-group-by",
+    "language": "javascript",
+    "prompt": "Implement groupBy(items, keyFn) returning an object mapping keys to arrays of items.",
+    "files": {
+      "solution.js": "function groupBy(items, keyFn) {\n  throw new Error('not implemented');\n}\nmodule.exports = { groupBy };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {groupBy}=require('./solution.js'); const r=groupBy([1,2,3,4],x=>x%2?'odd':'even'); if(r.odd.length!==2||r.even[0]!==2) throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-parse-query",
+    "language": "javascript",
+    "prompt": "Implement parseQuery(search) parsing '?a=1&b=two&a=3' into an object where repeated keys become arrays; decode URI components.",
+    "files": {
+      "solution.js": "function parseQuery(search) {\n  throw new Error('not implemented');\n}\nmodule.exports = { parseQuery };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {parseQuery}=require('./solution.js'); const r=parseQuery('?a=1&b=two&a=3'); if(r.a.join(',')!=='1,3'||r.b!=='two') throw new Error('bad')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  },
+  {
+    "id": "js-truncate",
+    "language": "javascript",
+    "prompt": "Implement truncate(text, limit) returning text unchanged when short enough, otherwise cutting to limit-3 characters and appending '...'.",
+    "files": {
+      "solution.js": "function truncate(text, limit) {\n  throw new Error('not implemented');\n}\nmodule.exports = { truncate };\n"
+    },
+    "test": [
+      "node",
+      "-e",
+      "const {truncate}=require('./solution.js'); if(truncate('hello',10)!=='hello') throw new Error('short'); if(truncate('hello world',8)!=='hello...') throw new Error('long')"
+    ],
+    "timeout": 10,
+    "allowed_paths": [
+      "."
+    ]
+  }
+]

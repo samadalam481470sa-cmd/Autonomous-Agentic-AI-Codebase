@@ -21,7 +21,7 @@ from pathlib import Path
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import semantic
+from . import events, semantic
 from .engine import workspace
 from .studio import authorize
 
@@ -166,8 +166,12 @@ def create_run(project: str, goal: str, mode: str = "build",
                 (uuid.uuid4().hex, run_id, index, role, ROLES[role], "pending"),
             )
         row = con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-        return _serialize(con, row)
-
+        created = _serialize(con, row)
+    events.append(run_id, "run.created", "orchestrator", {
+        "project": project, "goal": goal, "mode": mode, "autonomy": "ask",
+        "roles": [step["role"] for step in created["steps"]],
+    })
+    return created
 
 def cancel_run(run_id: str) -> dict:
     if not isinstance(run_id, str) or len(run_id) != 32:
@@ -187,7 +191,9 @@ def cancel_run(run_id: str) -> dict:
             (run_id,),
         )
         row = con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-        return _serialize(con, row)
+        cancelled = _serialize(con, row)
+    events.append(run_id, "run.cancelled", "operator", {"reason": "operator cancelled"})
+    return cancelled
 
 
 async def _complete(system: str, user: str, max_tokens: int = 1200) -> str:
@@ -247,6 +253,10 @@ async def advance_run(run_id: str) -> dict:
             {"role": step["role"], "output": step["output"]}
             for step in steps if step["status"] == "completed"
         ]
+        events.append(run_id, "step.started", target["role"], {
+            "step_id": target["id"], "seq": target["seq"],
+            "instruction": target["instruction"][:500],
+        })
         try:
             retrieved = semantic.context(run["project"], run["goal"], budget_chars=3000)
         except Exception:
@@ -265,6 +275,9 @@ async def advance_run(run_id: str) -> dict:
                     "UPDATE runs SET status='blocked',updated_at=? WHERE id=?",
                     (int(time.time()), run_id),
                 )
+            events.append(run_id, "step.failed", target["role"], {
+                "step_id": target["id"], "seq": target["seq"], "error": "model call failed",
+            })
             raise HTTPException(502, "Agent step failed; the run is blocked and can be retried")
         output = (output or "").strip()[:MAX_OUTPUT_CHARS]
         if not output:
@@ -292,7 +305,16 @@ async def advance_run(run_id: str) -> dict:
                 ("completed" if remaining == 0 else "queued", int(time.time()), run_id),
             )
             row = done_con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-            return _serialize(done_con, row)
+            finished = _serialize(done_con, row)
+        events.append(run_id, "step.completed", target["role"], {
+            "step_id": target["id"], "seq": target["seq"],
+            "output": output[:2000],
+        })
+        if remaining == 0:
+            events.append(run_id, "run.completed", "orchestrator", {
+                "steps": len(steps), "status": "completed",
+            })
+        return finished
 
 
 class RunRequest(BaseModel):
@@ -344,3 +366,24 @@ async def advance(run_id: str, authorization: str | None = Header(default=None))
 def cancel(run_id: str, authorization: str | None = Header(default=None)):
     authorize(authorization)
     return cancel_run(run_id)
+
+
+@router.get("/runs/{run_id}/events")
+def run_events(run_id: str, after: int = 0, limit: int = 500,
+               authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    get_run(run_id)
+    return {"events": events.list_events(run_id, after, limit),
+            "latest": events.latest_sequence(run_id)}
+
+
+@router.get("/runs/{run_id}/stream")
+def stream_run_events(run_id: str, after: int = 0,
+                      authorization: str | None = Header(default=None)):
+    from fastapi.responses import StreamingResponse
+    authorize(authorization)
+    get_run(run_id)
+    return StreamingResponse(events.tail(run_id, max(0, after)),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                 "X-Content-Type-Options": "nosniff"})
