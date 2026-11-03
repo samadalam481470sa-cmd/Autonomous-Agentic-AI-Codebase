@@ -151,7 +151,7 @@ The proposed Code-OSS-based editor, streaming model router, worktree sandbox and
 
 ### Opt-in local streaming chat
 
-The main browser chat has a **Stream local chat** checkbox. It calls the authenticated `POST /api/chat/stream` endpoint when `LOCAL_MODEL_ONLY=1`, which relays SSE token deltas through the loopback Rust gateway. Completed answers are saved with the user message as an atomic SQLite pair. Errors, interrupted streams and missing end markers are not saved as completed answers. Streaming chat intentionally disables model tool calls; keep the checkbox off for the existing agent/tool chat. No model weights, GPU drivers or inference engine are bundled.
+The main browser chat has a **Stream local chat** checkbox. It calls the authenticated `POST /api/chat/stream` endpoint when `LOCAL_MODEL_ONLY=1`, which relays SSE token deltas through the loopback Rust gateway. Completed answers are saved with the user message as an atomic SQLite pair. Errors, interrupted streams and missing end markers are not saved as completed answers. Streaming chat can execute only read-only tools inside the same run; writes and host commands remain disabled. No model weights, GPU drivers or inference engine are bundled.
 
 ## Approved-edit checkpoints and guarded restore
 
