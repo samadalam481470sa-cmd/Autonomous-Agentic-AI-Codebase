@@ -9,6 +9,16 @@ services:
     volumes:
       - agent-data:/app/database
       - agent-workspaces:/app/workspaces
+    # Read-only root, no Linux capabilities, bounded resources. The two
+    # volumes remain writable; execution containers are separate.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 1.0
     security_opt:
       - no-new-privileges:true
 volumes:

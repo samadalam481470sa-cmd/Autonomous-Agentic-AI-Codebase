@@ -18,7 +18,7 @@ A self-hostable **agentic coding assistant** with original application code and 
 - SQLite persistence, incremental FTS5 code index, FastAPI HTTP API, offline Monaco Editor integration
 - Local code-aware embedding index with hybrid vector + FTS5 search, similar-file lookup and retrieval-augmented chat (no model download, no network, deterministic)
 - Learned retrieval: local 👍/👎 feedback re-ranks hybrid results with decayed, smoothed acceptance (no training job or model download), plus a security scan that redacts credentials and flags prompt-injection attempts before any excerpt reaches a model
-- Hardened API: digest-compared admin token, optional TOTP two-factor codes, brute-force lockouts with exponential backoff, per-address rate limits, CSP and security headers, origin checks, body caps and an audit log
+- Hardened API: digest-compared admin token, optional TOTP two-factor codes, brute-force lockouts with exponential backoff, distributed-guessing cooldown, per-address rate limits, CSP and security headers, origin and Host checks, request-smuggling defences, injection signature blocking, SSRF and egress guards, body caps and a tamper-evident audit log
 - License-verified third-party registry with an automated permissive-license and notice check
 - Bounded multi-file coding trials, explicit Docker-based test approval and up to three offline retries
 - Optional local microphone transcription with whisper.cpp, separately run AgenticSeek browsing adapter, and SQLite feedback evaluation
@@ -54,7 +54,7 @@ Chat (`/api/chat`) and local streaming chat (`/api/chat/stream`) automatically i
 
 All API routes are protected by [services/api/security.py](services/api/security.py): constant-time digest comparison, optional digest-only token storage (`AGENT_ADMIN_TOKEN_SHA256`), a persistent per-address failure ledger with exponential lockouts (a correct token always bypasses the lockout), sliding-window rate limits with `Retry-After`, method/body/origin limits, encoded-traversal rejection, CSP and security headers, request IDs, and a capped audit log exposed only to authenticated callers. Configuration is documented in [.env.example](.env.example) and the controls in [security hardening](docs/SECURITY_HARDENING.md); retrieval internals are in [local semantic retrieval](docs/SEMANTIC_RETRIEVAL.md).
 
-This is hardening for a local single-operator tool, not a production internet service. Multi-user identity, TLS termination, global rate limiting and independent penetration testing remain outstanding.
+This is hardening for a local single-operator tool, not a production internet service. Multi-user identity, TLS termination, global rate limiting and independent penetration testing remain outstanding. A control matrix for the 50 tracked attack classes, with honest `mitigated`/`partial`/`delegated` statuses, is in [attack coverage](security/ATTACK_COVERAGE.md) and at the authenticated `GET /api/security/coverage`; it documents coverage and is not a claim of immunity.
 
 ## Aetherion OmniForge dashboard and multi-agent runs (new)
 

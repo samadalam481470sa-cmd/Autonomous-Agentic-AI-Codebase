@@ -12,3 +12,6 @@ apps/dashboard/node_modules/
 # The Code-OSS checkout is a separately pinned upstream working tree.
 # Never count it as authored source or commit its build dependencies.
 .local/
+
+# Python build metadata
+*.egg-info/

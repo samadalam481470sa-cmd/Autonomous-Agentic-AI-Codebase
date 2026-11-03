@@ -39,6 +39,34 @@ attacker with network access to the API could guess the administrator token.
 - Retrieved repository text is labelled untrusted in prompts and never executed
   by the UI. Studio preview is a sandboxed iframe with scripts disabled.
 
+## Defence-in-depth controls (new)
+
+- Request-integrity checks reject duplicate framing headers, conflicting
+  `Content-Length`/`Transfer-Encoding`, header injection, oversized headers and
+  ambiguous chunked API writes (request smuggling).
+- `Host` must be loopback or explicitly allowlisted, blocking DNS rebinding
+  against a local service; `Sec-Fetch-Site: cross-site` writes are refused in
+  addition to the `Origin` allowlist.
+- Structured fields are screened for SQLi, XSS, command injection, traversal,
+  SSTI, XXE, NoSQL/LDAP injection, unsafe deserialization, prototype pollution,
+  CRLF injection and internal SSRF targets. Free-text code is not blocked.
+- Outbound URLs pass a DNS-safe SSRF guard: HTTP(S) only, no credentials, and
+  every resolved address must be public. Model and delegation endpoints remain
+  loopback-only.
+- A per-caller egress budget bounds bulk data theft over the API; oversized
+  responses are audited.
+- A global failure-rate cooldown throttles distributed credential stuffing and
+  password spraying without locking out the real token holder.
+- The audit log is an HMAC hash chain with a verification endpoint, so edits,
+  deletions and reordering are detectable.
+- Static mounts are checked at startup for databases, `.env` files and
+  repository metadata.
+- The repository audit script and CI gate check committed secrets, dangerous
+  sinks, unpinned dependencies, mutable CI actions, exposed databases/keys and
+  root container users.
+- Compose runs read-only, non-root, with all capabilities dropped and bounded
+  process/memory/CPU limits.
+
 ## Residual risk
 
 - No multi-user identity, roles or tenant isolation; one token reaches everything.
@@ -52,7 +80,18 @@ attacker with network access to the API could guess the administrator token.
   are not fully mitigated without per-job containers or VMs.
 - Third-party models and the optional GPL AgenticSeek service are outside this
   repository's trust boundary.
-- No independent penetration test or fuzzing campaign has been completed.
+- Signature screening is a high-precision backstop for structured fields, not a
+  replacement for parameterized SQL and output escaping; free-text fields are
+  intentionally not blocked. Egress accounting is `Content-Length`-based and
+  per process.
+- The audit chain is tamper-evident, not tamper-proof: whoever holds
+  `SECURITY_AUDIT_KEY` (or the token digest when it is unset) can recompute it.
+  Ship entries to external storage for immutability, and set the key explicitly
+  before rotating the administrator token.
+- The `Host` allowlist must be configured for any non-loopback deployment
+  (`SECURITY_ALLOWED_HOSTS`); otherwise API requests correctly return `421`.
+- No independent penetration test or fuzzing campaign has been completed, and no
+  software can guarantee immunity to every attack.
 
 ## Deployment requirements
 

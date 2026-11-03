@@ -2,6 +2,7 @@
 import os
 from urllib.parse import urlsplit
 from fastapi import APIRouter, Header, HTTPException
+from .hardening import url_problem
 from .studio import authorize
 router=APIRouter(prefix="/api/local-model",tags=["local-model"])
 
@@ -12,6 +13,9 @@ def local_url():
         raise ValueError("Local inference endpoint must be loopback HTTP")
     if parsed.path not in ("/v1","/api/v1"):
         raise ValueError("Expected a loopback OpenAI-compatible /v1 endpoint")
+    problem=url_problem(url,allow_loopback=True)
+    if problem:
+        raise ValueError("Local inference endpoint rejected: "+problem)
     return url
 
 def model_settings():

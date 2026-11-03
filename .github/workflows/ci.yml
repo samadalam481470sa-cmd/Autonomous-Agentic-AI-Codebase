@@ -10,6 +10,8 @@ jobs:
           python-version: '3.12'
       - run: pip install -e '.[dev]'
       - run: python -m compileall -q services
+      - name: Repository security audit
+        run: python scripts/security_audit.py --fail-on high
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

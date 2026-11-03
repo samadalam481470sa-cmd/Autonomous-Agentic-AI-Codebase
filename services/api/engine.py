@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import shlex
 import sqlite3
 import subprocess
 import uuid
@@ -62,12 +63,26 @@ def tool(project,name,args):
         if name=="run_command":
             if os.getenv("ALLOW_COMMANDS")!="1": return "Command execution disabled. Set ALLOW_COMMANDS=1 only in an isolated trusted environment."
             command=args["command"]
-            if not isinstance(command,str) or len(command)>300: return "Invalid command"
-            result=subprocess.run(command,shell=True,cwd=workspace(project),capture_output=True,text=True,timeout=15)
+            if not isinstance(command,str) or not 1<=len(command)<=300: return "Invalid command"
+            # No shell: metacharacters would turn a data argument into a second
+            # command. Reject them instead of relying on quoting.
+            if re.search(r"[;&|`$<>\n\r]",command): return "Shell metacharacters are not allowed"
+            try: argv=shlex.split(command,posix=True)
+            except ValueError: return "Invalid command"
+            if not argv: return "Invalid command"
+            for part in argv:
+                if part.startswith(("/","~")) or ".." in Path(part).parts:
+                    return "Absolute paths and parent traversal are not allowed"
+            # Keep provider credentials out of child processes.
+            child_env={k:v for k,v in os.environ.items()
+                       if not re.search(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL",k,re.I)}
+            result=subprocess.run(argv,shell=False,cwd=workspace(project),
+                capture_output=True,text=True,timeout=15,env=child_env,
+                start_new_session=True)
             return json.dumps({"exit_code":result.returncode,"stdout":result.stdout[-5000:],"stderr":result.stderr[-2000:]})
         return "Unknown tool"
     except (OSError,ValueError,KeyError,subprocess.TimeoutExpired) as e:
-        return "Tool error: "+str(e)
+        return "Tool error: "+type(e).__name__
 
 def db():
     """Local single-user persistence with WAL, busy timeout and indexed history."""

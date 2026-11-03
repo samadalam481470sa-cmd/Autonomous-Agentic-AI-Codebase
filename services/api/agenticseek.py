@@ -7,6 +7,8 @@ import os
 from urllib.parse import urlsplit
 import httpx
 
+from .hardening import url_problem
+
 class AgenticSeekUnavailable(RuntimeError):
     pass
 
@@ -18,6 +20,9 @@ def config():
     parsed=urlsplit(url)
     if parsed.scheme!="http" or parsed.hostname not in ("127.0.0.1","localhost","::1") or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("","/"):
         raise AgenticSeekUnavailable("AgenticSeek must run on a loopback HTTP address without URL credentials.")
+    problem=url_problem(url,allow_loopback=True)
+    if problem:
+        raise AgenticSeekUnavailable("AgenticSeek URL rejected: "+problem)
     return url,token
 
 async def delegate(query):

@@ -31,12 +31,16 @@ from fastapi import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+from . import hardening
+
 ALLOWED_METHODS = {"GET", "HEAD", "POST", "OPTIONS"}
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 MAX_TOKEN_CHARS = 4096
 _LOCK = threading.RLock()
 _WINDOWS: dict[tuple[str, str], deque] = {}
 MAX_WINDOWS = 10000
+_GLOBAL_FAILURES: deque[float] = deque()
+_GLOBAL_COOLDOWN_UNTIL = 0.0
 
 # Stricter buckets for expensive or security-sensitive endpoint families.
 RATE_BUCKETS = {
@@ -87,8 +91,12 @@ def general_rate_limit() -> int:
 
 def reset() -> None:
     """Clear in-memory limiter state. Test-only; the audit ledger is untouched."""
+    global _GLOBAL_COOLDOWN_UNTIL
     with _LOCK:
         _WINDOWS.clear()
+        _GLOBAL_FAILURES.clear()
+        _GLOBAL_COOLDOWN_UNTIL = 0.0
+    hardening.reset()
 
 
 def _db_path() -> Path:
@@ -118,27 +126,145 @@ def _connect() -> sqlite3.Connection:
         event TEXT NOT NULL,
         actor TEXT NOT NULL DEFAULT '',
         detail TEXT NOT NULL DEFAULT '',
-        request_id TEXT NOT NULL DEFAULT '')"""
+        request_id TEXT NOT NULL DEFAULT '',
+        prev_hash TEXT NOT NULL DEFAULT '',
+        entry_hash TEXT NOT NULL DEFAULT '')"""
     )
+    columns = {row[1] for row in con.execute("PRAGMA table_info(audit_log)").fetchall()}
+    if "prev_hash" not in columns:
+        con.execute("ALTER TABLE audit_log ADD COLUMN prev_hash TEXT NOT NULL DEFAULT ''")
+    if "entry_hash" not in columns:
+        con.execute("ALTER TABLE audit_log ADD COLUMN entry_hash TEXT NOT NULL DEFAULT ''")
     con.execute("CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC,id DESC)")
+    con.execute("CREATE TABLE IF NOT EXISTS audit_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    existing = con.execute(
+        "SELECT value FROM audit_meta WHERE key='chain_start_id'").fetchone()
+    if existing is None:
+        # Rows that predate hash chaining cannot be verified; start the chain
+        # immediately after them instead of pretending they are authentic.
+        maximum = con.execute("SELECT COALESCE(MAX(id),0) AS m FROM audit_log").fetchone()["m"]
+        con.execute(
+            "INSERT OR REPLACE INTO audit_meta(key,value) VALUES('chain_start_id',?)",
+            (str(int(maximum)),))
+    con.commit()
     return con
 
 
+def _audit_key() -> bytes:
+    """Stable HMAC key for the audit chain.
+
+    Set ``SECURITY_AUDIT_KEY`` to keep the chain verifiable across token
+    rotation. Without it the administrator-token digest is used, so rotating the
+    token also starts a new chain (the old entries remain readable but cannot be
+    re-verified).
+    """
+    configured = os.getenv("SECURITY_AUDIT_KEY", "").strip()
+    if configured:
+        return hashlib.sha256(("audit-key:" + configured).encode("utf-8")).digest()
+    return hashlib.sha256(("audit-key:" + (token_digest() or "unkeyed")).encode("utf-8")).digest()
+
+
+def _audit_payload(prev: str, created_at: int, event: str, actor: str,
+                   detail: str, request_id: str) -> bytes:
+    return "\x1f".join((prev, str(created_at), event, actor, detail,
+                         request_id)).encode("utf-8")
+
+
+def _trim_audit(con: sqlite3.Connection) -> None:
+    """Bound the ledger while preserving an anchor for chain verification."""
+    maximum = _int("SECURITY_AUDIT_MAX_ENTRIES", 20000, 0, 1_000_000)
+    if not maximum:
+        return
+    count = con.execute("SELECT COUNT(*) AS c FROM audit_log").fetchone()["c"]
+    if count <= maximum:
+        return
+    cutoff = con.execute(
+        "SELECT id,entry_hash FROM audit_log ORDER BY id DESC LIMIT 1 OFFSET ?",
+        (maximum,)).fetchone()
+    if cutoff is None:
+        return
+    con.execute("DELETE FROM audit_log WHERE id<=?", (int(cutoff["id"]),))
+    con.execute(
+        "INSERT INTO audit_meta(key,value) VALUES('pruned_through_id',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (str(int(cutoff["id"])),))
+    con.execute(
+        "INSERT INTO audit_meta(key,value) VALUES('pruned_through_hash',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (str(cutoff["entry_hash"] or ""),))
+
+
 def audit(event: str, detail: str = "", actor: str = "", request_id: str = "") -> None:
-    """Best-effort append-only audit entry. Never raises into a request."""
+    """Best-effort append-only, HMAC-chained audit entry.
+
+    Each row commits to the previous row's hash, so deleting, reordering or
+    editing an entry is detectable with :func:`verify_audit_chain`. The chain
+    is keyed, so an attacker who can write the database but does not hold the
+    key cannot forge a consistent history. Never raises into a request.
+    """
     try:
         with _LOCK, closing(_connect()) as con, con:
+            created = int(time.time())
+            created_event = str(event)[:64]
+            created_actor = str(actor)[:128]
+            created_detail = str(detail)[:1000]
+            created_request = str(request_id)[:64]
+            last = con.execute(
+                "SELECT entry_hash FROM audit_log ORDER BY id DESC LIMIT 1").fetchone()
+            previous = str(last["entry_hash"]) if last and last["entry_hash"] else ""
+            entry = hmac.new(
+                _audit_key(),
+                _audit_payload(previous, created, created_event, created_actor,
+                               created_detail, created_request),
+                hashlib.sha256,
+            ).hexdigest()
             con.execute(
-                "INSERT INTO audit_log(created_at,event,actor,detail,request_id) VALUES(?,?,?,?,?)",
-                (int(time.time()), str(event)[:64], str(actor)[:128],
-                 str(detail)[:1000], str(request_id)[:64]),
+                "INSERT INTO audit_log(created_at,event,actor,detail,request_id,"
+                "prev_hash,entry_hash) VALUES(?,?,?,?,?,?,?)",
+                (created, created_event, created_actor, created_detail,
+                 created_request, previous, entry),
             )
-            con.execute(
-                "DELETE FROM audit_log WHERE id NOT IN "
-                "(SELECT id FROM audit_log ORDER BY id DESC LIMIT 2000)"
-            )
+            _trim_audit(con)
     except (sqlite3.Error, OSError, ValueError):
         return
+
+
+def verify_audit_chain() -> dict:
+    """Recompute the audit hash chain and report the first inconsistency."""
+    try:
+        with closing(_connect()) as con:
+            meta = {row["key"]: row["value"] for row in con.execute(
+                "SELECT key,value FROM audit_meta")}
+            pruned = int(meta.get("pruned_through_id", "0") or 0)
+            chain_start = int(meta.get("chain_start_id", "0") or 0)
+            start = max(pruned, chain_start)
+            expected = str(meta.get("pruned_through_hash", "")) if pruned else ""
+            rows = con.execute(
+                "SELECT id,created_at,event,actor,detail,request_id,prev_hash,"
+                "entry_hash FROM audit_log WHERE id>? ORDER BY id", (start,)
+            ).fetchall()
+    except (sqlite3.Error, OSError, ValueError):
+        return {"ok": False, "checked": 0, "error": "audit store unavailable"}
+    checked = 0
+    for row in rows:
+        if not row["entry_hash"]:
+            continue
+        if not hmac.compare_digest(str(row["prev_hash"]), expected):
+            return {"ok": False, "checked": checked, "first_bad_id": row["id"],
+                    "error": "broken link"}
+        recomputed = hmac.new(
+            _audit_key(),
+            _audit_payload(str(row["prev_hash"]), int(row["created_at"]),
+                           str(row["event"]), str(row["actor"]),
+                           str(row["detail"]), str(row["request_id"])),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(recomputed, str(row["entry_hash"])):
+            return {"ok": False, "checked": checked, "first_bad_id": row["id"],
+                    "error": "entry digest mismatch"}
+        expected = str(row["entry_hash"])
+        checked += 1
+    return {"ok": True, "checked": checked, "anchor": bool(pruned or chain_start)}
 
 
 def token_digest() -> str | None:
@@ -275,6 +401,29 @@ def client_ip(request) -> str:
     return (getattr(client, "host", None) or "unknown")[:64]
 
 
+def _note_global_failure() -> None:
+    """Detect distributed guessing that per-address lockouts cannot see."""
+    global _GLOBAL_COOLDOWN_UNTIL
+    now = time.monotonic()
+    with _LOCK:
+        _GLOBAL_FAILURES.append(now)
+        while _GLOBAL_FAILURES and now - _GLOBAL_FAILURES[0] > 60:
+            _GLOBAL_FAILURES.popleft()
+        limit = _int("SECURITY_GLOBAL_FAILURE_LIMIT", 40, 2, 100000)
+        if len(_GLOBAL_FAILURES) >= limit:
+            cooldown = _int("SECURITY_GLOBAL_COOLDOWN_SECONDS", 30, 1, 3600)
+            if now >= _GLOBAL_COOLDOWN_UNTIL:
+                audit("auth.global_cooldown",
+                      f"{len(_GLOBAL_FAILURES)} failures in 60s")
+            _GLOBAL_COOLDOWN_UNTIL = max(_GLOBAL_COOLDOWN_UNTIL, now + cooldown)
+
+
+def global_cooldown_remaining() -> int:
+    with _LOCK:
+        remaining = int(_GLOBAL_COOLDOWN_UNTIL - time.monotonic())
+    return max(0, remaining)
+
+
 def lockout_remaining(identifier: str) -> int:
     try:
         with closing(_connect()) as con:
@@ -318,6 +467,7 @@ def record_failure(identifier: str) -> int:
             )
     except (sqlite3.Error, OSError):
         return 0
+    _note_global_failure()
     if locked_until:
         audit("auth.lockout", f"address locked for {locked_until - now}s", actor=identifier)
         return locked_until - now
@@ -400,6 +550,9 @@ def harden_headers(response, request) -> None:
     headers["Cross-Origin-Opener-Policy"] = "same-origin"
     headers["Cross-Origin-Resource-Policy"] = "same-origin"
     headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    headers["X-XSS-Protection"] = "0"
+    headers["X-DNS-Prefetch-Control"] = "off"
+    headers["Origin-Agent-Cluster"] = "?1"
     headers["X-Request-ID"] = getattr(request.state, "request_id", "")
     content_type = headers.get("content-type", "")
     if content_type.startswith("text/html"):
@@ -457,6 +610,18 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         api_path = path.startswith("/api/")
 
+        integrity = hardening.request_integrity(request)
+        if integrity:
+            audit("request.integrity_rejected", integrity, request_id=request.state.request_id)
+            return reject(400, "Malformed request", request)
+
+        host_problem = hardening.request_host_problem(request)
+        if host_problem:
+            audit("request.host_rejected",
+                  request.headers.get("host", "")[:200],
+                  request_id=request.state.request_id)
+            return reject(421, "Host not allowed", request)
+
         if request.method not in ALLOWED_METHODS:
             audit("request.method_rejected", request.method, request_id=request.state.request_id)
             return reject(405, "Method not allowed", request)
@@ -464,6 +629,23 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if suspicious_target(request):
             audit("request.suspicious_target", path[:200], request_id=request.state.request_id)
             return reject(400, "Invalid request target", request)
+
+        cross_site = hardening.fetch_metadata_problem(request)
+        if cross_site:
+            audit("request.cross_site_rejected", cross_site,
+                  request_id=request.state.request_id)
+            return reject(403, "Cross-site write refused", request)
+
+        framing = hardening.framing_problem(request)
+        if framing:
+            audit("request.framing_rejected", framing, request_id=request.state.request_id)
+            return reject(411, framing, request)
+
+        content_type = hardening.content_type_problem(request)
+        if content_type:
+            audit("request.content_type_rejected", content_type,
+                  request_id=request.state.request_id)
+            return reject(415, content_type, request)
 
         oversized = _valid_body_limit(request)
         if oversized is not None:
@@ -488,6 +670,21 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 audit("request.rate_limited", path[:200], actor=ip, request_id=request.state.request_id)
                 return reject(429, "Too many requests; slow down", request, retry_after=retry)
 
+            egress = hardening.egress_retry(ip)
+            if egress:
+                audit("egress.limit_reached", path[:200], actor=ip,
+                      request_id=request.state.request_id)
+                return reject(429, "Response budget exceeded; retry later", request,
+                              retry_after=egress)
+
+            if not authenticated:
+                cooldown = global_cooldown_remaining()
+                if cooldown:
+                    audit("auth.global_cooldown_rejected", path[:200], actor=ip,
+                          request_id=request.state.request_id)
+                    return reject(429, "Authentication paused after repeated failures",
+                                  request, retry_after=cooldown)
+
             remaining = lockout_remaining(ip)
             if remaining and not authenticated:
                 audit("auth.lockout_rejected", path[:200], actor=ip, request_id=request.state.request_id)
@@ -500,6 +697,19 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 record_failure(ip)
                 return reject(401, "Multi-factor code required or invalid", request)
 
+            if request.method in {"GET", "HEAD", "POST", "PUT", "PATCH"}:
+                report = await hardening.inspect_request(request)
+                if report["blocked"]:
+                    audit("request.injection_blocked",
+                          ",".join(report["categories"])[:200], actor=ip,
+                          request_id=request.state.request_id)
+                    return reject(400, "Request rejected by security policy", request)
+                if report["findings"]:
+                    audit("request.suspicious_input",
+                          ",".join(f"{item['category']}:{item['rule']}"
+                                   for item in report["findings"])[:300],
+                          actor=ip, request_id=request.state.request_id)
+
         try:
             response = await call_next(request)
         except Exception:
@@ -511,6 +721,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 clear_failures(ip)
             elif response.status_code in (401, 403) and not authenticated:
                 record_failure(ip)
+            size = hardening.response_size_bytes(response)
+            if size:
+                hardening.note_egress(ip, size)
+                if size >= hardening.large_response_threshold():
+                    audit("egress.large_response", f"{size} bytes", actor=ip,
+                          request_id=request.state.request_id)
         harden_headers(response, request)
         return response
 
@@ -547,5 +763,8 @@ def status(limit: int = 20) -> dict:
         "max_body_bytes": max_body_bytes(),
         "locked_addresses": 0 if state is None else state["locked"],
         "headers": ["CSP", "HSTS (https)", "X-Frame-Options", "nosniff", "CORP", "COOP"],
+        "global_cooldown_seconds_remaining": global_cooldown_remaining(),
+        "hardening": hardening.summary(),
+        "audit_chain": verify_audit_chain(),
         "recent_audit": recent,
     }

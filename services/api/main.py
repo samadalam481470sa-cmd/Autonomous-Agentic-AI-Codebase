@@ -6,7 +6,8 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .engine import history, respond, tool, workspace
-from .security import SecurityMiddleware, status as security_status
+from . import hardening
+from .security import SecurityMiddleware, audit as security_audit, status as security_status
 
 app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.2.0")
 app.add_middleware(SecurityMiddleware)
@@ -135,6 +136,13 @@ if (DASHBOARD / "assets").is_dir():
     app.mount("/dashboard/assets", StaticFiles(directory=str(DASHBOARD / "assets")),
               name="dashboard-assets")
 
+# Refuse to serve secrets, databases or repository metadata through a static
+# mount. This runs at import so a misconfiguration is visible in the audit log
+# before the first request.
+_STATIC_ISSUES = hardening.static_mount_problems(app)
+if _STATIC_ISSUES:
+    security_audit("startup.static_exposure", str(_STATIC_ISSUES)[:800])
+
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page():
@@ -152,3 +160,18 @@ def get_security_status(request: Request, limit: int = 20,
     payload["client"] = request.client.host if request.client else "unknown"
     payload["request_id"] = getattr(request.state, "request_id", "")
     return payload
+
+
+@app.get("/api/security/coverage")
+def get_security_coverage(authorization: str | None = Header(default=None)):
+    """Machine-readable control coverage for the 50 tracked attack classes."""
+    require_admin(authorization)
+    return {"summary": hardening.summary(), "threats": hardening.THREATS}
+
+
+@app.get("/api/security/audit/verify")
+def verify_audit_trail(authorization: str | None = Header(default=None)):
+    """Verify the tamper-evident audit hash chain."""
+    require_admin(authorization)
+    from .security import verify_audit_chain
+    return verify_audit_chain()
