@@ -1,0 +1,56 @@
+name: Coding benchmark (GitHub Models)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'evals/benchmark/**'
+      - 'scripts/run_benchmark.py'
+      - 'scripts/benchmark_agent.py'
+      - '.github/workflows/benchmark.yml'
+permissions:
+  contents: write
+  models: read
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MODEL_BASE_URL: https://models.github.ai/inference
+      MODEL_NAME: openai/gpt-4o-mini
+      MODEL_API_KEY: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install httpx
+      - name: Run the 30-task benchmark with the model agent
+        run: |
+          python scripts/run_benchmark.py \
+            --agent-command "python $PWD/scripts/benchmark_agent.py" \
+            --agent-timeout 90 \
+            --json evals/benchmark/agent.json \
+            --markdown evals/benchmark/AGENT.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coding-benchmark-agent
+          path: |
+            evals/benchmark/agent.json
+            evals/benchmark/AGENT.md
+          if-no-files-found: error
+      - name: Record the measured score in the repository
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evals/benchmark/agent.json evals/benchmark/AGENT.md
+          if git diff --cached --quiet; then
+            echo "No score changes to record."
+            exit 0
+          fi
+          git commit -m "Record coding benchmark agent score [skip ci]"
+          git push

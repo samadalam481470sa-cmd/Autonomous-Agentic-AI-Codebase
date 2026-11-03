@@ -130,11 +130,16 @@ def run_benchmark(tasks: list[dict], *, agent_command=None, agent_timeout=120) -
         for task in tasks
     ]
     passed = sum(1 for item in results if item["passed"])
+    agent_failures = sum(
+        1 for item in results
+        if agent_command and (not item["agent"]["ran"] or item["agent"]["exit_code"] != 0)
+    )
     return {
         "kind": "agent" if agent_command else "starter-baseline",
         "agent_command": agent_command,
         "total": len(results), "passed": passed,
         "failed": len(results) - passed,
+        "agent_failures": agent_failures,
         "results": results,
     }
 
@@ -160,7 +165,11 @@ def main(argv=None) -> int:
     for item in summary["results"]:
         state = "PASS" if item["passed"] else "FAIL"
         print(f"{state}  {item['id']:<26} {item['seconds']:>5.2f}s")
-    print(f"\n{summary['passed']}/{summary['total']} passed ({summary['kind']})")
+    print(f"\n{summary['passed']}/{summary['total']} passed ({summary['kind']}); "
+          f"agent failures: {summary['agent_failures']}")
+    if args.agent_command and summary["agent_failures"] == summary["total"]:
+        print("agent failed for every task; refusing to record this as a score", file=sys.stderr)
+        return 2
     if args.json:
         Path(args.json).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     if args.markdown:

@@ -52,6 +52,18 @@ def test_agent_command_receives_prompt_and_can_solve(tmp_path):
     assert result["passed"] is True
 
 
+def test_agent_failures_are_counted_separately_from_task_failures():
+    task = {
+        "id": "py-sample", "language": "python", "prompt": "Implement add(a, b).",
+        "files": {"solution.py": "def add(a, b):\n    raise NotImplementedError\n"},
+        "test": ["{python}", "-c", "from solution import add; assert add(2, 3) == 5"],
+        "timeout": 5,
+    }
+    summary = benchmark.run_benchmark([task], agent_command="false")
+    assert summary["passed"] == 0
+    assert summary["agent_failures"] == 1
+
+
 def test_unsafe_task_paths_and_wrong_task_count_are_rejected(tmp_path):
     bad = tmp_path / "bad.json"
     task = {
