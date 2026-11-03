@@ -5,10 +5,19 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
 from .engine import history, respond, tool, workspace
 from .security import SecurityMiddleware, status as security_status
 
-app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.2.0")
+
+@asynccontextmanager
+async def _lifespan(_app):
+    yield
+    from .device import shutdown as shutdown_device
+    shutdown_device()
+
+
+app=FastAPI(title="Autonomous Agentic AI Codebase",version="0.2.0",lifespan=_lifespan)
 app.add_middleware(SecurityMiddleware)
 from .studio import router as studio_router
 app.include_router(studio_router)
@@ -38,6 +47,8 @@ from .ai_features import router as ai_features_router
 app.include_router(ai_features_router)
 from .orchestrator import router as orchestrator_router
 app.include_router(orchestrator_router)
+from .device import router as device_router
+app.include_router(device_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"

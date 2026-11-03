@@ -5,6 +5,7 @@ import type { IndexStats, SearchResult } from './types';
 import {
   CloseIcon,
   CommandIcon,
+  DeviceIcon,
   FilesIcon,
   LogoMark,
   RefreshIcon,
@@ -15,9 +16,10 @@ import {
 } from './icons';
 import AssistantPanel from './components/AssistantPanel';
 import CommandPalette, { type PaletteAction } from './components/CommandPalette';
+import DevicePanel from './components/DevicePanel';
 import SecurityPanel from './components/SecurityPanel';
 
-type View = 'files' | 'search' | 'security' | 'settings';
+type View = 'files' | 'search' | 'device' | 'security' | 'settings';
 type AssistantTab = 'chat' | 'ask' | 'agents';
 type OpenFile = { path: string; content: string; lines: number };
 
@@ -205,6 +207,12 @@ export default function App() {
         },
       },
       { id: 'search', label: 'Search code', hint: 'Hybrid retrieval', run: () => setView('search') },
+      {
+        id: 'device',
+        label: 'Device runtime',
+        hint: 'GPU, thermals, keep-awake',
+        run: () => setView('device'),
+      },
       { id: 'security', label: 'Security posture', hint: 'Auth, lockouts, audit', run: () => setView('security') },
       { id: 'settings', label: 'Settings', hint: 'Credentials and project', run: () => setView('settings') },
       { id: 'lock', label: 'Lock workspace', hint: 'Clear credentials', run: lock },
@@ -310,6 +318,13 @@ export default function App() {
             <SearchIcon size={18} />
           </RailButton>
           <RailButton
+            active={view === 'device'}
+            label="Device runtime"
+            onClick={() => setView('device')}
+          >
+            <DeviceIcon size={18} />
+          </RailButton>
+          <RailButton
             active={view === 'security'}
             label="Security"
             onClick={() => setView('security')}
@@ -334,9 +349,11 @@ export default function App() {
                   ? 'Explorer'
                   : view === 'search'
                     ? 'Search'
-                    : view === 'security'
-                      ? 'Security'
-                      : 'Settings'}
+                    : view === 'device'
+                      ? 'Device'
+                      : view === 'security'
+                        ? 'Security'
+                        : 'Settings'}
               </span>
               <button className="ghost icon" onClick={() => void refreshFiles()} title="Refresh files">
                 <RefreshIcon size={14} />
@@ -423,6 +440,13 @@ export default function App() {
               </div>
             )}
 
+            {view === 'device' && (
+              <p className="muted small">
+                Hardware, temperatures and the keep-awake hold are shown in the main panel. Agent
+                steps pause automatically when the device runs hot.
+              </p>
+            )}
+
             {view === 'security' && (
               <p className="muted small">
                 Lockouts, rate limits and the audit trail are shown in the main panel. The token is
@@ -439,7 +463,9 @@ export default function App() {
         )}
 
         <main className="center">
-          {view === 'security' ? (
+          {view === 'device' ? (
+            <DevicePanel notify={notify} onLocked={lock} />
+          ) : view === 'security' ? (
             <SecurityPanel notify={notify} onLocked={lock} />
           ) : view === 'settings' ? (
             <SettingsView

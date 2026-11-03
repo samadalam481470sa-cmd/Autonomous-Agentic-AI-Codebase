@@ -64,6 +64,30 @@ The multi-agent backend in [services/api/orchestrator.py](services/api/orchestra
 
 Build the UI with `cd apps/dashboard && npm ci && npm run build`. The Dockerfile builds it in a Node stage; `deploy/k8s/platform.yaml` provides hardened blueprint manifests. PostgreSQL and Redis are not runtime dependencies in this build, and there is no Go service; the local inference gateway is Rust and the API is Python. These are documented as scope limits rather than hidden.
 
+## Run on your own computer (new)
+
+Download the bundle from a tagged release or Actions artifact, verify its
+SHA-256, then run `./run.sh` (Linux/macOS) or `run.bat` (Windows). The launcher
+creates a local virtual environment, prints an administrator token, binds only
+to `127.0.0.1`, and opens `/dashboard`.
+
+```bash
+git clone https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase.git
+cd Autonomous-Agentic-AI-Codebase
+./run.sh              # or: python aetherion.py
+python aetherion.py --check   # hardware, thermal and backend report
+```
+
+The app runs on your CPU, GPU and RAM with SQLite. Docker, PostgreSQL, Redis and
+Kubernetes are not required for local use. The **Device** page shows hardware,
+temperatures, the thermal governor, local model backends and a keep-awake toggle.
+Agent runs pause automatically when the device runs hot, and the launcher holds
+the machine awake for long sessions with a TTL and automatic release.
+
+Build the downloadable archive with `python scripts/package_local.py`. Full
+details, model sizing, thresholds and troubleshooting: [docs/LOCAL_RUNTIME.md](docs/LOCAL_RUNTIME.md).
+Framework status: [docs/FRAMEWORK_COMPLIANCE.md](docs/FRAMEWORK_COMPLIANCE.md).
+
 ## Project architecture
 
 ```text
