@@ -1,4 +1,4 @@
-name: Coding benchmark (GitHub Models)
+name: Coding benchmark
 on:
   workflow_dispatch:
   push:
@@ -10,39 +10,52 @@ on:
       - '.github/workflows/benchmark.yml'
 permissions:
   contents: write
-  models: read
-concurrency:
-  group: benchmark-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  # GitHub Models was retired on 2026-07-30. This workflow needs a real
+  # OpenAI-compatible model, configured as repository secrets/variables.
+  MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}
+  MODEL_BASE_URL: ${{ vars.MODEL_BASE_URL }}
+  MODEL_NAME: ${{ vars.MODEL_NAME }}
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      MODEL_BASE_URL: https://models.github.ai/inference
-      MODEL_NAME: openai/gpt-4o-mini
-      MODEL_API_KEY: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install httpx
-      - name: Run the 30-task benchmark with the model agent
+      - name: Check whether a model is configured
+        id: model
+        shell: bash
+        run: |
+          if [ -n "${MODEL_API_KEY:-}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Model secret is configured; a measured score will be recorded."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::MODEL_API_KEY is not configured; skipping the benchmark instead of recording a fake score."
+          fi
+      - if: steps.model.outputs.available == 'true'
+        run: python -m pip install httpx
+      - if: steps.model.outputs.available == 'true'
+        name: Run the 30-task benchmark with the model agent
         run: |
           python scripts/run_benchmark.py \
             --agent-command "python $PWD/scripts/benchmark_agent.py" \
             --agent-timeout 90 \
             --json evals/benchmark/agent.json \
             --markdown evals/benchmark/AGENT.md
-      - uses: actions/upload-artifact@v4
+      - if: steps.model.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
         with:
           name: coding-benchmark-agent
           path: |
             evals/benchmark/agent.json
             evals/benchmark/AGENT.md
           if-no-files-found: error
-      - name: Record the measured score in the repository
+      - if: steps.model.outputs.available == 'true'
+        name: Record the measured score in the repository
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
