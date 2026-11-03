@@ -152,6 +152,8 @@ def main(argv=None) -> int:
     parser.add_argument("--agent-timeout", type=int, default=120)
     parser.add_argument("--json", default=None, help="Write the full result object here.")
     parser.add_argument("--markdown", default=None, help="Write a compact report here.")
+    parser.add_argument("--label", default=os.getenv("BENCHMARK_MODEL_LABEL", ""),
+                        help="Model/runtime label recorded with the result.")
     parser.add_argument("--require-pass", type=int, default=None,
                         help="Exit 1 when fewer tasks pass than this threshold.")
     args = parser.parse_args(argv)
@@ -159,6 +161,7 @@ def main(argv=None) -> int:
         tasks = load_tasks(args.tasks)
         summary = run_benchmark(tasks, agent_command=args.agent_command,
                                 agent_timeout=args.agent_timeout)
+        summary["label"] = args.label
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"benchmark error: {error}", file=sys.stderr)
         return 2
@@ -167,18 +170,19 @@ def main(argv=None) -> int:
         print(f"{state}  {item['id']:<26} {item['seconds']:>5.2f}s")
     print(f"\n{summary['passed']}/{summary['total']} passed ({summary['kind']}); "
           f"agent failures: {summary['agent_failures']}")
-    if args.agent_command and summary["agent_failures"] == summary["total"]:
-        print("agent failed for every task; refusing to record this as a score", file=sys.stderr)
-        return 2
     if args.json:
         Path(args.json).write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     if args.markdown:
         lines = ["# Coding benchmark", "", f"- Kind: {summary['kind']}",
+                 f"- Model: {summary.get('label') or 'unspecified'}",
                  f"- Passed: {summary['passed']}/{summary['total']}", "",
                  "| Task | Language | Result |", "| --- | --- | --- |"]
         lines += [f"| {item['id']} | {item['language']} | {'pass' if item['passed'] else 'fail'} |"
                   for item in summary["results"]]
         Path(args.markdown).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if args.agent_command and summary["agent_failures"] == summary["total"]:
+        print("agent failed for every task; refusing to record this as a score", file=sys.stderr)
+        return 2
     if args.require_pass is not None and summary["passed"] < args.require_pass:
         print(f"required {args.require_pass} passes, got {summary['passed']}", file=sys.stderr)
         return 1

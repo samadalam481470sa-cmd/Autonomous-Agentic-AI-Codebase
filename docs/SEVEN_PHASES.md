@@ -9,7 +9,7 @@ overstate the product.
 
 | Phase | Scope | Status | Gate |
 | --- | --- | --- | --- |
-| 0 | Contracts, event log, benchmark, CI | **partial** | Contract check, event log and 30-task harness pass; recorded starter baseline is 0/30. No model/agent score yet |
+| 0 | Contracts, event log, benchmark, CI | **partial** | Contract check, event log and 30-task harness pass; starter baseline 0/30, local Qwen 0.5B CPU agent 10/30 (one agent failure), no frontier-model score |
 | 1 | Code-OSS workbench, agent window, Tab completion, installers | **partial** | Chat, approved rewrites and Agent Runs webview exist; unsigned Linux `.deb` builds and clean-room installs/launches in CI. No Tab completion, signed/Windows/macOS installers or interactive UI run |
 | 2 | Agent core: runs, worktrees, policy, streaming tools | **partial** | Evented orchestrator, policy gate, worktree manager, streaming read-only tools and a bounded lead executor tested; no parallel runs, GitHub PRs, preview or production merge automation |
 | 3 | Tree-sitter, LSP, dependency graph, embeddings, sandbox | **not started** | Existing FTS5/hybrid retrieval only; no new sandbox runtime or retrieval-quality gate |
@@ -31,8 +31,10 @@ overstate the product.
   streaming.
 - `evals/benchmark/tasks.json` contains 30 deterministic tasks and
   `scripts/run_benchmark.py` runs each in a disposable directory with a timeout.
-  The committed `baseline.json` is a **starter baseline of 0/30**, not a model
-  score; the Phase 0 benchmark gate therefore remains open.
+  The committed `baseline.json` is a **starter baseline of 0/30**. A real local
+  measurement with `Qwen2.5-Coder-0.5B-Instruct Q4_K_M` on CPU scored **10/30**
+  with one agent failure ([results](../evals/benchmark/AGENT.md)). A
+  production-sized model score is still open.
 
 ## Phase 1 — what exists and what is missing
 
@@ -72,8 +74,8 @@ that turns the worktree diff into an approved merge.
 The plan says not to start a phase before the previous gate passes. The next
 concrete gates are:
 
-1. Run the benchmark with a real model/agent and record its score; the starter
-   baseline is already 0/30 (Phase 0).
+1. Run the benchmark with a production-sized model/agent; the starter baseline
+   is 0/30 and a 0.5B CPU model measured 10/30 (Phase 0).
 2. Exercise the Agent Runs panel on the installed Linux build, then add
    Windows/macOS packaging and signing (Phase 1).
 3. Only then add Tree-sitter/LSP retrieval, per-task microVM or gVisor sandboxes,

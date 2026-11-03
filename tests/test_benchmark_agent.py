@@ -27,20 +27,33 @@ def test_plan_parser_accepts_fences_and_rejects_escapes():
             benchmark_agent.parse_plan(bad)
 
 
-def test_model_call_writes_only_validated_files(tmp_path):
+def test_single_file_model_returns_raw_code_and_it_is_written(tmp_path):
+    responses = iter([
+        "def add(a, b):\n    raise NotImplementedError\n",
+        "```python\ndef add(a, b):\n    return a + b\n```",
+    ])
+
     def handler(request):
         body = json.loads(request.content)
         assert body["temperature"] == 0
-        assert "BENCHMARK_PROMPT" not in request.content.decode()
-        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({
-            "files": {"solution.py": "def add(a, b):\n    return a + b\n"}
-        })}}]})
+        return httpx.Response(200, json={"choices": [{"message": {"content": next(responses)}}]})
 
-    transport = httpx.MockTransport(handler)
-    client = httpx.Client(transport=transport)
+    (tmp_path / "solution.py").write_text("def add(a, b):\n    raise NotImplementedError\n")
     plan = benchmark_agent.solve(
-        "Implement add(a, b).", tmp_path, client=client,
+        "Implement add(a, b).", tmp_path, client=httpx.Client(transport=httpx.MockTransport(handler)),
         env={"MODEL_API_KEY": "test", "MODEL_NAME": "test-model"},
     )
-    assert plan == {"solution.py": "def add(a, b):\n    return a + b\n"}
-    assert (tmp_path / "solution.py").read_text() == "def add(a, b):\n    return a + b\n"
+    assert set(plan) == {"solution.py"}
+    assert "return a + b" in (tmp_path / "solution.py").read_text()
+
+
+def test_model_call_rejects_json_placeholder_for_single_file(tmp_path):
+    def handler(request):
+        return httpx.Response(200, json={"choices": [{"message": {"content": "```json\n{\"files\":{\"relative/path\":\"x\"}}\n```"}}]})
+
+    (tmp_path / "solution.py").write_text("def add(a, b):\n    raise NotImplementedError\n")
+    with pytest.raises(ValueError, match="usable code"):
+        benchmark_agent.solve(
+            "Implement add(a, b).", tmp_path, client=httpx.Client(transport=httpx.MockTransport(handler)),
+            env={"MODEL_API_KEY": "test", "MODEL_NAME": "test-model"},
+        )

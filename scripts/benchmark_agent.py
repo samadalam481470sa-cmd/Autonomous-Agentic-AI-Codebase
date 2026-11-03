@@ -21,11 +21,29 @@ MAX_FILE_BYTES = 100_000
 MAX_TOTAL_BYTES = 300_000
 MAX_PROMPT_CHARS = 60_000
 SYSTEM_PROMPT = (
-    "You are solving a self-contained coding benchmark. Return exactly one JSON "
-    'object and no markdown: {"files":{"relative/path":"complete file content"}}. '
-    "Include every file you change with its complete content. Do not change or "
-    "create tests, do not use the network, and do not explain outside the JSON."
+    "You are a coding agent solving one self-contained benchmark task. "
+    "Replace the complete contents of the existing starter file with working code. "
+    "Return one JSON object and nothing else. Its only key is files; files maps "
+    "an existing file name to its complete new text. Escape newlines as \\n. "
+    "Do not invent a path, do not copy this instruction as the answer, do not "
+    "change tests, and do not explain outside the JSON."
 )
+SINGLE_SYSTEM_PROMPT = (
+    "You are a coding agent. Return only the complete replacement contents of the "
+    "target file. Do not use JSON, Markdown fences, or explanations. The response "
+    "must be runnable source code, not a placeholder."
+)
+
+
+def _extract_code(text: str) -> str:
+    value = (text or "").strip()
+    fenced = re.search(r"```[a-zA-Z0-9_-]*\s*\n(.*?)```", value, re.DOTALL)
+    if fenced:
+        value = fenced.group(1)
+    elif value.startswith("```"):
+        value = re.sub(r"^```[a-zA-Z0-9_-]*\s*", "", value)
+        value = re.sub(r"\s*```$", "", value)
+    return value.strip()
 
 
 def settings(env=None) -> dict:
@@ -116,38 +134,74 @@ def apply_plan(root: Path, files: dict[str, str]) -> None:
 def solve(prompt: str, workspace: Path, *, client=None, env=None) -> dict[str, str]:
     config = settings(env)
     files = current_files(workspace)
-    user = (
-        "Task:\n" + prompt + "\n\nCurrent files:\n"
-        + "\n\n".join(f"--- {name} ---\n{content}" for name, content in files.items())
-        + "\n\nReturn the complete changed file(s) as JSON."
-    )
+    if not files:
+        raise ValueError("task has no starter file")
     owned = client is None
     http = client or httpx.Client(timeout=180, trust_env=False, follow_redirects=False)
+
+    def ask(system, user, max_tokens=4096):
+        response = http.post(
+            config["base_url"] + "/chat/completions",
+            headers={"Authorization": "Bearer " + config["api_key"]},
+            json={
+                "model": config["model"],
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "temperature": 0,
+                "max_tokens": max_tokens,
+            },
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"].get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("model returned an empty response")
+        return content
+
     try:
+        if len(files) == 1:
+            target, original = next(iter(files.items()))
+            user = (
+                "Task:\n" + prompt + f"\n\nCurrent file {target}:\n" + original
+                + f"\n\nReturn only the complete replacement code for {target}."
+            )
+            last_error = None
+            for _ in range(2):
+                content = ask(SINGLE_SYSTEM_PROMPT, user)
+                code = _extract_code(content)
+                if (
+                    not code
+                    or code == original.strip()
+                    or "NotImplementedError" in code
+                    or "not implemented" in code.lower()
+                    or (code.lstrip().startswith("{") and '"files"' in code)
+                ):
+                    last_error = ValueError("model returned a placeholder or unchanged file")
+                    user += "\n\nReturn real implementation code, not a placeholder or explanation."
+                    continue
+                apply_plan(workspace, {target: code + "\n"})
+                return {target: code + "\n"}
+            raise ValueError("model did not return usable code: " + str(last_error))
+
+        targets = ", ".join(files)
+        user = (
+            "Task:\n" + prompt + "\n\nCurrent files:\n"
+            + "\n\n".join(f"--- {name} ---\n{content}" for name, content in files.items())
+            + f"\n\nTarget files: {targets}. Return JSON only, using existing file names."
+        )
         last_error = None
         for _ in range(2):
-            response = http.post(
-                config["base_url"] + "/chat/completions",
-                headers={"Authorization": "Bearer " + config["api_key"]},
-                json={
-                    "model": config["model"],
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user},
-                    ],
-                    "temperature": 0,
-                    "max_tokens": 4096,
-                },
-            )
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"].get("content")
-            if not isinstance(content, str) or not content.strip():
-                raise ValueError("model returned an empty response")
+            content = ask(SYSTEM_PROMPT, user)
             try:
                 plan = parse_plan(content)
+                if not (set(plan) & set(files)):
+                    raise ValueError("plan did not modify an existing starter file")
+                if all(plan.get(name) == files.get(name) for name in plan):
+                    raise ValueError("plan did not change the starter file")
             except (ValueError, json.JSONDecodeError) as error:
                 last_error = error
-                user += "\n\nYour previous reply was invalid: " + str(error) + ". Return JSON only."
+                user += "\n\nYour previous reply was invalid: " + str(error) + ". Return JSON using an existing file name and real code."
                 continue
             apply_plan(workspace, plan)
             return plan

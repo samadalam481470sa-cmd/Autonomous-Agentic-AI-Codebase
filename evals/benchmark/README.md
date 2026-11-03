@@ -28,6 +28,10 @@ network access or a model key; the agent is responsible for its own sandbox.
 ## Honest status
 
 `baseline.json` is a **starter baseline**, not a model score. It proves every
-task starts red and the harness is working. No model/agent has been measured
-here, so the Phase 0 gate (“held-out benchmark with a baseline”) has the tasks
-and harness but is not passed. Do not quote 0/30 as an agent result.
+task starts red and the harness is working.
+
+The first real local measurement used `Qwen2.5-Coder-0.5B-Instruct Q4_K_M` on
+CPU (llama.cpp, 2 threads): **10/30**, with one agent failure on `js-chunk`.
+Full results are in `agent.json` and `AGENT.md`. This is a small-model result,
+not a frontier-model score; do not quote the 0/30 starter baseline as an agent
+result, and do not treat 10/30 as production capability.
