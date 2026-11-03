@@ -14,7 +14,7 @@ from fastapi import APIRouter,Header,HTTPException
 from pydantic import BaseModel,Field
 from .studio import authorize,digest
 from .engine import workspace
-from .execution import ALLOWED_COMMANDS,ALLOWED_IMAGES,IMAGE
+from .execution import ALLOWED_COMMANDS,ALLOWED_IMAGES,IMAGE,docker_mount_source
 from .multi_file_agent import check_paths,create_record,generate_text
 from .code_agent import config
 
@@ -54,7 +54,7 @@ def trial_command(root,command):
           "--security-opt","no-new-privileges","--pids-limit","64",
           "--memory","512m","--cpus","1","--user","65534:65534",
           "--tmpfs","/tmp:rw,noexec,nosuid,size=64m",
-          "--mount",f"type=bind,src={root},dst=/workspace,readonly",
+          "--mount",f"type=bind,src={docker_mount_source(root)},dst=/workspace,readonly",
           "--workdir","/workspace",IMAGE,"sh","-c",command]
     try:
         run=subprocess.run(args,capture_output=True,text=True,timeout=60,check=False)

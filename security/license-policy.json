@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "policy": "Fail closed. A dependency may only ship if every applicable license in its SPDX expression is explicitly approved below. GPL, AGPL, LGPL, SSPL, BUSL, non-commercial, JSON, and unknown licenses are blocked. Exceptions must name the package, version pattern, license, and review reason. This policy covers dependencies; models are reviewed separately in model-policy.json.",
+  "allowed_licenses": [
+    "0BSD",
+    "Apache-2.0",
+    "BlueOak-1.0.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "OpenSSL",
+    "PSF-2.0",
+    "Python-2.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "WTFPL",
+    "Zlib"
+  ],
+  "conditional_licenses": {
+    "MPL-2.0": "Approved only for unmodified dependencies. If a vendored MPL file is modified, the modified file must remain available under MPL-2.0 and its notices preserved.",
+    "CDLA-Permissive-2.0": "Approved for unmodified certificate-root data supplied by webpki-roots. Preserve the CDLA-Permissive-2.0 notice. Do not apply this approval to executable code without separate review.",
+    "OpenSSL": "Approved for unmodified OpenSSL-licensed transitively linked code; preserve the OpenSSL notice and do not imply endorsement.",
+    "Unicode-DFS-2016": "Approved for Unicode data tables; preserve the Unicode copyright and permission notice."
+  },
+  "blocked_licenses": [
+    "AFL-3.0",
+    "AGPL-3.0",
+    "BUSL-1.1",
+    "CC-BY-NC-4.0",
+    "Commons-Clause",
+    "GPL-2.0",
+    "GPL-3.0",
+    "JSON",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "SSPL-1.0",
+    "UNKNOWN"
+  ],
+  "allowed_exceptions": [
+    "LLVM-exception"
+  ],
+  "allowed_license_expressions": [
+    "GPL-2.0-or-later WITH Bootloader-exception"
+  ],
+  "first_party": {
+    "python_distributions": [
+      "autonomous-agentic-ai-codebase"
+    ],
+    "node_packages": [
+      "autonomous-agentic-ai-local-editor",
+      "autonomous-agentic-ai-desktop",
+      "autonomous-agentic-ai",
+      "@autonomous-agentic-ai/ui"
+    ],
+    "rust_packages": [
+      "agentic-runtime"
+    ]
+  },
+  "exceptions": [
+    {
+      "ecosystem": "python",
+      "name": "pyinstaller",
+      "version": "*",
+      "license": "GPL-2.0-or-later WITH Bootloader-exception",
+      "reason": "Build-time only. PyInstaller's bootloader exception permits distributing the bundled application under the repository MIT license; PyInstaller itself is not shipped as a runtime dependency."
+    }
+  ],
+  "declared_dependencies": {
+    "python": {
+      "fastapi": {
+        "license": "MIT",
+        "reason": "Runtime HTTP API framework."
+      },
+      "uvicorn": {
+        "license": "BSD-3-Clause",
+        "reason": "Runtime ASGI server."
+      },
+      "httpx": {
+        "license": "BSD-3-Clause",
+        "reason": "Runtime model and AgenticSeek HTTP client."
+      },
+      "pydantic": {
+        "license": "MIT",
+        "reason": "Runtime request validation."
+      },
+      "pytest": {
+        "license": "MIT",
+        "reason": "Development and CI test runner."
+      },
+      "torch": {
+        "license": "BSD-3-Clause",
+        "reason": "Optional local LoRA training only; install requirements-training.txt in an isolated environment."
+      },
+      "transformers": {
+        "license": "Apache-2.0",
+        "reason": "Optional local LoRA training only."
+      },
+      "peft": {
+        "license": "Apache-2.0",
+        "reason": "Optional local LoRA training only."
+      },
+      "safetensors": {
+        "license": "Apache-2.0",
+        "reason": "Optional adapter serialization during local training."
+      },
+      "pyinstaller": {
+        "license": "GPL-2.0-or-later WITH Bootloader-exception",
+        "reason": "Desktop packaging workflow only; the bootloader exception covers bundled-app distribution."
+      }
+    }
+  },
+  "vendored": [
+    {
+      "path": "third_party/monaco-editor",
+      "upstream": "https://github.com/microsoft/monaco-editor",
+      "version": "0.57.0",
+      "commit": "d61824269f1377111d34306e4a47172327777083",
+      "license": "MIT",
+      "license_file": "third_party/monaco-editor/LICENSE.txt",
+      "provenance_file": "third_party/monaco-editor/PROVENANCE.txt"
+    }
+  ],
+  "optional_submodules": [
+    {
+      "path": "upstream/code-oss",
+      "upstream": "https://github.com/microsoft/vscode",
+      "license": "MIT",
+      "relationship": "Pinned upstream workbench source; independently built, not a fork."
+    },
+    {
+      "path": "upstream/agenticseek",
+      "upstream": "https://github.com/Fosowl/agenticSeek",
+      "license": "GPL-3.0",
+      "relationship": "Optional, separately operated process. Never imported, linked, vendored, packaged, or executed by this application. Only an authenticated loopback HTTP adapter is provided. See docs/AGENTICSEEK_INTEGRATION.md."
+    }
+  ],
+  "third_party_notes": "Nested third-party notices inside a vendored snapshot are governed by the vendored snapshot's own license and notices. Dependency scanners must still approve every separately installed package. The AgenticSeek submodule is outside the dependency graph and outside every release artifact."
+}

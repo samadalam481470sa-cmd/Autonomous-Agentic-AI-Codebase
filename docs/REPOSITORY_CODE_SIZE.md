@@ -8,4 +8,6 @@ The app uses the corresponding npm Monaco version to create a local, offline bro
 
 The source snapshot is committed automatically by `.github/workflows/vendor-monaco.yml` after verifying the pinned upstream commit, license files and at least 50,000 actual lines of source. Until that job succeeds and its commit appears in `main`, the 50,000-line target has **not** been verified.
 
+Generated Axiom artifacts (`packages/ui/tokens.css`, `icons.svg`, `favicon.svg`, and `packages/ui/dist/`) are excluded from authored line counts; their canonical source is [`packages/ui/src`](../packages/ui/src).
+
 Run `python -m scripts.benchmark_million_line_index` to measure the separate million-line repository indexing goal. The benchmark only tests SQLite lexical indexing.

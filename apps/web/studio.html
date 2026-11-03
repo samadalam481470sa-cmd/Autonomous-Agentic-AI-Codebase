@@ -1,11 +1,204 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agentic AI Studio</title><style>
-:root{color-scheme:dark;font:14px system-ui}*{box-sizing:border-box}body{margin:0;background:#090e19;color:#e7edff}header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 20px;background:#131c30;border-bottom:1px solid #34415b}header strong{font-size:19px}input,textarea,button{font:inherit;border-radius:8px}input,textarea{color:#eef3ff;background:#101a2d;border:1px solid #3c4d6a;padding:10px}input{width:160px}button{border:0;background:#5769ed;color:white;padding:10px 15px;cursor:pointer}button:disabled{opacity:.45;cursor:default}button.secondary{background:#2c3953}.layout{display:grid;grid-template-columns:230px minmax(0,1fr) minmax(300px,1fr);height:calc(100vh - 70px)}aside,.panel{min-width:0;border-right:1px solid #34415b;display:flex;flex-direction:column}h3{margin:0;padding:16px;border-bottom:1px solid #34415b;font-size:14px}.files{padding:12px;overflow:auto;flex:1}.file{display:block;width:100%;text-align:left;margin:4px 0;background:transparent;overflow-wrap:anywhere}.file:hover{background:#2c3953}.toolbar{padding:10px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #34415b}.toolbar input{flex:1;min-width:100px}textarea{border:0;border-radius:0;resize:none;flex:1;min-height:160px;font:13px/1.6 ui-monospace,monospace;padding:18px}pre{white-space:pre-wrap;overflow:auto;padding:14px;font:12px/1.5 ui-monospace,monospace;background:#0b1220;flex:1;margin:0}iframe{width:100%;height:100%;border:0;background:white}#status{color:#9db4df;padding:10px}.aisearch{border-bottom:1px solid #34415b;padding:10px;display:grid;gap:8px}.aisearch h3{border:0;padding:0 0 2px}.airow{display:flex;gap:6px}.airow input{width:100%;min-width:0}.airow button{padding:9px 12px}#aistatus{color:#9db4df;font-size:12px;min-height:16px}.results{display:grid;gap:6px;max-height:210px;overflow:auto}.resultrow{display:flex;gap:4px;align-items:flex-start}.resultrow .result{flex:1}.vote{background:#2c3953;padding:6px 8px;font-size:13px}.result{background:#1b2740;border:1px solid #34415b;color:#e7edff;font:11px/1.45 ui-monospace,monospace;text-align:left;padding:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:96px;overflow:hidden}nav{display:flex;gap:8px;padding:10px}nav button{flex:1}@media(max-width:950px){.layout{grid-template-columns:180px 1fr}.preview{grid-column:1/-1;min-height:400px}.layout{height:auto}.panel{min-height:480px}}@media(max-width:600px){.layout{grid-template-columns:1fr}aside{min-height:180px}.panel{min-height:450px}}
-</style><link rel="stylesheet" href="/assets/monaco-entry.css"></head><body><header><strong>✦ Autonomous AI Studio</strong><label>Project <input id="project" value="demo"></label><label>Admin token <input id="token" type="password" placeholder="AGENT_ADMIN_TOKEN"></label><label>TOTP <input id="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code if enabled"></label><button id="refresh" class="secondary">Refresh files</button><a href="/" style="color:#b4c5ff">Chat ↗</a><a href="/dashboard" style="color:#b4c5ff">Dashboard ↗</a><a href="/control" style="color:#b4c5ff">Control ↗</a></header><div class="layout"><aside><div class="aisearch"><h3>AI Code Intelligence</h3><div class="airow"><input id="aiq" placeholder="Describe the code you need" maxlength="500"><button id="aigo">Ask</button></div><div class="airow"><button id="aiindex" class="secondary">Index project</button><button id="aisearch" class="secondary">Search</button></div><div id="aistatus">Index the project to enable local retrieval.</div><div id="airesults" class="results"></div></div><h3>Project Explorer</h3><div class="files" id="files"></div><div id="status">Enter your local admin token.</div></aside><section class="panel"><h3>Code Editor</h3><div class="toolbar"><input id="path" placeholder="index.html"><button id="open" class="secondary">Open</button><button id="suggest" class="secondary">AI propose</button><button id="batch" class="secondary">AI multi-file</button><button id="autotrial" class="secondary">AI test & retry</button><button id="approvebatch" class="secondary" disabled>Approve batch</button><button id="diff">Review diff</button><button id="save" disabled>Approve & save</button><button id="restore" class="secondary">Restore checkpoint</button><button id="test" class="secondary">Run tests</button><button id="security" class="secondary">Security</button></div><textarea id="editor" spellcheck="false" placeholder="Write HTML, CSS, JavaScript, Python or other source here…"></textarea></section><section class="panel preview"><h3>Changes / Sandboxed HTML Preview</h3><nav><button id="showdiff" class="secondary">Diff</button><button id="showpreview" class="secondary">HTML preview</button></nav><pre id="changes">Edit a file and click Review diff.</pre><iframe id="preview" title="Sandboxed HTML preview" sandbox="" referrerpolicy="no-referrer" style="display:none"></iframe></section></div><script>
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agentic AI Studio</title>
+<link rel="icon" href="/ui/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ui/tokens.css">
+<style>
+:root{color-scheme:dark}
+html,body{height:100%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ag-bg-canvas);color:var(--ag-text-primary);font-family:var(--ag-font-sans);font-size:var(--ag-text-md);line-height:var(--ag-leading-normal);-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+a{color:var(--ag-accent);text-decoration:none}
+a:hover{color:var(--ag-accent-hover)}
+.app-header{min-height:var(--ag-layout-topbar-height);padding:0 var(--ag-space-5);display:flex;align-items:center;justify-content:space-between;gap:var(--ag-space-4);flex-wrap:wrap;border-bottom:1px solid var(--ag-border-subtle);background:var(--ag-bg-surface)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:var(--ag-radius-md);background:var(--ag-accent-subtle);color:var(--ag-accent);border:1px solid var(--ag-border-default)}
+.brand-mark .ag-icon{font-size:20px}
+.brand-copy strong{display:block;font-size:var(--ag-text-md);letter-spacing:var(--ag-tracking-tight);line-height:1.2}
+.brand-copy small{display:block;color:var(--ag-text-muted);font-size:var(--ag-text-2xs);margin-top:1px}
+.header-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.field.inline{display:flex;align-items:center;gap:6px;font-size:var(--ag-text-xs);color:var(--ag-text-secondary);white-space:nowrap}
+input,textarea{background:var(--ag-bg-inset);color:var(--ag-text-primary);border:1px solid var(--ag-border-default);border-radius:var(--ag-radius-md);padding:8px 10px;transition:border-color var(--ag-duration-fast) var(--ag-ease-standard),box-shadow var(--ag-duration-fast) var(--ag-ease-standard)}
+input{width:160px}
+input:focus,textarea:focus{outline:none;border-color:var(--ag-accent);box-shadow:0 0 0 3px var(--ag-accent-subtle)}
+button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:var(--ag-control-md);padding:0 12px;border:1px solid transparent;border-radius:var(--ag-radius-md);background:var(--ag-accent);color:var(--ag-text-on-accent);font-weight:600;font-size:var(--ag-text-sm);transition:background var(--ag-duration-fast) var(--ag-ease-standard),border-color var(--ag-duration-fast) var(--ag-ease-standard)}
+button:hover{background:var(--ag-accent-hover)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.secondary{background:var(--ag-bg-raised);border-color:var(--ag-border-default);color:var(--ag-text-primary)}
+button.secondary:hover{background:var(--ag-bg-hover);border-color:var(--ag-border-strong)}
+button .ag-icon{font-size:14px}
+.text-link{display:inline-flex;align-items:center;gap:5px;font-size:var(--ag-text-sm);font-weight:500}
+.icon-button{width:36px;min-height:36px;padding:0}
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr) minmax(320px,1fr);height:calc(100vh - var(--ag-layout-topbar-height));min-height:0}
+aside,.panel{min-width:0;min-height:0;border-right:1px solid var(--ag-border-subtle);display:flex;flex-direction:column;background:var(--ag-bg-surface)}
+.panel{background:var(--ag-bg-canvas)}
+h3{margin:0;padding:13px 16px;border-bottom:1px solid var(--ag-border-subtle);font-size:var(--ag-text-2xs);letter-spacing:var(--ag-tracking-wide);text-transform:uppercase;color:var(--ag-text-muted);font-weight:600;background:var(--ag-bg-surface)}
+.files{padding:10px;overflow:auto;flex:1}
+.searchbox{padding:10px;border-bottom:1px solid var(--ag-border-subtle);display:grid;gap:6px}
+.searchbox input{width:100%}
+.search-actions,.learning-actions{display:flex;gap:6px;flex-wrap:wrap}
+.search-actions button,.learning-actions button{flex:1;min-height:var(--ag-control-sm);padding:0 7px;font-size:var(--ag-text-2xs)}
+.search-results{max-height:180px;overflow:auto;display:grid;gap:4px}
+.search-hit{display:block;width:100%;text-align:left;background:var(--ag-bg-raised);border:1px solid var(--ag-border-subtle);border-radius:var(--ag-radius-sm);padding:6px 8px;color:var(--ag-text-primary);font-weight:500}
+.search-hit:hover{background:var(--ag-bg-hover)}
+.search-hit strong{display:block;font:600 var(--ag-text-2xs) var(--ag-font-mono);color:var(--ag-accent);overflow-wrap:anywhere}
+.search-hit small{display:block;margin-top:3px;color:var(--ag-text-muted);font:var(--ag-text-2xs) var(--ag-font-mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-search h3{border:0;padding:0;background:transparent}
+.resultrow{display:flex;gap:4px;align-items:flex-start}
+.resultrow .search-hit{flex:1}
+.vote{min-height:var(--ag-control-sm);padding:0 7px;font-size:var(--ag-text-2xs);background:var(--ag-bg-raised);border:1px solid var(--ag-border-default);color:var(--ag-text-primary)}
+.learning{border-bottom:1px solid var(--ag-border-subtle);padding:8px 10px}
+.learning summary{cursor:pointer;font-size:var(--ag-text-xs);font-weight:600;color:var(--ag-text-secondary)}
+.learning .learning-actions{margin:7px 0}
+.learning .hint{margin:0}
+.file{display:flex;justify-content:flex-start;width:100%;text-align:left;margin:2px 0;min-height:30px;background:transparent;border:0;color:var(--ag-text-secondary);font-weight:500;font-size:var(--ag-text-sm);padding:4px 8px;overflow-wrap:anywhere}
+.file:hover{background:var(--ag-bg-hover);color:var(--ag-text-primary)}
+.toolbar{padding:10px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--ag-border-subtle);background:var(--ag-bg-surface)}
+.toolbar input{flex:1;min-width:120px}
+.toolbar button{min-height:var(--ag-control-sm);padding:0 9px;font-size:var(--ag-text-xs)}
+textarea#editor{flex:1;min-height:160px;border:0;border-radius:0;resize:none;background:var(--ag-bg-code);color:var(--ag-text-primary);font-family:var(--ag-font-mono);font-size:var(--ag-text-sm);line-height:1.65;padding:18px}
+pre{white-space:pre-wrap;overflow:auto;padding:16px;font-family:var(--ag-font-mono);font-size:var(--ag-text-xs);line-height:1.6;background:var(--ag-bg-code);color:var(--ag-text-secondary);flex:1;margin:0}
+iframe{width:100%;height:100%;border:0;background:#fff}
+#status{color:var(--ag-text-muted);padding:11px 14px;border-top:1px solid var(--ag-border-subtle);font-size:var(--ag-text-xs);line-height:1.5;background:var(--ag-bg-surface)}
+nav{display:flex;gap:6px;padding:9px 10px;border-bottom:1px solid var(--ag-border-subtle);background:var(--ag-bg-surface)}
+nav button{flex:1;min-height:var(--ag-control-sm);font-size:var(--ag-text-xs)}
+@media(max-width:1050px){.layout{grid-template-columns:200px minmax(0,1fr)}.preview{grid-column:1/-1;min-height:420px}.layout{height:auto}.panel{min-height:480px}}
+@media(max-width:700px){.layout{grid-template-columns:1fr}aside{min-height:200px}.panel{min-height:460px}.header-controls{width:100%}.app-header{padding:10px 14px}.brand-copy small{display:none}}
+</style>
+<link rel="stylesheet" href="/assets/monaco-entry.css">
+</head>
+<body>
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-mark"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-terminal"></use></svg></span>
+    <div class="brand-copy"><strong>Autonomous AI Studio</strong><small>Approval-gated coding workspace</small></div>
+  </div>
+  <div class="header-controls">
+    <label class="field inline">Project <input id="project" value="demo"></label>
+    <label class="field inline">Admin token <input id="token" type="password" placeholder="AGENT_ADMIN_TOKEN" autocomplete="current-password"></label>
+    <label class="field inline">TOTP <input id="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="If enabled" aria-label="TOTP code"></label>
+    <button id="refresh" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-refresh"></use></svg>Refresh files</button>
+    <button id="theme" class="secondary icon-button" type="button" aria-label="Switch theme" title="Switch theme"><svg class="ag-icon" aria-hidden="true"><use id="theme-icon" href="/ui/icons.svg#ag-moon"></use></svg></button>
+    <a href="/" class="text-link"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-chat"></use></svg>Chat<svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-external"></use></svg></a>
+    <a href="/dashboard" class="text-link"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-grid"></use></svg>Dashboard<svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-external"></use></svg></a>
+    <a href="/control" class="text-link"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-settings"></use></svg>Control<svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-external"></use></svg></a>
+    <a href="/docs" class="text-link" target="_blank" rel="noreferrer">API</a>
+  </div>
+</header>
+<div class="layout">
+  <aside>
+    <div class="searchbox ai-search">
+      <h3>AI Code Intelligence</h3>
+      <input id="aiq" placeholder="Describe the code you need" maxlength="500" aria-label="Codebase question">
+      <div class="search-actions">
+        <button id="aigo" class="secondary" type="button">Ask</button>
+        <button id="aiindex" class="secondary" type="button">Index project</button>
+        <button id="aisearch" class="secondary" type="button">Search</button>
+      </div>
+      <div id="aistatus" class="hint">Index the project to enable local retrieval.</div>
+      <div id="airesults" class="search-results" aria-live="polite"></div>
+    </div>
+    <h3>Project Explorer</h3>
+    <div class="searchbox">
+      <input id="searchQuery" placeholder="Search indexed code" aria-label="Search indexed code">
+      <div class="search-actions">
+        <button id="search" class="secondary" type="button">Search</button>
+        <button id="reindex" class="secondary" type="button">Reindex</button>
+      </div>
+      <div id="indexStats" class="hint">Index not checked.</div>
+      <div id="searchResults" class="search-results" aria-live="polite"></div>
+    </div>
+    <details class="learning">
+      <summary>Local learning</summary>
+      <div class="learning-actions">
+        <button id="learning" class="secondary" type="button">Status</button>
+        <button id="feedback" class="secondary" type="button">Save feedback</button>
+        <button id="evaluation" class="secondary" type="button">Record eval</button>
+      </div>
+      <div id="learningStatus" class="hint">No status loaded.</div>
+    </details>
+    <div class="files" id="files"></div>
+    <div id="status">Enter your local admin token.</div>
+  </aside>
+  <section class="panel">
+    <h3>Code Editor</h3>
+    <div class="toolbar">
+      <input id="path" placeholder="index.html">
+      <button id="open" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-file"></use></svg>Open</button>
+      <button id="suggest" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-spark"></use></svg>AI propose</button>
+      <button id="batch" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-folder"></use></svg>AI multi-file</button>
+      <button id="autotrial" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-refresh"></use></svg>AI test &amp; retry</button>
+      <button id="approvebatch" class="secondary" type="button" disabled><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-check"></use></svg>Approve batch</button>
+      <button id="diff" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-diff"></use></svg>Review diff</button>
+      <button id="save" type="button" disabled><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-save"></use></svg>Approve &amp; save</button>
+      <button id="restore" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-undo"></use></svg>Restore checkpoint</button>
+      <button id="test" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-play"></use></svg>Run tests</button>
+      <button id="security" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-shield"></use></svg>Security</button>
+    </div>
+    <textarea id="editor" spellcheck="false" placeholder="Write HTML, CSS, JavaScript, Python or other source here…"></textarea>
+  </section>
+  <section class="panel preview">
+    <h3>Changes / Sandboxed HTML Preview</h3>
+    <nav>
+      <button id="showdiff" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-diff"></use></svg>Diff</button>
+      <button id="showpreview" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-play"></use></svg>HTML preview</button>
+    </nav>
+    <pre id="changes">Edit a file and click Review diff.</pre>
+    <iframe id="preview" title="Sandboxed HTML preview" sandbox="" referrerpolicy="no-referrer" style="display:none"></iframe>
+  </section>
+</div>
+<script>
+(() => {
+  const root = document.documentElement;
+  const button = document.getElementById('theme');
+  const icon = document.getElementById('theme-icon');
+  let stored = null;
+  try { stored = localStorage.getItem('agentic-theme'); } catch (_) {}
+  if (stored === 'light' || stored === 'dark') root.dataset.theme = stored;
+  const paint = () => {
+    const light = root.dataset.theme === 'light';
+    if (button) {
+      button.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+      button.setAttribute('title', light ? 'Dark theme' : 'Light theme');
+      button.setAttribute('aria-pressed', light ? 'true' : 'false');
+    }
+    if (icon) icon.setAttribute('href', light ? '/ui/icons.svg#ag-sun' : '/ui/icons.svg#ag-moon');
+  };
+  if (button) button.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem('agentic-theme', root.dataset.theme); } catch (_) {}
+    paint();
+  });
+  paint();
+})();
+</script>
+
+<script>
 const $=id=>document.getElementById(id);const _fetch=window.fetch.bind(window);window.fetch=(input,init={})=>{try{const raw=typeof input==="string"?input:(input&&input.url)||String(input);const url=new URL(raw,location.href);if(!url.pathname.startsWith("/api/"))return _fetch(input,init);const headers=new Headers(init.headers||{});const token=$("token")?.value;if(token&&!headers.has("Authorization"))headers.set("Authorization","Bearer "+token);const code=$("totp")?.value.trim();if(code)headers.set("X-Agent-TOTP",code);return _fetch(input,{...init,headers})}catch(e){return _fetch(input,init)}};let expected=null,reviewed=null,batchReview=null;
 function status(s){$("status").textContent=s}
 async function api(route,body,extra={}){const r=await fetch("/api/studio/"+route,{method:body?"POST":"GET",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value,...extra},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);return d}
+async function rootApi(route,body){const r=await fetch("/api/"+route,{method:body?"POST":"GET",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:body?JSON.stringify(body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.detail||r.status);return d}
 const project=()=>$("project").value.trim(),path=()=>$("path").value.trim(),body=()=>({project:project(),path:path(),content:$("editor").value,expected_sha256:expected});
-async function refresh(){try{const d=await api("files/"+encodeURIComponent(project()));$("files").replaceChildren();for(const f of d.files){const b=document.createElement("button");b.className="file";b.textContent=f;b.onclick=()=>{$("path").value=f;open()};$("files").appendChild(b)}status(d.files.length+" files")}catch(e){status(e.message)}}
+async function loadIndexStats(){try{const d=await rootApi("index/"+encodeURIComponent(project())+"/stats");$("indexStats").textContent="Indexed "+d.indexed_files+" files · "+d.indexed_lines+" lines · "+d.chunks+" chunks"}catch(e){$("indexStats").textContent="Index unavailable: "+e.message}}
+async function reindex(){const btn=$("reindex");btn.disabled=true;status("Indexing workspace...");try{const d=await rootApi("index/refresh",{project:project(),max_files:10000});status("Indexed "+d.indexed_files+" files; updated "+d.updated+", removed "+d.removed+(d.truncated?", scan truncated":"")+".");await loadIndexStats()}catch(e){status("Index failed: "+e.message)}finally{btn.disabled=false}}
+async function searchCode(){const query=$("searchQuery").value.trim();if(!query){status("Enter a search query.");return}const btn=$("search");btn.disabled=true;status("Searching indexed code...");try{const d=await rootApi("index/search",{project:project(),query,limit:30});const box=$("searchResults");box.replaceChildren();if(!d.results.length){box.textContent="No matches. Reindex if the workspace changed.";status("No matches.");return}for(const hit of d.results){const b=document.createElement("button");b.type="button";b.className="search-hit";const title=document.createElement("strong");title.textContent=hit.path+":"+hit.line;const excerpt=document.createElement("small");excerpt.textContent=hit.excerpt;b.append(title,excerpt);b.onclick=()=>openHit(hit.path,hit.line);box.appendChild(b)}status(d.results.length+" matches.")}catch(e){status("Search failed: "+e.message)}finally{btn.disabled=false}}
+async function openHit(file,line){$("path").value=file;await open();const editor=$("editor"),lines=editor.value.split("\n");let offset=0;for(let i=0;i<Math.min(Math.max(line-1,0),lines.length);i++)offset+=lines[i].length+1;editor.focus();editor.setSelectionRange(offset,offset+Math.min((lines[line-1]||"").length,120));status("Opened "+file+":"+line)}
+async function aiPost(route,payload){const r=await fetch("/api/ai/"+route,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),...payload})});const d=await r.json().catch(()=>({detail:"HTTP "+r.status}));if(!r.ok)throw Error(d.detail||("HTTP "+r.status));return d}
+function aiRender(results){const box=$("airesults");box.replaceChildren();if(!results.length){box.textContent="No matches.";return}for(const item of results){const row=document.createElement("div");row.className="resultrow";const b=document.createElement("button");b.type="button";b.className="search-hit";const title=document.createElement("strong");title.textContent=item.path+":"+item.line;const excerpt=document.createElement("small");excerpt.textContent=item.excerpt;b.append(title,excerpt);b.onclick=()=>{$("path").value=item.path;open();$("changes").textContent=item.path+":"+item.line+"\n\n"+item.excerpt;$("changes").style.display="block";$("preview").style.display="none"};const up=document.createElement("button");up.type="button";up.className="vote";up.textContent="👍";up.title="Relevant result";up.onclick=()=>rateResult(item,"up");const down=document.createElement("button");down.type="button";down.className="vote";down.textContent="👎";down.title="Not relevant";down.onclick=()=>rateResult(item,"down");row.append(b,up,down);box.appendChild(row)}}
+async function rateResult(item,rating){try{const d=await aiPost("feedback",{query:$("aiq").value.trim()||item.path,path:item.path,line:item.line,rating});$("aistatus").textContent="Feedback learned: "+d.ranking.positive+" up / "+d.ranking.negative+" down across "+d.ranking.paths+" files"}catch(e){$("aistatus").textContent="Feedback failed: "+e.message}}
+async function aiIndex(){const btn=$("aiindex");btn.disabled=true;$("aistatus").textContent="Indexing and embedding changed files...";try{const d=await aiPost("index/refresh",{max_files:5000});$("aistatus").textContent=d.embedded_files+" embedded, "+d.unchanged_files+" unchanged, "+d.vectors+" vectors ("+d.elapsed_seconds+"s)";status("AI index ready")}catch(e){$("aistatus").textContent="Index failed: "+e.message}finally{btn.disabled=false}}
+async function aiSearch(){const query=$("aiq").value.trim();if(!query){$("aistatus").textContent="Type a query first.";return}const btn=$("aisearch");btn.disabled=true;try{const d=await aiPost("search",{query,limit:12});aiRender(d.results);$("aistatus").textContent=d.results.length+" hybrid matches";status("AI search complete")}catch(e){$("aistatus").textContent="Search failed: "+e.message}finally{btn.disabled=false}}
+async function aiAsk(){const query=$("aiq").value.trim();if(!query){$("aistatus").textContent="Type a question first.";return}const btn=$("aigo");btn.disabled=true;$("aistatus").textContent="Retrieving local context and asking the model...";try{const d=await aiPost("ask",{question:query});const citations=d.citations||[];const safety=d.safety&&(d.safety.secrets||d.safety.injection)?("Safety: "+d.safety.secrets+" secret(s) redacted, "+d.safety.injection+" injection flag(s).\n\n"):"";$("changes").textContent=safety+d.answer+"\n\nSources:\n"+citations.map(c=>c.path+":"+c.line).join("\n");$("changes").style.display="block";$("preview").style.display="none";$("aistatus").textContent="Answer from "+(d.retrieval?.results||citations.length)+" excerpts";aiRender(citations);status("AI answer ready")}catch(e){$("aistatus").textContent="Ask failed: "+e.message}finally{btn.disabled=false}}
+async function securityStatus(){const btn=$("security");btn.disabled=true;try{const r=await fetch("/api/security/status",{headers:{"Authorization":"Bearer "+$("token").value}});const d=await r.json();if(!r.ok)throw Error(d.detail||("HTTP "+r.status));$("changes").textContent="Security posture\n\nToken: "+(d.token_configured?"configured":"missing")+" ("+d.token_strength+", fingerprint "+d.token_fingerprint+")\nBrute force: "+d.max_auth_failures+" failures / "+d.failure_window_seconds+"s, lockout "+d.lockout_base_seconds+"-"+d.lockout_cap_seconds+"s\nRate limit: "+d.general_rate_limit_per_minute+"/min, body cap "+d.max_body_bytes+" bytes\nLocked addresses: "+d.locked_addresses+"\n\nRecent audit:\n"+(d.recent_audit.map(a=>new Date(a.created_at*1000).toISOString()+" "+a.event+" "+(a.detail||"")).join("\n")||"No events");$("changes").style.display="block";$("preview").style.display="none";status("Security posture loaded")}catch(e){status("Security status failed: "+e.message)}finally{btn.disabled=false}}
+async function learningStatus(){try{const d=await rootApi("learning/"+encodeURIComponent(project())+"/status");const latest=d.latest_evaluation;const text="Feedback examples: "+d.feedback_examples+". "+(latest?"Latest evaluation: "+latest.candidate+", "+latest.passed+"/"+latest.total+", "+(latest.approved?"approved":"not approved")+".":"No evaluation recorded.");$("learningStatus").textContent=text;status("Learning status loaded.")}catch(e){$("learningStatus").textContent="Unavailable: "+e.message}}
+async function saveFeedback(){const promptText=prompt("Prompt or task for this locally stored example:");if(!promptText)return;const response=$("editor").value;if(!response.trim()){status("Open or write a file to use as the accepted response.");return}if(response.length>16000){status("Feedback response exceeds 16,000 characters.");return}if(!confirm("Store this prompt and the current editor contents locally as an opted-in training example? Nothing is trained or uploaded."))return;try{const d=await rootApi("learning/feedback",{project:project(),prompt:promptText,accepted_response:response,consent:true});$("learningStatus").textContent="Stored example "+d.id+" locally; no training was started.";status("Feedback stored locally.")}catch(e){status("Feedback not stored: "+e.message)}}
+async function recordEvaluation(){const candidate=prompt("Candidate name or version:");if(!candidate)return;const passed=Number(prompt("Passed checks:")),total=Number(prompt("Total checks:")),baseline=Number(prompt("Baseline passed checks:"));if(![passed,total,baseline].every(Number.isInteger)||total<1||passed<0||baseline<0||passed>total||baseline>total){status("Enter valid integer counts with passed and baseline no greater than total.");return}if(!confirm("Record this evaluation locally? It does not switch models."))return;try{const d=await rootApi("learning/evaluation",{project:project(),candidate,passed,total,baseline_passed:baseline,min_improvement:0});$("learningStatus").textContent="Evaluation "+d.candidate+": "+(d.approved?"approved":"not approved")+" (delta "+d.delta+").";status("Evaluation recorded.")}catch(e){status("Evaluation not recorded: "+e.message)}}
+async function refresh(){try{const d=await api("files/"+encodeURIComponent(project()));$("files").replaceChildren();for(const f of d.files){const b=document.createElement("button");b.className="file";b.textContent=f;b.onclick=()=>{$("path").value=f;open()};$("files").appendChild(b)}status(d.files.length+" files");loadIndexStats()}catch(e){status(e.message)}}
 async function open(){try{const d=await api("read",{project:project(),path:path()});$("editor").value=d.content;expected=d.sha256;reviewed=null;$("save").disabled=true;status(d.exists?"File opened":"New file");}catch(e){status(e.message)}}
 async function diff(){try{const d=await api("diff",body());expected=d.sha256;reviewed=$("editor").value;$("changes").textContent=d.diff||"No changes";$("changes").style.display="block";$("preview").style.display="none";$("save").disabled=!d.changed;status("Review changes, then approve to save.")}catch(e){status(e.message)}}
 async function multiFile(){const raw=prompt("Files to change (comma separated, maximum 8; for example src/app.py,tests/test_app.py)",path());if(!raw)return;const paths=raw.split(",").map(x=>x.trim()).filter(Boolean);if(!paths.length||paths.length>8){status("Choose between 1 and 8 files.");return}const instruction=prompt("Describe the multi-file coding task. The AI will only prepare proposals.");if(!instruction)return;batchReview=null;$("approvebatch").disabled=true;$("batch").disabled=true;status("Generating multi-file proposal...");try{const r=await fetch("/api/agent/batch/propose",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),paths,instruction})});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);batchReview={...d,project:project()};$("changes").textContent=d.changes.map(c=>c.diff||("No changes: "+c.path)).join("\n\n");$("changes").style.display="block";$("preview").style.display="none";$("approvebatch").disabled=false;status("Review every change. No files have been modified.");}catch(e){status("Multi-file proposal failed: "+e.message)}finally{$("batch").disabled=false}}
@@ -42,12 +235,7 @@ async function restoreFile(){
 }
 async function testProject(){const command="python -m pytest -q";if(!confirm("Run allowlisted tests in the isolated Docker runner for project "+project()+"? This requires Docker and ENABLE_ISOLATED_EXECUTION=1."))return;const btn=$("test");btn.disabled=true;status("Running isolated tests...");try{const r=await fetch("/api/execution/run",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value,"X-Confirm-Execution":"approve"},body:JSON.stringify({project:project(),command})});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);$("changes").textContent="Test exit code: "+d.exit_code+"\n\n"+(d.stdout||"")+"\n"+(d.stderr||"");$("changes").style.display="block";$("preview").style.display="none";status(d.exit_code===0?"Tests passed":"Tests failed; inspect output")}catch(e){status("Tests unavailable: "+e.message)}finally{btn.disabled=false}}
 async function preview(){try{const html=path().endsWith(".html")?$("editor").value:null;if(html===null)throw Error("Select an HTML file");const frame=$("preview");frame.srcdoc=html;frame.style.display="block";$("changes").style.display="none";status("Sandboxed HTML preview: scripts and forms disabled.")}catch(e){status(e.message)}}
-async function aiPost(route,payload){const r=await fetch("/api/ai/"+route,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),...payload})});const d=await r.json().catch(()=>({detail:"HTTP "+r.status}));if(!r.ok)throw Error(d.detail||("HTTP "+r.status));return d}
-function aiRender(results){const box=$("airesults");box.replaceChildren();if(!results.length){box.textContent="No matches.";return}for(const item of results){const row=document.createElement("div");row.className="resultrow";const b=document.createElement("button");b.className="result";b.textContent=item.path+":"+item.line+"\n"+item.excerpt;b.title=item.excerpt;b.onclick=()=>{$("path").value=item.path;open();$("changes").textContent=item.path+":"+item.line+"\n\n"+item.excerpt;$("changes").style.display="block";$("preview").style.display="none"};const up=document.createElement("button");up.className="vote";up.textContent="👍";up.title="Relevant result";up.onclick=()=>rateResult(item,"up");const down=document.createElement("button");down.className="vote";down.textContent="👎";down.title="Not relevant";down.onclick=()=>rateResult(item,"down");row.append(b,up,down);box.appendChild(row)}}
-async function rateResult(item,rating){try{const d=await aiPost("feedback",{query:$("aiq").value.trim()||item.path,path:item.path,line:item.line,rating});$("aistatus").textContent="Feedback learned: "+d.ranking.positive+" up / "+d.ranking.negative+" down across "+d.ranking.paths+" files"}catch(e){$("aistatus").textContent="Feedback failed: "+e.message}}
-async function aiIndex(){const btn=$("aiindex");btn.disabled=true;$("aistatus").textContent="Indexing and embedding changed files...";try{const d=await aiPost("index/refresh",{max_files:5000});$("aistatus").textContent=d.embedded_files+" embedded, "+d.unchanged_files+" unchanged, "+d.vectors+" vectors ("+d.elapsed_seconds+"s)";status("AI index ready")}catch(e){$("aistatus").textContent="Index failed: "+e.message}finally{btn.disabled=false}}
-async function aiSearch(){const query=$("aiq").value.trim();if(!query){$("aistatus").textContent="Type a query first.";return}const btn=$("aisearch");btn.disabled=true;try{const d=await aiPost("search",{query,limit:12});aiRender(d.results);$("aistatus").textContent=d.results.length+" hybrid matches";status("AI search complete")}catch(e){$("aistatus").textContent="Search failed: "+e.message}finally{btn.disabled=false}}
-async function aiAsk(){const query=$("aiq").value.trim();if(!query){$("aistatus").textContent="Type a question first.";return}const btn=$("aigo");btn.disabled=true;$("aistatus").textContent="Retrieving local context and asking the model...";try{const d=await aiPost("ask",{question:query});const safety=d.safety&&(d.safety.secrets||d.safety.injection)?("Safety: "+d.safety.secrets+" secret(s) redacted, "+d.safety.injection+" injection flag(s).\n\n"):"";$("changes").textContent=safety+d.answer+"\n\nSources:\n"+d.citations.map(c=>c.path+":"+c.line).join("\n");$("changes").style.display="block";$("preview").style.display="none";$("aistatus").textContent="Answer from "+d.retrieval.results+" excerpts";aiRender(d.citations);status("AI answer ready")}catch(e){$("aistatus").textContent="Ask failed: "+e.message}finally{btn.disabled=false}}
-async function securityStatus(){const btn=$("security");btn.disabled=true;try{const r=await fetch("/api/security/status",{headers:{"Authorization":"Bearer "+$("token").value}});const d=await r.json();if(!r.ok)throw Error(d.detail||("HTTP "+r.status));$("changes").textContent="Security posture\n\nToken: "+(d.token_configured?"configured":"missing")+" ("+d.token_strength+", fingerprint "+d.token_fingerprint+")\nBrute force: "+d.max_auth_failures+" failures / "+d.failure_window_seconds+"s, lockout "+d.lockout_base_seconds+"-"+d.lockout_cap_seconds+"s\nRate limit: "+d.general_rate_limit_per_minute+"/min, body cap "+d.max_body_bytes+" bytes\nLocked addresses: "+d.locked_addresses+"\n\nRecent audit:\n"+(d.recent_audit.map(a=>new Date(a.created_at*1000).toISOString()+" "+a.event+" "+(a.detail||"")).join("\n")||"No events");$("changes").style.display="block";$("preview").style.display="none";status("Security posture loaded")}catch(e){status("Security status failed: "+e.message)}finally{btn.disabled=false}}
-$("autotrial").onclick=autoTrial;$("aigo").onclick=aiAsk;$("aisearch").onclick=aiSearch;$("aiindex").onclick=aiIndex;$("security").onclick=securityStatus;$("batch").onclick=multiFile;$("approvebatch").onclick=approveBatch;$("test").onclick=testProject;$("suggest").onclick=suggest;$("refresh").onclick=refresh;$("open").onclick=open;$("diff").onclick=diff;$("save").onclick=save;$("restore").onclick=restoreFile;$("showdiff").onclick=()=>{$("changes").style.display="block";$("preview").style.display="none"};$("showpreview").onclick=preview;$("editor").oninput=()=>{$("save").disabled=true;reviewed=null};$("path").oninput=()=>{$("save").disabled=true;reviewed=null};$("project").oninput=()=>{$("save").disabled=true;$("approvebatch").disabled=true;batchReview=null;reviewed=null};
-</script><script defer src="/assets/monaco-entry.js"></script></body></html>
+$("autotrial").onclick=autoTrial;$("aigo").onclick=aiAsk;$("aisearch").onclick=aiSearch;$("aiindex").onclick=aiIndex;$("security").onclick=securityStatus;$("batch").onclick=multiFile;$("approvebatch").onclick=approveBatch;$("test").onclick=testProject;$("suggest").onclick=suggest;$("refresh").onclick=refresh;$("open").onclick=open;$("diff").onclick=diff;$("save").onclick=save;$("restore").onclick=restoreFile;$("search").onclick=searchCode;$("reindex").onclick=reindex;$("learning").onclick=learningStatus;$("feedback").onclick=saveFeedback;$("evaluation").onclick=recordEvaluation;$("showdiff").onclick=()=>{$("changes").style.display="block";$("preview").style.display="none"};$("showpreview").onclick=preview;$("editor").oninput=()=>{$("save").disabled=true;reviewed=null};$("path").oninput=()=>{$("save").disabled=true;reviewed=null};$("project").oninput=()=>{$("save").disabled=true;$("approvebatch").disabled=true;batchReview=null;reviewed=null;$("searchResults").replaceChildren();$("indexStats").textContent="Index not checked."};
+</script><script defer src="/assets/monaco-entry.js"></script>
+</body>
+</html>

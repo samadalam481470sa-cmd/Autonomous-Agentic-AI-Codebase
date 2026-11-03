@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 EXTENSIONS={".py",".rs",".js",".cjs",".mjs",".ts",".tsx",".jsx",".sql",".html",".css",".sh",".yml",".yaml"}
 EXCLUDED={"node_modules","dist","build","target",".venv",".git","__pycache__","assets"}
+GENERATED_FILES={"packages/ui/tokens.css","packages/ui/icons.svg","packages/ui/favicon.svg"}
 def report():
     paths=subprocess.check_output(["git","ls-files","-z"],cwd=ROOT).decode("utf-8").split("\0")
     counts={"first_party":{"files":0,"lines":0},"third_party":{"files":0,"lines":0}}
@@ -18,6 +19,8 @@ def report():
         if not name:continue
         path=Path(name)
         if path.suffix.lower() not in EXTENSIONS or any(part in EXCLUDED for part in path.parts):
+            continue
+        if path.as_posix() in GENERATED_FILES:
             continue
         try:content=(ROOT/path).read_text(encoding="utf-8")
         except (OSError,UnicodeError):continue

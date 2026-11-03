@@ -33,5 +33,5 @@ def check(path):
     return len(parser.scripts)
 
 if __name__=="__main__":
-    for name in ("apps/web/index.html","apps/web/studio.html","apps/web/control.html"):
+    for name in ("apps/web/index.html","apps/web/studio.html","apps/web/control.html","apps/desktop/setup.html"):
         print(name,check(name),"inline scripts validated")

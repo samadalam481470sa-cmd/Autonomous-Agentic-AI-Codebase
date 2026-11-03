@@ -9,6 +9,9 @@ on:
     paths:
       - 'apps/desktop/**'
       - 'apps/web/**'
+      - 'packages/ui/**'
+      - 'security/model-policy.json'
+      - 'security/model-distribution.json'
       - 'scripts/build_backend.py'
       - 'scripts/desktop_backend.py'
       - 'services/runtime-rust/**'
@@ -51,14 +54,16 @@ jobs:
       - name: Bundle Monaco and local language workers
         working-directory: apps/web
         run: npm run build
-      - name: Confirm offline editor assets exist
-        run: python -c "from pathlib import Path; root=Path('apps/web/assets'); names=('monaco-entry.js','monaco-entry.css','editor.worker.js','ts.worker.js','MONACO_LICENSE.txt'); assert all((root/name).is_file() for name in names), 'Offline editor bundle incomplete'"
+      - name: Confirm offline editor and design-system assets exist
+        run: python -c "from pathlib import Path; root=Path('apps/web/assets'); names=('monaco-entry.js','monaco-entry.css','editor.worker.js','ts.worker.js','MONACO_LICENSE.txt','tokens.css','icons.svg','favicon.svg'); assert all((root/name).is_file() for name in names), 'Offline editor or design-system bundle incomplete'"
       - run: python scripts/build_backend.py
       - run: python -m pytest -q
-      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs
+      - run: python scripts/check_model_license.py --validate
+      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs apps/desktop/model-license.test.cjs apps/desktop/cross-platform.test.cjs
       - run: node --check apps/desktop/main.cjs
       - run: node --check apps/desktop/energy.cjs
       - run: node --check apps/desktop/preload.cjs
+      - run: node --check apps/desktop/model-license.cjs
       - run: cargo build --release --manifest-path services/runtime-rust/Cargo.toml
       - name: Stage Rust gateway
         shell: bash

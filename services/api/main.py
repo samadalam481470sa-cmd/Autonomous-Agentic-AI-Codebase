@@ -3,7 +3,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Header, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
@@ -64,7 +64,20 @@ app.include_router(device_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
+UI=BASE/"packages"/"ui"
 app.mount('/assets',StaticFiles(directory=str(WEB.parent/'assets')),name='assets')
+
+# First-party Axiom design system. Served directly from packages/ui so the
+# browser UI works in a source checkout without a Node build step.
+@app.get('/ui/tokens.css',include_in_schema=False)
+def ui_tokens():
+    return FileResponse(UI/'tokens.css',media_type='text/css',headers={'Cache-Control':'public, max-age=300'})
+@app.get('/ui/icons.svg',include_in_schema=False)
+def ui_icons():
+    return FileResponse(UI/'icons.svg',media_type='image/svg+xml',headers={'Cache-Control':'public, max-age=300'})
+@app.get('/ui/favicon.svg',include_in_schema=False)
+def ui_favicon():
+    return FileResponse(UI/'favicon.svg',media_type='image/svg+xml',headers={'Cache-Control':'public, max-age=300'})
 class ChatRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     message:str=Field(min_length=1,max_length=12000)

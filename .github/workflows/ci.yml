@@ -1,22 +1,44 @@
 name: Verify
 on: [push, pull_request]
 jobs:
-  python:
-    runs-on: ubuntu-latest
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -e '.[dev]'
+      - run: python -m pip install -e ".[dev]"
       - run: python -m compileall -q services scripts
       - run: python scripts/generate_contracts.py --check
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install web and browser-test dependencies
+        working-directory: apps/web
+        run: npm ci
+      - name: Install Chromium for smoke tests
+        working-directory: apps/web
+        run: npx playwright install chromium
+      - name: Install Chromium system libraries
+        if: runner.os == 'Linux'
+        working-directory: apps/web
+        run: npx playwright install-deps chromium
+      - name: Build offline editor assets
+        working-directory: apps/web
+        run: npm run build
       - run: node --check apps/web/monaco-entry.js
       - run: node --check apps/web/build.mjs
-      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs
+      - run: node --check apps/web/playwright.config.mjs
+      - run: node --check apps/web/e2e/app.spec.mjs
+      - run: node --check apps/desktop/model-license.cjs
+      - run: node packages/ui/build.mjs --check
+      - run: node --test packages/ui/test
+      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs apps/desktop/model-license.test.cjs apps/desktop/cross-platform.test.cjs
       - name: Verify Code-OSS extension transport and source syntax
         run: |
           node --check code_oss_integration/extension/extension.js
@@ -28,7 +50,13 @@ jobs:
           node --check code_oss_integration/extension/agent-state.js
           node --test code_oss_integration/extension/agent-state.test.cjs
       - run: python scripts/check_inline_scripts.py
+      - run: python scripts/check_provenance.py
+      - run: python scripts/check_model_license.py --validate
+      - run: python scripts/license_scan.py --requirements --vendored --models
       - run: python scripts/code_metrics.py
       - name: Verify third-party licenses and notices
         run: python scripts/check_oss_licenses.py
       - run: pytest -q
+      - name: Browser smoke tests
+        working-directory: apps/web
+        run: npm run test:e2e

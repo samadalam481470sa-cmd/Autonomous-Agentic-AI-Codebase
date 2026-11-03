@@ -1,6 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('localSetup',Object.freeze({
  chooseModel:()=>ipcRenderer.invoke('choose-file','model'),
+ checkModelLicense:details=>ipcRenderer.invoke('check-model-license',details),
  downloadModel:details=>ipcRenderer.invoke('download-model',details),
  chooseEngine:()=>ipcRenderer.invoke('choose-file','engine'),
  hardware:()=>ipcRenderer.invoke('hardware'),

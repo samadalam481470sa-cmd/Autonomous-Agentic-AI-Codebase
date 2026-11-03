@@ -16,6 +16,15 @@ router=APIRouter(prefix="/api/execution",tags=["execution"])
 IMAGE=os.getenv("EXECUTION_IMAGE","python:3.12-alpine")
 ALLOWED_IMAGES={"python:3.12-alpine","node:22-alpine"}
 ALLOWED_COMMANDS={"python -m pytest -q","python -m compileall -q .","npm test -- --runInBand","npm run build"}
+def docker_mount_source(path, platform=os.name):
+    """Return a bind source accepted by Docker Desktop and Docker Engine.
+
+    Docker Desktop on Windows accepts both separators, but forward slashes avoid
+    escaping problems in the --mount value. POSIX paths are left untouched.
+    """
+    text = str(path)
+    return text.replace("\\", "/") if platform == "nt" else text
+
 class RunRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     command:str=Field(min_length=1,max_length=150)
@@ -34,7 +43,7 @@ def run(body:RunRequest,authorization:str|None=Header(default=None),x_confirm_ex
           "--cap-drop","ALL","--security-opt","no-new-privileges",
           "--pids-limit","64","--memory","512m","--cpus","1",
           "--user","65534:65534","--tmpfs","/tmp:rw,noexec,nosuid,size=64m",
-          "--mount",f"type=bind,src={root},dst=/workspace,readonly",
+          "--mount",f"type=bind,src={docker_mount_source(root)},dst=/workspace,readonly",
           "--workdir","/workspace",IMAGE,
           "sh","-c",body.command]
     try:

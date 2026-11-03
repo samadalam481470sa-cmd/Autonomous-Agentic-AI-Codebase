@@ -1,15 +1,153 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Autonomous Agentic AI</title><style>
-:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:#090d17;color:#e7ebf8}header{padding:18px 24px;border-bottom:1px solid #283146;background:#111827;display:flex;justify-content:space-between;align-items:center}header strong{font-size:20px}small{color:#95a5c5}main{display:grid;grid-template-columns:270px 1fr;height:calc(100vh - 70px)}aside{background:#111827;border-right:1px solid #283146;padding:20px}input,textarea,button{font:inherit}input,textarea{background:#101b2e;color:#fff;border:1px solid #34425e;border-radius:10px;padding:12px;width:100%}button{background:#5c6df6;border:0;border-radius:10px;color:white;padding:11px 16px;cursor:pointer}button:hover{background:#7b88ff}.secondary{background:#27354c}.stack{display:grid;gap:12px}section{display:flex;flex-direction:column;min-width:0}.messages{padding:30px;overflow:auto;flex:1;display:grid;align-content:start;gap:16px}.msg{white-space:pre-wrap;line-height:1.6;padding:18px;border:1px solid #27344d;border-radius:14px;background:#121c2d;max-width:85%}.msg.user{background:#202b51;justify-self:end}.composer{border-top:1px solid #283146;padding:20px 28px;display:flex;gap:12px;align-items:center}.stream-toggle{display:flex;align-items:center;gap:7px;max-width:112px;font-size:12px;color:#b8c7e6;flex:none}.stream-toggle input{width:auto;flex:none}textarea{resize:vertical;min-height:58px;max-height:180px}.muted{color:#93a5c4}.pill{background:#173b35;color:#69dfb5;border-radius:100px;padding:7px 11px;font-size:12px}.results{display:grid;gap:6px;max-height:220px;overflow:auto}.result{background:#1a2540;border:1px solid #34425e;color:#e7ebf8;font:11px/1.4 ui-monospace,monospace;text-align:left;border-radius:8px;padding:7px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:84px;overflow:hidden}@media(max-width:700px){main{grid-template-columns:1fr}aside{display:none}.messages{padding:14px}.msg{max-width:100%}}</style></head><body><header><div><strong>✦ Autonomous Agentic AI</strong><div><small>Developer Workspace · Agent Runtime</small></div></div><span class="pill">LOCAL WORKSPACE</span><a href="/studio" style="color:#b5c6ff">Code Studio ↗</a><a href="/dashboard" style="color:#b5c6ff">OmniForge Dashboard ↗</a></header><main><aside class="stack" style="align-content:start"><label>Admin token<input id="token" type="password" placeholder="AGENT_ADMIN_TOKEN"></label><label>TOTP code<input id="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="If enabled"></label><label>Active project<input id="project" value="demo" maxlength="64"></label><button id="load" class="secondary">Load conversation</button><button id="files" class="secondary">Browse project files</button><label>Codebase question<input id="codeq" placeholder="Where is X handled?" maxlength="500"></label><button id="codesearch" class="secondary">Search codebase</button><button id="codeask" class="secondary">Ask codebase</button><button id="codeindex" class="secondary">Index codebase</button><div id="coderesults" class="results"></div><button id="webagent" class="secondary">Browse with AgenticSeek</button><button id="new" class="secondary">New project</button><p class="muted">Model-backed chat, file editing and agent tools. Shell execution is off by default.</p><div id="filelist" class="muted" style="white-space:pre-wrap;word-break:break-word"></div></aside><section><div id="messages" class="messages"><div class="msg">Welcome. Ask me to create an API, build a dashboard, or edit files in your project. Configure your model API credentials to enable AI.</div></div><form id="form" class="composer"><label class="stream-toggle"><input id="stream" type="checkbox"> Stream local chat</label><textarea id="prompt" placeholder="Describe what you want to build…" required></textarea><button id="mic" type="button" class="secondary" title="Record locally for up to 8 seconds">🎙 Local voice</button><button id="send">Send ↗</button></form></section></main><script>
-const $=id=>document.getElementById(id),project=()=>($("project").value.trim()||"demo"),msgs=$("messages");const _fetch=window.fetch.bind(window);window.fetch=(input,init={})=>{try{const raw=typeof input==="string"?input:(input&&input.url)||String(input);const url=new URL(raw,location.href);if(!url.pathname.startsWith("/api/"))return _fetch(input,init);const headers=new Headers(init.headers||{});const token=$("token")?.value;if(token&&!headers.has("Authorization"))headers.set("Authorization","Bearer "+token);const code=$("totp")?.value.trim();if(code)headers.set("X-Agent-TOTP",code);return _fetch(input,{...init,headers})}catch(e){return _fetch(input,init)}};
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Autonomous Agentic AI</title>
+<link rel="icon" href="/ui/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ui/tokens.css">
+<style>
+:root{color-scheme:dark}
+html,body{height:100%}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 12% -10%,var(--ag-accent-subtle),transparent 60%),var(--ag-bg-canvas);color:var(--ag-text-primary);font-family:var(--ag-font-sans);font-size:var(--ag-text-md);line-height:var(--ag-leading-normal);-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+a{color:var(--ag-accent);text-decoration:none}
+a:hover{color:var(--ag-accent-hover)}
+.app-header{height:var(--ag-layout-topbar-height);padding:0 var(--ag-space-6);display:flex;align-items:center;justify-content:space-between;gap:var(--ag-space-4);border-bottom:1px solid var(--ag-border-subtle);background:var(--ag-bg-surface);background:color-mix(in srgb,var(--ag-bg-surface) 86%,transparent);backdrop-filter:blur(var(--ag-blur-md))}
+.brand{display:flex;align-items:center;gap:var(--ag-space-3);min-width:0}
+.brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:var(--ag-radius-lg);background:var(--ag-accent-subtle);color:var(--ag-accent);border:1px solid var(--ag-border-default);box-shadow:var(--ag-shadow-sm)}
+.brand-mark .ag-icon{font-size:22px}
+.brand-copy strong{display:block;font-size:var(--ag-text-lg);letter-spacing:var(--ag-tracking-tight);line-height:1.2}
+.brand-copy small{display:block;color:var(--ag-text-muted);font-size:var(--ag-text-xs);margin-top:2px}
+.header-actions{display:flex;align-items:center;gap:var(--ag-space-4);flex:none}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:var(--ag-radius-pill);background:var(--ag-success-subtle);color:var(--ag-success-text);font-size:var(--ag-text-2xs);font-weight:600;letter-spacing:var(--ag-tracking-wide);text-transform:uppercase}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--ag-success);box-shadow:0 0 0 3px color-mix(in srgb,var(--ag-success) 18%,transparent)}
+.text-link{display:inline-flex;align-items:center;gap:6px;font-size:var(--ag-text-sm);font-weight:500}
+.text-link .ag-icon{font-size:15px}
+.icon-button{width:36px;min-height:36px;padding:0}
+.icon-button .ag-icon{font-size:18px}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);height:calc(100vh - var(--ag-layout-topbar-height));min-height:0}
+.sidebar{background:var(--ag-bg-surface);border-right:1px solid var(--ag-border-subtle);padding:var(--ag-space-5);overflow:auto;display:grid;align-content:start;gap:var(--ag-space-3);min-height:0}
+.stack{display:grid;gap:var(--ag-space-3)}
+.field{display:grid;gap:6px;font-size:var(--ag-text-xs);color:var(--ag-text-secondary);font-weight:500}
+.field span{letter-spacing:var(--ag-tracking-wide);text-transform:uppercase;font-size:var(--ag-text-2xs);color:var(--ag-text-muted);font-weight:600}
+input,textarea{width:100%;background:var(--ag-bg-inset);color:var(--ag-text-primary);border:1px solid var(--ag-border-default);border-radius:var(--ag-radius-md);padding:10px 12px;transition:border-color var(--ag-duration-fast) var(--ag-ease-standard),box-shadow var(--ag-duration-fast) var(--ag-ease-standard)}
+input::placeholder,textarea::placeholder{color:var(--ag-text-muted)}
+input:focus,textarea:focus{outline:none;border-color:var(--ag-accent);box-shadow:0 0 0 3px var(--ag-accent-subtle)}
+button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--ag-control-md);padding:0 14px;border:1px solid transparent;border-radius:var(--ag-radius-md);background:var(--ag-accent);color:var(--ag-text-on-accent);font-weight:600;font-size:var(--ag-text-sm);transition:background var(--ag-duration-fast) var(--ag-ease-standard),border-color var(--ag-duration-fast) var(--ag-ease-standard),transform var(--ag-duration-fast) var(--ag-ease-standard)}
+button:hover{background:var(--ag-accent-hover)}
+button:active{background:var(--ag-accent-pressed);transform:translateY(1px)}
+button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+button.secondary{background:var(--ag-bg-raised);border-color:var(--ag-border-default);color:var(--ag-text-primary)}
+button.secondary:hover{background:var(--ag-bg-hover);border-color:var(--ag-border-strong)}
+button .ag-icon{font-size:var(--ag-icon-sm)}
+.hint{font-size:var(--ag-text-xs);color:var(--ag-text-muted);line-height:var(--ag-leading-relaxed);margin:var(--ag-space-2) 0}
+#filelist{font-family:var(--ag-font-mono);font-size:var(--ag-text-xs);line-height:1.6;background:var(--ag-bg-inset);border:1px solid var(--ag-border-subtle);border-radius:var(--ag-radius-md);padding:10px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--ag-text-secondary)}
+.search-actions{display:flex;gap:6px;flex-wrap:wrap}
+.search-actions button{flex:1;min-height:var(--ag-control-sm);padding:0 8px;font-size:var(--ag-text-2xs)}
+.results{display:grid;gap:4px;max-height:190px;overflow:auto}
+.result{display:block;width:100%;text-align:left;background:var(--ag-bg-raised);border:1px solid var(--ag-border-default);border-radius:var(--ag-radius-sm);padding:7px 8px;color:var(--ag-text-primary);font:var(--ag-text-2xs) var(--ag-font-mono);white-space:pre-wrap;overflow-wrap:anywhere;max-height:84px;overflow:hidden}
+.result:hover{background:var(--ag-bg-hover)}
+.chat{display:flex;flex-direction:column;min-width:0;min-height:0}
+.messages{flex:1;overflow:auto;padding:var(--ag-space-8) var(--ag-space-6);display:flex;flex-direction:column;gap:var(--ag-space-4);width:100%;max-width:1100px;margin:0 auto}
+.msg{white-space:pre-wrap;overflow-wrap:anywhere;line-height:var(--ag-leading-relaxed);padding:14px 16px;border:1px solid var(--ag-border-subtle);border-radius:var(--ag-radius-lg);background:var(--ag-bg-raised);box-shadow:var(--ag-shadow-sm);max-width:78ch}
+.msg.user{align-self:flex-end;background:var(--ag-accent-subtle);border-color:var(--ag-border-default);max-width:70ch}
+.composer{border-top:1px solid var(--ag-border-subtle);background:var(--ag-bg-surface);padding:var(--ag-space-4) var(--ag-space-6);display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.composer textarea{flex:1;min-width:220px;min-height:56px;max-height:180px;resize:vertical;line-height:var(--ag-leading-snug)}
+.stream-toggle{display:flex;align-items:center;gap:7px;font-size:var(--ag-text-xs);color:var(--ag-text-secondary);white-space:nowrap;padding-bottom:14px;font-weight:500}
+.stream-toggle input{width:auto;accent-color:var(--ag-accent)}
+@media(max-width:900px){.layout{grid-template-columns:240px minmax(0,1fr)}.pill{display:none}}
+@media(max-width:760px){.layout{grid-template-columns:1fr;height:auto}.sidebar{display:none}.chat{min-height:calc(100vh - var(--ag-layout-topbar-height))}.messages{padding:var(--ag-space-5) var(--ag-space-4)}.composer{padding:var(--ag-space-4)}.brand-copy small{display:none}.app-header{padding:0 var(--ag-space-4)}}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-mark"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-spark"></use></svg></span>
+    <div class="brand-copy"><strong>Autonomous Agentic AI</strong><small>Developer workspace · agent runtime</small></div>
+  </div>
+  <div class="header-actions">
+    <span class="pill"><span class="status-dot" aria-hidden="true"></span>Local workspace</span>
+    <button id="theme" class="secondary icon-button" type="button" aria-label="Switch theme" title="Switch theme"><svg class="ag-icon" aria-hidden="true"><use id="theme-icon" href="/ui/icons.svg#ag-moon"></use></svg></button>
+    <a class="text-link" href="/studio"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-code"></use></svg>Code Studio<svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-external"></use></svg></a>
+    <a class="text-link" href="/dashboard"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-sidebar"></use></svg>Dashboard<svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-external"></use></svg></a>
+    <a class="text-link" href="/docs" target="_blank" rel="noreferrer">API</a>
+  </div>
+</header>
+<main class="layout">
+  <aside class="sidebar">
+    <label class="field"><span>Admin token</span><input id="token" type="password" placeholder="AGENT_ADMIN_TOKEN" autocomplete="current-password"></label>
+    <label class="field"><span>TOTP code</span><input id="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="If enabled"></label>
+    <label class="field"><span>Active project</span><input id="project" value="demo" maxlength="64"></label>
+    <button id="load" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-refresh"></use></svg>Load conversation</button>
+    <button id="files" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-folder"></use></svg>Browse project files</button>
+    <button id="webagent" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-external"></use></svg>Browse with AgenticSeek</button>
+    <button id="new" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-plus"></use></svg>New project</button>
+    <button id="plan" class="secondary" type="button"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-spark"></use></svg>Plan project</button>
+    <p class="hint">Model-backed chat, bounded project plans, approved file edits, and agent tools. Shell execution is off by default.</p>
+    <div id="filelist" aria-live="polite"></div>
+    <div class="search-actions" role="group" aria-label="Codebase retrieval">
+      <input id="codeq" placeholder="Where is X handled?" maxlength="500" aria-label="Codebase question">
+      <button id="codesearch" class="secondary" type="button">Search codebase</button>
+      <button id="codeask" class="secondary" type="button">Ask codebase</button>
+      <button id="codeindex" class="secondary" type="button">Index codebase</button>
+    </div>
+    <div id="coderesults" class="results" aria-live="polite"></div>
+  </aside>
+  <section class="chat">
+    <div id="messages" class="messages">
+      <div class="msg">Welcome. Ask me to create an API, build a dashboard, or edit files in your project. Configure your model API credentials to enable AI.</div>
+    </div>
+    <form id="form" class="composer">
+      <label class="stream-toggle"><input id="stream" type="checkbox">Stream local chat</label>
+      <textarea id="prompt" placeholder="Describe what you want to build…" required></textarea>
+      <button id="mic" type="button" class="secondary" title="Record locally for up to 8 seconds"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-mic"></use></svg>Local voice</button>
+      <button id="send" type="submit"><svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-send"></use></svg>Send</button>
+    </form>
+  </section>
+</main>
+<script>
+(() => {
+  const root = document.documentElement;
+  const button = document.getElementById('theme');
+  const icon = document.getElementById('theme-icon');
+  let stored = null;
+  try { stored = localStorage.getItem('agentic-theme'); } catch (_) {}
+  if (stored === 'light' || stored === 'dark') root.dataset.theme = stored;
+  const paint = () => {
+    const light = root.dataset.theme === 'light';
+    if (button) {
+      button.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+      button.setAttribute('title', light ? 'Dark theme' : 'Light theme');
+      button.setAttribute('aria-pressed', light ? 'true' : 'false');
+    }
+    if (icon) icon.setAttribute('href', light ? '/ui/icons.svg#ag-sun' : '/ui/icons.svg#ag-moon');
+  };
+  if (button) button.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem('agentic-theme', root.dataset.theme); } catch (_) {}
+    paint();
+  });
+  paint();
+})();
+</script>
+
+<script>
+const $=id=>document.getElementById(id),project=()=>($("project").value.trim()||"demo"),msgs=$("messages");
+const _fetch=window.fetch.bind(window);window.fetch=(input,init={})=>{try{const raw=typeof input==="string"?input:(input&&input.url)||String(input);const url=new URL(raw,location.href);if(!url.pathname.startsWith("/api/"))return _fetch(input,init);const headers=new Headers(init.headers||{});const token=$("token")?.value;if(token&&!headers.has("Authorization"))headers.set("Authorization","Bearer "+token);const code=$("totp")?.value.trim();if(code)headers.set("X-Agent-TOTP",code);return _fetch(input,{...init,headers})}catch(e){return _fetch(input,init)}};
 function add(role,text){const el=document.createElement("div");el.className="msg "+role;el.textContent=text;msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;return el}
 async function load(){try{const r=await fetch("/api/projects/"+encodeURIComponent(project())+"/history",{headers:{"Authorization":"Bearer "+$("token").value}});const d=await r.json();if(!r.ok)throw Error(d.detail);msgs.replaceChildren();for(const m of d.messages)add(m.role,m.content);if(!d.messages.length)add("assistant","New project ready. What should we build?")}catch(e){add("assistant","Error: "+e.message)}}
-$("load").onclick=load;$("new").onclick=()=>{const name=prompt("Project name (letters, numbers, underscores or dashes):");if(name&&/^[A-Za-z0-9_-]{1,64}$/.test(name)){$("project").value=name;load()}};
+$("load").onclick=load;
+$("new").onclick=async()=>{const name=prompt("Project name (letters, numbers, underscores or dashes):");if(!name||!/^[A-Za-z0-9_-]{1,64}$/.test(name))return;try{const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({slug:name,title:name})});if(!r.ok&&r.status!==409){const d=await r.json().catch(()=>({}));throw Error(d.detail||r.status)}}catch(e){add("assistant","Project workspace selected, but the project registry was not updated: "+e.message)}$("project").value=name;await load()};
+$("plan").onclick=async()=>{const goal=prompt("Describe the project goal. This creates a deterministic three-step plan; it does not execute it.");if(!goal)return;add("user","Plan: "+goal);try{const r=await fetch("/api/projects/plan",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),message:goal})});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);add("assistant","Project plan ("+d.status+")\n"+d.tasks.map((t,i)=>(i+1)+". "+t.role+": "+t.instruction).join("\n"))}catch(e){add("assistant","Plan failed: "+e.message)}};
 $("webagent").onclick=async()=>{const query=prompt("What should the separately installed local AgenticSeek browse or research? Internet websites can receive traffic and anything you submit.");if(!query)return;add("user","AgenticSeek: "+query);const button=$("webagent");button.disabled=true;try{const r=await fetch("/api/integrations/agenticseek/query",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),message:query})});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);add("assistant",(d.agent_name||"AgenticSeek")+": "+(d.answer||"No answer returned"))}catch(e){add("assistant","AgenticSeek unavailable: "+e.message+" (requires a separately running local AgenticSeek service).")}finally{button.disabled=false}};
 $("files").onclick=async()=>{try{const r=await fetch("/api/tool",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),name:"list_files",arguments:{}})});const d=await r.json();$("filelist").textContent=JSON.parse(d.result).join("\n")||"No files yet"}catch(e){$("filelist").textContent=e.message}};
 async function codeApi(route,payload){const r=await fetch("/api/ai/"+route,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+$("token").value},body:JSON.stringify({project:project(),...payload})});const d=await r.json().catch(()=>({detail:"HTTP "+r.status}));if(!r.ok)throw Error(d.detail||("HTTP "+r.status));return d}
-function renderCodeResults(results){const box=$("coderesults");box.replaceChildren();if(!results.length){box.textContent="No matches.";return}for(const item of results){const b=document.createElement("button");b.className="result";b.textContent=item.path+":"+item.line;b.title=item.excerpt;b.onclick=()=>{$("prompt").value="@"+item.path+":"+item.line+" "+$("prompt").value;$("prompt").focus()};box.appendChild(b)}}
+function renderCodeResults(results){const box=$("coderesults");box.replaceChildren();if(!results.length){box.textContent="No matches.";return}for(const item of results){const b=document.createElement("button");b.type="button";b.className="result";b.textContent=item.path+":"+item.line;b.title=item.excerpt;b.onclick=()=>{$("prompt").value="@"+item.path+":"+item.line+" "+$("prompt").value;$("prompt").focus()};box.appendChild(b)}}
 async function codeSearch(){const query=$("codeq").value.trim();if(!query)return;const btn=$("codesearch");btn.disabled=true;try{const d=await codeApi("search",{query,limit:12});renderCodeResults(d.results)}catch(e){$("coderesults").textContent="Search failed: "+e.message}finally{btn.disabled=false}}
-async function codeAsk(){const query=$("codeq").value.trim();if(!query)return;const btn=$("codeask");btn.disabled=true;add("user","Ask codebase: "+query);try{const d=await codeApi("ask",{question:query});const safety=d.safety&&(d.safety.secrets||d.safety.injection)?("Safety: "+d.safety.secrets+" secret(s) redacted, "+d.safety.injection+" injection flag(s).\n"):"";add("assistant",safety+d.answer+(d.citations.length?"\n\nSources: "+d.citations.map(c=>c.path+":"+c.line).join(", "):""))}catch(e){add("assistant","Codebase answer failed: "+e.message)}finally{btn.disabled=false}}
+async function codeAsk(){const query=$("codeq").value.trim();if(!query)return;const btn=$("codeask");btn.disabled=true;add("user","Ask codebase: "+query);try{const d=await codeApi("ask",{question:query});const safety=d.safety&&(d.safety.secrets||d.safety.injection)?("Safety: "+d.safety.secrets+" secret(s) redacted, "+d.safety.injection+" injection flag(s).\n"):"";add("assistant",safety+d.answer+((d.citations||[]).length?"\n\nSources: "+d.citations.map(c=>c.path+":"+c.line).join(", "):""))}catch(e){add("assistant","Codebase answer failed: "+e.message)}finally{btn.disabled=false}}
 async function codeIndex(){const btn=$("codeindex");btn.disabled=true;$("coderesults").textContent="Indexing and embedding changed files...";try{const d=await codeApi("index/refresh",{max_files:5000});$("coderesults").textContent="Indexed "+d.embedded_files+" files, "+d.vectors+" vectors ("+d.elapsed_seconds+"s)"}catch(e){$("coderesults").textContent="Index failed: "+e.message}finally{btn.disabled=false}}
 function parseStreamEvent(block){
  const lines=block.split("\n"),eventLine=lines.find(x=>x.startsWith("event:"));
@@ -57,6 +195,8 @@ $("form").onsubmit=async e=>{
  finally{$("send").disabled=false}
 };
 function wavEncode(samples,rate){const buffer=new ArrayBuffer(44+samples.length*2),v=new DataView(buffer);const ascii=(i,t)=>{for(let j=0;j<t.length;j++)v.setUint8(i+j,t.charCodeAt(j))};ascii(0,"RIFF");v.setUint32(4,36+samples.length*2,true);ascii(8,"WAVE");ascii(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ascii(36,"data");v.setUint32(40,samples.length*2,true);samples.forEach((x,i)=>v.setInt16(44+i*2,Math.max(-32768,Math.min(32767,x<0?x*32768:x*32767)),true));return new Uint8Array(buffer)}
-async function localVoice(){const button=$("mic");button.disabled=true;let stream,ctx,node,src;try{if(!navigator.mediaDevices?.getUserMedia)throw Error("Microphone permission or secure context unavailable");stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});ctx=new AudioContext({sampleRate:16000});src=ctx.createMediaStreamSource(stream);node=ctx.createScriptProcessor(4096,1,1);const chunks=[];let length=0;node.onaudioprocess=e=>{const data=e.inputBuffer.getChannelData(0);if(length<ctx.sampleRate*8){chunks.push(new Float32Array(data));length+=data.length}};src.connect(node);node.connect(ctx.destination);button.textContent="Recording (8s)";await new Promise(resolve=>setTimeout(resolve,8000));const pcm=new Float32Array(Math.min(length,ctx.sampleRate*8));let offset=0;for(const chunk of chunks){const part=chunk.subarray(0,pcm.length-offset);pcm.set(part,offset);offset+=part.length;if(offset>=pcm.length)break}const wave=wavEncode(pcm,ctx.sampleRate);let binary="";for(let i=0;i<wave.length;i+=32768)binary+=String.fromCharCode(...wave.subarray(i,i+32768));button.textContent="Transcribing...";const r=await fetch("/api/voice/transcribe",{method:"POST",headers:{"Authorization":"Bearer "+$("token").value,"Content-Type":"application/json"},body:JSON.stringify({wav_base64:btoa(binary)})});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);$("prompt").value=d.text;add("assistant","Transcription ready. Review it, then press Send. Audio was sent only to the configured local speech server.")}catch(e){add("assistant","Local voice unavailable: "+e.message)}finally{node?.disconnect();src?.disconnect();if(stream)stream.getTracks().forEach(t=>t.stop());if(ctx)await ctx.close();button.disabled=false;button.textContent="🎙 Local voice"}}
+async function localVoice(){const button=$("mic");button.disabled=true;let stream,ctx,node,src;try{if(!navigator.mediaDevices?.getUserMedia)throw Error("Microphone permission or secure context unavailable");stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});const AudioCtor=window.AudioContext||window.webkitAudioContext;if(!AudioCtor)throw Error("Web Audio is unavailable");ctx=new AudioCtor({sampleRate:16000});if(!ctx.createScriptProcessor)throw Error("Audio recording is unavailable in this browser");src=ctx.createMediaStreamSource(stream);node=ctx.createScriptProcessor(4096,1,1);const chunks=[];let length=0;node.onaudioprocess=e=>{const data=e.inputBuffer.getChannelData(0);if(length<ctx.sampleRate*8){chunks.push(new Float32Array(data));length+=data.length}};src.connect(node);node.connect(ctx.destination);button.textContent="Recording (8s)";await new Promise(resolve=>setTimeout(resolve,8000));const pcm=new Float32Array(Math.min(length,ctx.sampleRate*8));let offset=0;for(const chunk of chunks){const part=chunk.subarray(0,pcm.length-offset);pcm.set(part,offset);offset+=part.length;if(offset>=pcm.length)break}const wave=wavEncode(pcm,ctx.sampleRate);let binary="";for(let i=0;i<wave.length;i+=32768)binary+=String.fromCharCode(...wave.subarray(i,i+32768));button.textContent="Transcribing...";const r=await fetch("/api/voice/transcribe",{method:"POST",headers:{"Authorization":"Bearer "+$("token").value,"Content-Type":"application/json"},body:JSON.stringify({wav_base64:btoa(binary)})});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);$("prompt").value=d.text;add("assistant","Transcription ready. Review it, then press Send. Audio was sent only to the configured local speech server.")}catch(e){add("assistant","Local voice unavailable: "+e.message)}finally{node?.disconnect();src?.disconnect();if(stream)stream.getTracks().forEach(t=>t.stop());if(ctx)await ctx.close();button.disabled=false;button.innerHTML='<svg class="ag-icon" aria-hidden="true"><use href="/ui/icons.svg#ag-mic"></use></svg>Local voice'}}
 $("mic").onclick=localVoice;$("codesearch").onclick=codeSearch;$("codeask").onclick=codeAsk;$("codeindex").onclick=codeIndex;$("token").addEventListener("change",load);
-</script></body></html>
+</script>
+</body>
+</html>

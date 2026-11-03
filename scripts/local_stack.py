@@ -23,6 +23,38 @@ def executable(name):
     if found:return found
     raise RuntimeError(f"Missing executable: {name}. Install it and add it to PATH.")
 
+def process_group_options():
+    """Start each service in a group so its whole tree can be stopped."""
+    if os.name == "nt":
+        return {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
+    return {"start_new_session": True}
+
+def terminate_tree(proc, force=False):
+    """Stop a child and descendants without touching unrelated processes."""
+    if proc.poll() is not None:
+        return
+    if os.name == "nt":
+        command = ["taskkill", "/PID", str(proc.pid), "/T"]
+        if force:
+            command.append("/F")
+        try:
+            result = subprocess.run(command, check=False, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, timeout=10)
+            if result.returncode == 0:
+                return
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    else:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL if force else signal.SIGTERM)
+            return
+        except (OSError, ProcessLookupError):
+            pass
+    try:
+        proc.kill() if force else proc.terminate()
+    except OSError:
+        pass
+
 def wait(url,proc,timeout=90):
     deadline=time.monotonic()+timeout
     while time.monotonic()<deadline:
@@ -87,7 +119,7 @@ def main(argv=None):
         print("Admin token:",env["AGENT_ADMIN_TOKEN"],flush=True)
         for index,(name,cmd,cwd) in enumerate(commands):
             print("Starting",name,flush=True)
-            p=subprocess.Popen(cmd,cwd=cwd,env=env)
+            p=subprocess.Popen(cmd,cwd=cwd,env=env,**process_group_options())
             processes.append(p)
             if index==0:wait("http://127.0.0.1:9931/v1/models",p,180)
             if index==1:wait("http://127.0.0.1:8088/health",p,180)
@@ -103,10 +135,13 @@ def main(argv=None):
         return 0
     finally:
         for p in reversed(processes):
-            if p.poll() is None:
-                p.terminate()
+            terminate_tree(p)
         for p in reversed(processes):
-            try:p.wait(timeout=6)
-            except subprocess.TimeoutExpired:p.kill()
+            try:
+                p.wait(timeout=6)
+            except subprocess.TimeoutExpired:
+                terminate_tree(p, force=True)
+                try:p.wait(timeout=3)
+                except subprocess.TimeoutExpired:pass
 
 if __name__=="__main__":raise SystemExit(main())

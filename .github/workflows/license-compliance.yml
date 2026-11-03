@@ -1,0 +1,79 @@
+name: License compliance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: license-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-scan:
+    name: Dependency, model, and provenance scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Node dependency metadata
+        run: |
+          for dir in apps/web apps/desktop; do
+            echo "::group::npm install $dir"
+            (cd "$dir" && npm install --ignore-scripts --no-audit --no-fund)
+            echo "::endgroup::"
+          done
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Scan every dependency ecosystem
+        run: |
+          python scripts/license_scan.py \
+            --python \
+            --requirements \
+            --vendored \
+            --models \
+            --node apps/web \
+            --node apps/desktop \
+            --node apps/vscode-extension \
+            --cargo services/runtime-rust/Cargo.toml \
+            --report security/reports/license-report.json
+      - name: Verify upstream and AgenticSeek separation
+        run: python scripts/check_provenance.py
+      - name: Validate reviewed model registry and shipping manifest
+        run: |
+          python scripts/check_model_license.py --validate
+          python scripts/check_model_license.py --manifest security/model-distribution.json
+      - name: Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: security/reports/license-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  design-system:
+    name: Design system artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify generated tokens, sprite, and favicon are current
+        run: node packages/ui/build.mjs --check
+      - name: Test tokens, contrast, and icon contract
+        run: node --test packages/ui/test

@@ -10,6 +10,7 @@ const {pipeline}=require('node:stream/promises');
 const {inspectEngine}=require('./hardware.cjs');
 const {startLocalModel,probeHttp,GATEWAY_URL}=require('./model-runtime.cjs');
 const energy=require('./energy.cjs');
+const {checkModel,loadPolicy,policyPath}=require('./model-license.cjs');
 const SERVER='http://127.0.0.1:8000';
 let win,backend,modelServer,rustGateway,starting=false,modelStarting=false,adminToken='';
 function backendPath(){
@@ -87,6 +88,12 @@ async function requestModel(url,redirects=0){
   req.on('error',reject);
  });
 }
+function requireModelLicense(details,use='inference'){
+ const policy=loadPolicy(policyPath({packaged:app.isPackaged,resourcesPath:process.resourcesPath}));
+ const decision=checkModel({modelId:details?.modelId,license:details?.modelLicense,use},policy);
+ if(!decision.approved)throw new Error('Model license blocked: '+decision.reason);
+ return decision;
+}
 function alwaysOnConfig(){return energy.loadPreference(energy.preferencePath(app.getPath('userData')))}
 async function backendControl(action){
  if(!adminToken)return false;
@@ -100,9 +107,14 @@ ipcMain.handle('set-always-on',async(event,enabled)=>{
  await backendControl(pref.enabled?'start':'stop');
  return pref;
 });
+ipcMain.handle('check-model-license',async(event,details)=>{
+ requireSetup(event);
+ return requireModelLicense(details,details?.use||'inference');
+});
 ipcMain.handle('download-model',async (event,details)=>{
  requireSetup(event);
  if(!details||details.licenseAccepted!==true)throw new Error('Confirm model license and download permission');
+ requireModelLicense(details,'inference');
  if(typeof details.url!=='string'||typeof details.sha256!=='string'||!/^[a-f0-9]{64}$/i.test(details.sha256))throw new Error('A valid HTTPS URL and SHA256 checksum are required');
  const url=trustedModelURL(details.url);
  if(!url.pathname.toLowerCase().endsWith('.gguf'))throw new Error('Download URL must point to a .gguf file');

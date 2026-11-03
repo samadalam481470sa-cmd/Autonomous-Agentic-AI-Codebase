@@ -3,12 +3,18 @@
  * All third-party notices are preserved in assets.
  */
 import esbuild from 'esbuild';
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build as buildUi } from '../../packages/ui/build.mjs';
 const root = dirname(fileURLToPath(import.meta.url));
 const assets = resolve(root,'assets');
+const ui = resolve(root,'..','..','packages','ui');
 mkdirSync(assets,{recursive:true});
+await buildUi();
+for (const name of ['tokens.css','icons.svg','favicon.svg']) {
+  copyFileSync(resolve(ui,name),resolve(assets,name));
+}
 const workerRoot = resolve(root,'node_modules','monaco-editor','esm','vs');
 const entryPoints = {
   'monaco-entry':resolve(root,'monaco-entry.js'),
