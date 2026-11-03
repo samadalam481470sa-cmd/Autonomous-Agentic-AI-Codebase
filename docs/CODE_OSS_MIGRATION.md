@@ -1,6 +1,6 @@
 # Code-OSS migration milestone — upstream workbench integration
 
-The existing desktop app is an Electron + Monaco **experimental fallback**. This migration adds a **reproducible pinned Code-OSS source overlay and a functioning-source local AI sidebar extension**. It does *not* claim the Code-OSS desktop app was compiled, signed or installed in CI yet. It also does not copy Microsoft's proprietary VS Code distribution or use the Microsoft Marketplace.
+The existing desktop app is an Electron + Monaco **experimental fallback**. This migration adds a **reproducible pinned Code-OSS source overlay and a functioning-source local AI sidebar extension**. The Linux x64 Code-OSS workbench now compiles and installs from an unsigned `.deb` in a fresh CI runner; it is not signed, and Windows/macOS, GPU inference and interactive UI checks remain unverified. It also does not copy Microsoft's proprietary VS Code distribution or use the Microsoft Marketplace.
 
 ## Upstream and license provenance
 
@@ -58,13 +58,13 @@ The original experimental Electron desktop generates a random backend token inte
 - Stop button aborts the HTTP stream.
 - Fixed/validated loopback-only endpoint and locally stored credentials.
 - Content is rendered with `textContent` and a nonce-bearing restrictive Content Security Policy; no remote scripts or active HTML content are injected.
-- Existing Code-OSS native explorer, terminal, debugger, source-control and extension host come from the upstream workbench source, but have **not yet passed an assembled-build smoke test** in this product.
+- Existing Code-OSS native explorer, terminal, debugger, source-control and extension host come from the upstream workbench source. The assembled Linux build, clean-room package install and headless launch now pass CI; interactive UI clicks and full extension-host activation still need manual testing.
 
 ## Not yet migrated
 
 - The local editor/agent approved-diff workflow remains in the FastAPI Studio UI.
 - No Tab completion, inline Cmd+K diffs, native VS Code change-approval UI, full shared agent harness or codebase symbol search is integrated into Code-OSS yet.
-- No Code-OSS installer has been compiled or published by these changes.
+- The unsigned Linux `.deb` is built and clean-room installed in CI, but it is not signed, published as a supported release, or built for Windows/macOS.
 - Upstream VS Code extensions are not guaranteed all compatible with independent forks. Open VSX is supported as the preferred extension source.
 - No automatic model installer, runtime GPU benchmark, cross-platform signing/notarization, multi-process isolation or durable agent state-machine recovery.
 
@@ -85,6 +85,6 @@ Code-OSS includes native file explorer, source control, debugger, terminal, sear
 
 ## CI install-and-launch verification
 
-The Linux Code-OSS workflow compiles the branded workbench, archives it, and builds an unsigned `.deb` installer with [package_code_oss_deb.sh](../scripts/package_code_oss_deb.sh). It then starts a **fresh runner job** that downloads the artifact, verifies its SHA-256, installs the `.deb` with system dependencies, and runs the installed CLI `--version` plus a 15-second GUI launch under Xvfb. A passing run confirms the package installs on a clean Ubuntu runner, the executable starts under a virtual display, and the Local AI extension is packaged. It **does not** test your Windows computer, GPU model execution, interactive UI clicks, production signing, or full extension-host activation. GitHub Actions artifacts are ephemeral and intended for technical testing, not a supported release.
+The Linux Code-OSS workflow compiles the branded workbench, archives it, and builds an unsigned `.deb` installer with [package_code_oss_deb.sh](../scripts/package_code_oss_deb.sh). It then starts a **fresh runner job** that downloads the artifact, verifies its SHA-256, installs the `.deb` with system dependencies, and runs the installed CLI `--version` plus a 15-second GUI launch under Xvfb. A passing run confirms the package installs on a clean Ubuntu runner, the executable starts under a virtual display, and the Local AI extension is packaged. The first run with the installer job passed on 2026-11-03 (run 4, 15m 51s total; clean-room install and launch 45s): [Actions run 41679158151](https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/actions/runs/41679158151). It **does not** test your Windows computer, GPU model execution, interactive UI clicks, production signing, or full extension-host activation. GitHub Actions artifacts are ephemeral and intended for technical testing, not a supported release.
 
 For local Linux testing, extract the downloadable workflow artifact, then run `VSCode-linux-x64/bin/agentic-workbench`. Use the release-ready security and provenance checks before distributing this experimental build.

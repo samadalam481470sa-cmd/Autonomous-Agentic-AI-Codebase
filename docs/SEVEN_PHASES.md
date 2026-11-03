@@ -10,7 +10,7 @@ overstate the product.
 | Phase | Scope | Status | Gate |
 | --- | --- | --- | --- |
 | 0 | Contracts, event log, benchmark, CI | **partial** | Contract check, event log and 30-task harness pass; recorded starter baseline is 0/30. No model/agent score yet |
-| 1 | Code-OSS workbench, agent window, Tab completion, installers | **partial** | Chat, approved rewrites and the new Agent Runs webview exist; no Tab completion, signed installer or clean-machine run |
+| 1 | Code-OSS workbench, agent window, Tab completion, installers | **partial** | Chat, approved rewrites and Agent Runs webview exist; unsigned Linux `.deb` builds and clean-room installs/launches in CI. No Tab completion, signed/Windows/macOS installers or interactive UI run |
 | 2 | Agent core: runs, worktrees, policy, streaming tools | **partial** | Evented orchestrator, policy gate, worktree manager, streaming read-only tools and a bounded lead executor tested; no parallel runs, GitHub PRs, preview or production merge automation |
 | 3 | Tree-sitter, LSP, dependency graph, embeddings, sandbox | **not started** | Existing FTS5/hybrid retrieval only; no new sandbox runtime or retrieval-quality gate |
 | 4 | Language packs and connectors | **not started** | Toolchain registry exists; no pack manifests, MCP client, token vault or connector health tests |
@@ -41,8 +41,7 @@ approved selection rewrite, SSE parser, Open VSX product configuration and a
 pinned upstream workflow. A new **Agent Runs** webview lists runs, creates goals,
 advances/cancels steps and renders the event log as evidence; it never receives
 the admin token or a model key. Missing: Tab autocomplete, inline edit streaming,
-a first-party terminal, signed installers and any clean-machine installer test.
-Do not call this IDE complete.
+a first-party terminal, signed installers, Windows/macOS packaging and an interactive UI test. The unsigned Linux `.deb` and fresh-runner install/launch test pass in CI (run 4). Do not call this IDE complete.
 
 ## Phase 2 — implemented now
 
@@ -75,8 +74,8 @@ concrete gates are:
 
 1. Run the benchmark with a real model/agent and record its score; the starter
    baseline is already 0/30 (Phase 0).
-2. Build and install the Code-OSS workbench on a clean machine and exercise the
-   Agent Runs panel there (Phase 1).
+2. Exercise the Agent Runs panel on the installed Linux build, then add
+   Windows/macOS packaging and signing (Phase 1).
 3. Only then add Tree-sitter/LSP retrieval, per-task microVM or gVisor sandboxes,
    connectors, learning promotion and the hosted control plane.
 
