@@ -1,0 +1,174 @@
+# Blueprint manifests for the Aetherion OmniForge API. They are not applied by
+# CI and have not been validated against a live cluster. Replace the secret
+# placeholder before use. The application stores state on the mounted volume;
+# PostgreSQL and Redis are not runtime dependencies of this build.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aetherion
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aetherion-data
+  namespace: aetherion
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aetherion-admin
+  namespace: aetherion
+type: Opaque
+stringData:
+  AGENT_ADMIN_TOKEN: REPLACE_WITH_A_STRONG_RANDOM_TOKEN
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aetherion-api
+  namespace: aetherion
+  labels:
+    app: aetherion-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aetherion-api
+  template:
+    metadata:
+      labels:
+        app: aetherion-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: aetherion-omniforge:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: AGENT_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aetherion-admin
+                  key: AGENT_ADMIN_TOKEN
+            - name: WORKSPACE_ROOT
+              value: /app/workspaces
+            - name: DB_PATH
+              value: /app/database/agent.sqlite3
+            - name: SECURITY_DB_PATH
+              value: /app/database/security.sqlite3
+            - name: ORCHESTRATOR_DB_PATH
+              value: /app/database/agent_runs.sqlite3
+            - name: SECURITY_TRUST_PROXY
+              value: "1"
+          volumeMounts:
+            - name: data
+              mountPath: /app/database
+            - name: workspaces
+              mountPath: /app/workspaces
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: aetherion-data
+        - name: workspaces
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aetherion-api
+  namespace: aetherion
+spec:
+  selector:
+    app: aetherion-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aetherion-api
+  namespace: aetherion
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aetherion-api
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aetherion-default-deny
+  namespace: aetherion
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aetherion
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aetherion
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53

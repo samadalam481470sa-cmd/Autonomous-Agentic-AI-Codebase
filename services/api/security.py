@@ -41,6 +41,7 @@ MAX_WINDOWS = 10000
 # Stricter buckets for expensive or security-sensitive endpoint families.
 RATE_BUCKETS = {
     "/api/ai": ("SECURITY_AI_RATE_LIMIT_PER_MINUTE", 60),
+    "/api/agents": ("SECURITY_AGENTS_RATE_LIMIT_PER_MINUTE", 30),
     "/api/chat": ("SECURITY_CHAT_RATE_LIMIT_PER_MINUTE", 40),
     "/api/agent": ("SECURITY_AGENT_RATE_LIMIT_PER_MINUTE", 30),
     "/api/execution": ("SECURITY_EXECUTION_RATE_LIMIT_PER_MINUTE", 20),

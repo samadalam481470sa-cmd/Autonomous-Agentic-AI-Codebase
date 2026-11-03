@@ -5,6 +5,9 @@ __pycache__/
 *.pyc
 database/*.sqlite3
 workspaces/
+node_modules/
+apps/dashboard/node_modules/
+*.tsbuildinfo
 
 # The Code-OSS checkout is a separately pinned upstream working tree.
 # Never count it as authored source or commit its build dependencies.

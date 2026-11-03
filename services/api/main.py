@@ -36,6 +36,8 @@ from .repair_trial import router as repair_trial_router
 app.include_router(repair_trial_router)
 from .ai_features import router as ai_features_router
 app.include_router(ai_features_router)
+from .orchestrator import router as orchestrator_router
+app.include_router(orchestrator_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
@@ -116,6 +118,30 @@ def get_project_plan(project: str, authorization: str | None = Header(default=No
 @app.get("/studio",response_class=HTMLResponse)
 def studio_page():
     return (WEB.parent/"studio.html").read_text(encoding="utf-8")
+
+
+DASHBOARD = BASE / "apps" / "dashboard" / "dist"
+DASHBOARD_BUILD_HELP = (
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+    "<title>Aetherion OmniForge dashboard</title></head><body style=\"font:15px system-ui;"
+    "background:#0b0d10;color:#e6e9ef;padding:40px\"><h1>Dashboard not built</h1>"
+    "<p>Build the front end, then restart the API:</p>"
+    "<pre style=\"background:#161a20;padding:16px;border-radius:8px\">"
+    "cd apps/dashboard\nnpm ci\nnpm run build</pre>"
+    "<p>The prebuilt bundle is committed; if it is missing run the command above.</p>"
+    "</body></html>"
+)
+if (DASHBOARD / "assets").is_dir():
+    app.mount("/dashboard/assets", StaticFiles(directory=str(DASHBOARD / "assets")),
+              name="dashboard-assets")
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page():
+    index = DASHBOARD / "index.html"
+    if not index.is_file():
+        return HTMLResponse(DASHBOARD_BUILD_HELP, status_code=503)
+    return index.read_text(encoding="utf-8")
 
 
 @app.get("/api/security/status")

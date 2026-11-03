@@ -56,11 +56,21 @@ All API routes are protected by [services/api/security.py](services/api/security
 
 This is hardening for a local single-operator tool, not a production internet service. Multi-user identity, TLS termination, global rate limiting and independent penetration testing remain outstanding.
 
+## Aetherion OmniForge dashboard and multi-agent runs (new)
+
+An original React 18 + TypeScript dashboard is served at **http://127.0.0.1:8000/dashboard** (prebuilt bundle committed in `apps/dashboard/dist`; source in [apps/dashboard](apps/dashboard)). It has a dense editor-style layout: activity rail, project explorer, file tabs with a read-only code viewer, a right-hand assistant with streaming chat, grounded codebase Q&A with 👍/👎 citations, and a security page showing lockouts, limits and the audit trail. `Ctrl`/`Cmd`+`K` opens a command palette. See [the dashboard guide](docs/AETHERION_DASHBOARD.md).
+
+The multi-agent backend in [services/api/orchestrator.py](services/api/orchestrator.py) stores durable runs in local SQLite. `build` runs architect → coder → tester → security → reviewer; `plan` runs architect → reviewer. Every step is operator-advanced, receives bounded and redacted repository context, is capped by `ORCHESTRATOR_MAX_STEPS`, and **never writes files or executes commands**. Endpoints live under `/api/agents`, require the administrator token and are rate limited.
+
+Build the UI with `cd apps/dashboard && npm ci && npm run build`. The Dockerfile builds it in a Node stage; `deploy/k8s/platform.yaml` provides hardened blueprint manifests. PostgreSQL and Redis are not runtime dependencies in this build, and there is no Go service; the local inference gateway is Rust and the API is Python. These are documented as scope limits rather than hidden.
+
 ## Project architecture
 
 ```text
-apps/web/                Browser chat/agent interface
-services/api/            FastAPI, model gateway, agent tools, storage
+apps/web/                Browser chat/agent interface (classic)
+apps/dashboard/          Aetherion OmniForge React + TypeScript control surface
+services/api/            FastAPI, model gateway, agent tools, orchestrator, storage
+deploy/                  Kubernetes blueprint manifests
 services/worker/         Reserved for durable background execution
 services/runtime-rust/   Reserved for hardened execution engine
 packages/contracts/      Shared tool and API contracts

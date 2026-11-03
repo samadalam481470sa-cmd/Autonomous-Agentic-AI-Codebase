@@ -196,6 +196,46 @@
       "notice": null,
       "bundled": false,
       "notes": "Reference for credential-detection patterns; services/api/content_safety.py is an original conservative pattern plus entropy implementation."
+    },
+    {
+      "name": "react",
+      "repo": "https://github.com/facebook/react",
+      "license": "MIT",
+      "usage": "dependency",
+      "pin": "^18.3.1",
+      "notice": null,
+      "bundled": false,
+      "notes": "Runtime UI library for the dashboard; installed from npm with its license metadata."
+    },
+    {
+      "name": "vite",
+      "repo": "https://github.com/vitejs/vite",
+      "license": "MIT",
+      "usage": "dev-dependency",
+      "pin": "^6.0.5",
+      "notice": null,
+      "bundled": false,
+      "notes": "Build tool for the dashboard; its output is plain static assets."
+    },
+    {
+      "name": "typescript",
+      "repo": "https://github.com/microsoft/TypeScript",
+      "license": "Apache-2.0",
+      "usage": "dev-dependency",
+      "pin": "^5.7.2",
+      "notice": null,
+      "bundled": false,
+      "notes": "Type checker only; no TypeScript source is redistributed."
+    },
+    {
+      "name": "vite-plugin-react",
+      "repo": "https://github.com/vitejs/vite-plugin-react",
+      "license": "MIT",
+      "usage": "dev-dependency",
+      "pin": "^4.3.4",
+      "notice": null,
+      "bundled": false,
+      "notes": "React transform for Vite during dashboard builds."
     }
   ]
 }
