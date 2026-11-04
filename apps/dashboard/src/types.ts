@@ -229,6 +229,39 @@ export interface LearningStatus {
   privacy: string;
 }
 
+export interface GpuTrainingStatus {
+  enabled: boolean;
+  approved_examples: number;
+  required_examples: number;
+  gpu: LearningStatus['gpu'];
+  dependencies: Record<string, boolean>;
+  config: {
+    model_dir: string;
+    model_id: string;
+    model_license: string;
+    steps: number;
+    max_examples: number;
+    min_gain: number;
+    max_tokens: number;
+    targets: string;
+    enabled: boolean;
+    model_ready: boolean;
+  };
+  running: boolean;
+  can_train: boolean;
+  reasons: string[];
+  active_adapter: { active: string; previous?: string | null; candidate_eval_loss?: number } | null;
+  last_run: {
+    state: string;
+    started_at?: number;
+    finished_at?: number;
+    result?: { promoted?: boolean; device?: string; baseline_loss?: number; candidate_loss?: number } | null;
+    error?: string;
+  } | null;
+  trainer: string;
+  note: string;
+}
+
 export interface DeviceStatus {
   platform: {
     system: string;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../api';
-import type { LearningStatus } from '../types';
+import type { GpuTrainingStatus, LearningStatus } from '../types';
 import { RefreshIcon, SparkIcon } from '../icons';
 
 function number(value: unknown, fallback = 0): number {
@@ -22,6 +22,13 @@ export default function LearningPanel({
   onLocked: () => void;
 }) {
   const [status, setStatus] = useState<LearningStatus | null>(null);
+  const [gpu, setGpu] = useState<GpuTrainingStatus | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [gpuForm, setGpuForm] = useState({
+    model_dir: '',
+    model_id: '',
+    model_license: '',
+  });
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +45,21 @@ export default function LearningPanel({
 
   const load = useCallback(async () => {
     try {
-      setStatus(await api.learningStatus(project));
+      const [next, nextGpu] = await Promise.all([
+        api.learningStatus(project),
+        api.gpuTrainingStatus(project),
+      ]);
+      setStatus(next);
+      setGpu(nextGpu);
+      setGpuForm((current) =>
+        current.model_dir || current.model_id || current.model_license
+          ? current
+          : {
+              model_dir: nextGpu.config.model_dir,
+              model_id: nextGpu.config.model_id,
+              model_license: nextGpu.config.model_license,
+            },
+      );
       setError(null);
     } catch (problem) {
       fail(problem);
@@ -254,6 +275,114 @@ export default function LearningPanel({
                 Roll back active model
               </button>
             </section>
+
+            {gpu && (
+              <section className="device-card gpu-training-card">
+                <header>
+                  <SparkIcon size={14} />
+                  <span>GPU weight training</span>
+                  <span className={`pill ${gpu.running ? 'ok' : gpu.active_adapter ? 'ok' : 'unknown'}`}>
+                    {gpu.running ? 'training' : gpu.active_adapter ? 'adapter active' : 'not active'}
+                  </span>
+                </header>
+                <dl className="device-list">
+                  <div>
+                    <dt>Accepted answers</dt>
+                    <dd>
+                      {gpu.approved_examples} / {gpu.required_examples}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>GPU</dt>
+                    <dd>{gpu.gpu.detected ? gpu.gpu.vendor ?? 'detected' : 'not detected'}</dd>
+                  </div>
+                  <div>
+                    <dt>Last run</dt>
+                    <dd>{gpu.last_run?.state ?? 'never'}</dd>
+                  </div>
+                  <div>
+                    <dt>Adapter</dt>
+                    <dd>{gpu.active_adapter?.active.slice(0, 12) ?? 'none'}</dd>
+                  </div>
+                </dl>
+                <div className="learning-form">
+                  <label>
+                    Local Hugging Face model directory
+                    <input
+                      value={gpuForm.model_dir}
+                      onChange={(event) =>
+                        setGpuForm({ ...gpuForm, model_dir: event.target.value })
+                      }
+                      placeholder="/models/Qwen2.5-Coder-7B-Instruct"
+                    />
+                  </label>
+                  <label>
+                    Reviewed model id
+                    <input
+                      value={gpuForm.model_id}
+                      onChange={(event) =>
+                        setGpuForm({ ...gpuForm, model_id: event.target.value })
+                      }
+                      placeholder="Qwen/Qwen2.5-Coder-7B-Instruct"
+                    />
+                  </label>
+                  <label>
+                    Reviewed license
+                    <input
+                      value={gpuForm.model_license}
+                      onChange={(event) =>
+                        setGpuForm({ ...gpuForm, model_license: event.target.value })
+                      }
+                      placeholder="Apache-2.0"
+                    />
+                  </label>
+                </div>
+                <label className="learning-consent">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(event) => setConsent(event.target.checked)}
+                  />
+                  I consent to local GPU training on these accepted answers.
+                </label>
+                <div className="device-actions">
+                  <button
+                    className="ghost"
+                    onClick={() =>
+                      void run('GPU training', () =>
+                        api.startGpuTraining(project, {
+                          consent,
+                          ...gpuForm,
+                        }),
+                      )
+                    }
+                    disabled={!consent || busy !== null || gpu.running || !gpu.enabled}
+                  >
+                    Train weights
+                  </button>
+                  <button
+                    className="ghost"
+                    onClick={() =>
+                      void run('Adapter rollback', () => api.rollbackGpuTraining(project))
+                    }
+                    disabled={busy !== null || gpu.running || !gpu.active_adapter}
+                  >
+                    Roll back adapter
+                  </button>
+                </div>
+                {gpu.last_run?.result && (
+                  <p className="muted small">
+                    {gpu.last_run.result.promoted ? 'Promoted' : 'Not promoted'} · baseline{' '}
+                    {gpu.last_run.result.baseline_loss?.toFixed(4) ?? '—'} · candidate{' '}
+                    {gpu.last_run.result.candidate_loss?.toFixed(4) ?? '—'}
+                  </p>
+                )}
+                {gpu.reasons.length > 0 && (
+                  <p className="muted small">{gpu.reasons.join(' ')}</p>
+                )}
+                <p className="muted small">{gpu.note}</p>
+              </section>
+            )}
           </div>
 
           <section className="learning-recent">

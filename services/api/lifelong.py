@@ -16,6 +16,7 @@ learner itself is intentionally CPU-light so it cannot starve a 24/7 session.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -518,6 +519,46 @@ def _feedback_counts(project: str) -> dict:
         return ranking.summary(project)
     except (sqlite3.Error, OSError):
         return {"positive": 0, "negative": 0, "paths": 0}
+
+
+def export_feedback(project: str, minimum: int = 12) -> dict:
+    """Copy accepted interactions into the LoRA trainer's approved-example DB.
+
+    The trainer deliberately reads only ``.agent/feedback.sqlite3`` and requires
+    explicit consent. Export is idempotent and only includes rated-up answers;
+    rejected or unrated outputs are never used as training targets.
+    """
+    path = workspace(project) / ".agent" / "feedback.sqlite3"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(path, timeout=30)
+    con.execute("PRAGMA busy_timeout=30000")
+    con.execute("PRAGMA journal_mode=WAL")
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS feedback("
+        "id TEXT PRIMARY KEY, prompt TEXT NOT NULL, response TEXT NOT NULL, "
+        "created_at INTEGER NOT NULL)"
+    )
+    inserted = 0
+    with connect(project) as learning:
+        rows = learning.execute(
+            "SELECT prompt,response,created_at FROM interactions "
+            "WHERE rating='up' AND response<>''"
+        ).fetchall()
+    for row in rows:
+        digest = hashlib.sha256(
+            (row["prompt"] + "\x00" + row["response"]).encode("utf-8")
+        ).hexdigest()
+        before = con.total_changes
+        con.execute(
+            "INSERT OR IGNORE INTO feedback(id,prompt,response,created_at) VALUES(?,?,?,?)",
+            (digest, row["prompt"], row["response"], int(row["created_at"])),
+        )
+        inserted += int(con.total_changes > before)
+    con.commit()
+    available = int(con.execute("SELECT COUNT(*) FROM feedback").fetchone()[0])
+    con.close()
+    return {"available": available, "inserted": inserted,
+            "required": max(12, int(minimum))}
 
 
 # ---------------------------------------------------------------------------

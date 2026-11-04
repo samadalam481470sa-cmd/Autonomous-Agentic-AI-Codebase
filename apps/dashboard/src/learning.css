@@ -73,3 +73,35 @@
 .answer-learning {
   margin: 4px 0 8px;
 }
+
+.learning-form {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.learning-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.learning-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.learning-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}

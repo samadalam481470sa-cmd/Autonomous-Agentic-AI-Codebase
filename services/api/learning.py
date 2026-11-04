@@ -12,7 +12,7 @@ from fastapi import APIRouter,Header,HTTPException
 from pydantic import BaseModel,Field
 from .engine import workspace
 from .studio import authorize
-from . import lifelong
+from . import gpu_training, lifelong
 
 router=APIRouter(prefix="/api/learning",tags=["learning"])
 class Feedback(BaseModel):
@@ -32,6 +32,16 @@ class InteractionRating(BaseModel):
     rating:str=Field(pattern=r"^(up|down)$")
 class TrainRequest(BaseModel):
     force:bool=False
+class GpuTrainingRequest(BaseModel):
+    consent:bool=False
+    model_dir:str|None=Field(default=None,max_length=1024)
+    model_id:str|None=Field(default=None,max_length=200)
+    model_license:str|None=Field(default=None,max_length=100)
+    steps:int|None=Field(default=None,ge=1,le=100)
+    max_examples:int|None=Field(default=None,ge=12,le=2000)
+    min_gain:float|None=Field(default=None,ge=0,le=0.5)
+    max_tokens:int|None=Field(default=None,ge=128,le=2048)
+    targets:str|None=Field(default=None,max_length=200)
 
 def database(project):
     path=workspace(project)/".agent"/"feedback.sqlite3"
@@ -125,6 +135,42 @@ def train(project:str,body:TrainRequest|None=None,authorization:str|None=Header(
     if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
         raise HTTPException(400,"Invalid project name")
     return lifelong.train(project,force=bool(body and body.force))
+
+@router.get("/{project}/gpu-training")
+def gpu_training_status(project:str,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    return gpu_training.status(project)
+
+@router.post("/{project}/gpu-training")
+def gpu_training_start(project:str,body:GpuTrainingRequest|None=None,
+                       authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    body=body or GpuTrainingRequest()
+    overrides={key:getattr(body,key) for key in
+               ("model_dir","model_id","model_license","steps","max_examples",
+                "min_gain","max_tokens","targets")}
+    try:
+        return gpu_training.start(project,consent=body.consent,overrides=overrides)
+    except PermissionError as error:
+        raise HTTPException(428,str(error))
+    except RuntimeError as error:
+        raise HTTPException(409,str(error))
+    except (ValueError,OSError) as error:
+        raise HTTPException(400,str(error))
+
+@router.post("/{project}/gpu-training/rollback")
+def gpu_training_rollback(project:str,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    try:
+        return gpu_training.rollback(project)
+    except ValueError as error:
+        raise HTTPException(400,str(error))
 
 @router.post("/{project}/rollback")
 def rollback(project:str,authorization:str|None=Header(default=None)):

@@ -38,9 +38,32 @@ only when it beats the active model by `AETHERION_LEARN_MIN_GAIN` and does not
 regress the probe score. Every model is stored with its metrics; the dashboard
 can roll back to the previous version.
 
-This is real, inspectable learning, but it is **not** foundation-model weight
-training. The optional LoRA script remains separate and requires its own
-dependencies, GPU and evaluation.
+This is inspectable retrieval learning. Foundation-model weights are handled
+separately by the opt-in GPU LoRA path below.
+
+## Optional GPU weight training
+
+The existing `scripts/local_lora_training.py` trainer is now integrated behind an
+explicit consent gate. It consumes accepted answers exported from the lifelong
+interaction store into `.agent/feedback.sqlite3`, uses a deterministic 20%
+held-out split, and activates an adapter only when candidate loss improves over
+the base model by `AETHERION_LORA_MIN_GAIN`. A run requires:
+
+- `AETHERION_LORA_TRAIN=1`;
+- a detected local CUDA/ROCm/MPS device and `requirements-training.txt` installed;
+- at least 12 👍 answers;
+- a local Hugging Face-format model directory, reviewed model id and license;
+- explicit consent in `POST /api/learning/{project}/gpu-training`.
+
+The trainer runs as a fixed-argument subprocess, never through a shell. Model
+licenses are checked by the shared registry before PyTorch loads the model. The
+adapter is versioned under `.agent/models/versions/` and can be rolled back. It
+is **not** loaded into llama.cpp automatically; wire the adapter into a compatible
+local runtime deliberately after inspecting its held-out metrics.
+
+This is deliberately not part of the 24/7 CPU loop: a second GPU job would compete
+with always-on inference and raise temperatures. Start it manually when the
+machine is idle and on AC power.
 
 ## The 24/7 loop
 
@@ -69,6 +92,9 @@ admits work. Set `AETHERION_LEARN_AC_ONLY=1` to skip cycles on battery.
 - `POST /api/learning/{project}/train`
 - `POST /api/learning/{project}/rollback`
 - `POST /api/learning/{project}/interactions/{id}/rate`
+- `GET /api/learning/{project}/gpu-training`
+- `POST /api/learning/{project}/gpu-training`
+- `POST /api/learning/{project}/gpu-training/rollback`
 
 The dashboard **Learning** page shows loop state, GPU/power telemetry, feedback
 counts, active-model NDCG, candidates that were rejected, and recent redacted

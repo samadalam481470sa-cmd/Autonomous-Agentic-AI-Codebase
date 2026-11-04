@@ -3,6 +3,7 @@ import type {
   AskResponse,
   DeviceStatus,
   FileRead,
+  GpuTrainingStatus,
   HistoryResponse,
   IndexReport,
   IndexStats,
@@ -161,6 +162,31 @@ export const api = {
     request<Record<string, unknown>>(`/api/learning/${encodeURIComponent(project)}/rollback`, {
       method: 'POST',
     }),
+  gpuTrainingStatus: (project: string) =>
+    request<GpuTrainingStatus>(`/api/learning/${encodeURIComponent(project)}/gpu-training`),
+  startGpuTraining: (
+    project: string,
+    body: {
+      consent: boolean;
+      model_dir?: string;
+      model_id?: string;
+      model_license?: string;
+      steps?: number;
+      max_examples?: number;
+      min_gain?: number;
+      max_tokens?: number;
+      targets?: string;
+    },
+  ) =>
+    request<{ accepted: boolean; state: string; approved_examples: number }>(
+      `/api/learning/${encodeURIComponent(project)}/gpu-training`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  rollbackGpuTraining: (project: string) =>
+    request<Record<string, unknown>>(
+      `/api/learning/${encodeURIComponent(project)}/gpu-training/rollback`,
+      { method: 'POST' },
+    ),
   rateInteraction: (project: string, interactionId: string, rating: 'up' | 'down') =>
     request<{ id: string; rating: string; rated: boolean }>(
       `/api/learning/${encodeURIComponent(project)}/interactions/${interactionId}/rate`,
