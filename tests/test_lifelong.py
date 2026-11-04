@@ -143,6 +143,8 @@ def test_background_tick_obeys_kill_switch(project, monkeypatch):
     result = lifelong.tick()
     assert result["ran"] is True
     assert result["projects"] >= 1
+    # The loop must read engine.ROOT dynamically, not a value copied at import.
+    assert "demo" in lifelong.discover_projects()
 
 
 def test_status_records_privacy_and_model_shape(project):

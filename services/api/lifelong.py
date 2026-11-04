@@ -28,8 +28,8 @@ import uuid
 from contextlib import closing
 from pathlib import Path
 
-from . import content_safety, power
-from .engine import ROOT, workspace
+from . import content_safety, engine, power
+from .engine import workspace
 
 FEATURES = (
     "bias", "fused", "semantic", "lexical", "path_overlap",
@@ -577,7 +577,7 @@ def _paused() -> bool:
 
 def discover_projects() -> list[str]:
     try:
-        entries = sorted(ROOT.iterdir())
+        entries = sorted(engine.ROOT.iterdir())
     except OSError:
         return []
     result = []
