@@ -7,8 +7,11 @@ import type {
   IndexReport,
   IndexStats,
   LearningStatus,
+  ModelsResponse,
+  RevertResult,
   SearchResponse,
   SecurityPosture,
+  TurnsResponse,
 } from './types';
 
 export class ApiError extends Error {
@@ -76,10 +79,10 @@ export const api = {
     }),
   history: (project: string) =>
     request<HistoryResponse>(`/api/projects/${encodeURIComponent(project)}/history`),
-  chat: (project: string, message: string) =>
+  chat: (project: string, message: string, model = '') =>
     request<{ answer: string }>('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ project, message }),
+      body: JSON.stringify(model ? { project, message, model } : { project, message }),
     }),
   search: (project: string, query: string, limit = 12) =>
     request<SearchResponse>('/api/ai/search', {
@@ -106,6 +109,15 @@ export const api = {
         body: JSON.stringify({ project, query, path, line, rating }),
       },
     ),
+  models: () => request<ModelsResponse>('/api/models'),
+  turns: (project: string) =>
+    request<TurnsResponse>(`/api/studio/turns/${encodeURIComponent(project)}`),
+  revertTurn: (project: string, turnId?: string) =>
+    request<RevertResult>('/api/studio/turns/revert', {
+      method: 'POST',
+      headers: { 'X-Confirm-Change': 'approve' },
+      body: JSON.stringify(turnId ? { project, turn_id: turnId } : { project }),
+    }),
   roles: () =>
     request<{ roles: { name: string; instruction: string }[]; max_steps: number }>(
       '/api/agents/roles',
@@ -163,13 +175,14 @@ export const api = {
 export async function streamChat(
   project: string,
   message: string,
+  model: string,
   onDelta: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ project, message }),
+    body: JSON.stringify(model ? { project, message, model } : { project, message }),
     signal,
   });
 
@@ -182,7 +195,7 @@ export async function streamChat(
       // Keep the status-based message when the body is not JSON.
     }
     if (response.status === 409 || response.status === 503) {
-      const fallback = await api.chat(project, message);
+      const fallback = await api.chat(project, message, model);
       onDelta(fallback.answer);
       return;
     }

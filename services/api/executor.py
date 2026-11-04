@@ -170,6 +170,24 @@ def _run_tool(root: Path, tool: str, arguments: dict) -> str:
                            "action": outcome["action"],
                            "passed": outcome["passed"],
                            "exit_code": outcome["exit_code"], "steps": steps})
+    if tool == "mcp_call":
+        # Configured local MCP servers only; never a client-supplied endpoint.
+        from . import mcp as mcp_client
+        if not mcp_client.enabled():
+            return "MCP is disabled. Set MCP_ENABLED=1 to use configured local servers."
+        server = str(arguments.get("server") or "").strip()
+        name = str(arguments.get("tool") or "").strip()
+        tool_arguments = arguments.get("arguments") or {}
+        if not server or not name:
+            raise ValueError("mcp_call needs server and tool")
+        if not isinstance(tool_arguments, dict):
+            raise ValueError("mcp_call arguments must be an object")
+        try:
+            with mcp_client.McpSession(mcp_client.spec(server)) as session:
+                result = session.call_tool(name, tool_arguments)
+        except mcp_client.McpError as error:
+            raise ValueError(str(error))
+        return json.dumps({"server": server, "tool": name, **result})[:MAX_RESULT_CHARS]
     if tool in {"run_command", "install_dependency", "network_fetch"}:
         return "Unavailable: this executor never runs host commands, installs packages or uses the network."
     if tool == "apply_patch":
@@ -217,12 +235,25 @@ async def execute(project: str, goal: str, *, role: str = "builder",
         "worktree": tree["path"], "branch": tree["branch"], "max_steps": limit,
     })
     call_model = complete or _default_complete
+    system_prompt = SYSTEM_PROMPT
+    if os.getenv("MCP_ENABLED") == "1":
+        try:
+            from . import mcp as mcp_client
+            names = [str(server["name"]) for server in mcp_client.servers()]
+        except Exception:
+            names = []
+        if names:
+            system_prompt += (
+                " MCP servers are configured: " + ", ".join(names) +
+                '. Call a tool with {"tool":"mcp_call","arguments":{"server":"<name>",'
+                '"tool":"<tool>","arguments":{}}}. MCP calls need operator approval.'
+            )
     transcript: list[str] = []
     final = ""
     used = 0
     try:
         for used in range(1, limit + 1):
-            reply = await call_model(SYSTEM_PROMPT, _prompt(goal, role, transcript), 1200)
+            reply = await call_model(system_prompt, _prompt(goal, role, transcript), 1200)
             turn = _decision(reply)
             if "final" in turn:
                 final = turn["final"].strip()

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, api, streamChat } from '../api';
-import type { AskResponse, ChatMessage, Citation } from '../types';
+import type { AskResponse, ChatMessage, Citation, ModelInfo } from '../types';
 import { BotIcon, SendIcon, SparkIcon } from '../icons';
 import AgentsPanel from './AgentsPanel';
 
@@ -16,6 +16,53 @@ interface Props {
 }
 
 export default function AssistantPanel({ project, tab, onTab, onOpenFile, onLocked, notify }: Props) {
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [model, setModel] = useState('');
+  const [undoing, setUndoing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.models();
+        if (cancelled) return;
+        setModels(data.models);
+        setModel((current) => current || data.default || '');
+      } catch (caught) {
+        if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
+          onLocked();
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [project, onLocked]);
+
+  async function undoLastTurn() {
+    if (undoing) return;
+    setUndoing(true);
+    try {
+      const data = await api.turns(project);
+      if (data.turns.length === 0) {
+        notify('No recorded AI turn to undo');
+        return;
+      }
+      const latest = data.turns[0];
+      const result = await api.revertTurn(project, latest.turn_id);
+      const skipped = result.skipped.length > 0 ? ` · ${result.skipped.length} skipped` : '';
+      notify(`Reverted ${result.files_reverted} file(s) from turn ${latest.turn_id.slice(0, 8)}${skipped}`);
+    } catch (caught) {
+      if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
+        onLocked();
+        return;
+      }
+      notify(caught instanceof Error ? caught.message : 'Undo failed');
+    } finally {
+      setUndoing(false);
+    }
+  }
+
   return (
     <aside className="assistant" aria-label="AI assistant">
       <div className="assistant-head">
@@ -36,8 +83,33 @@ export default function AssistantPanel({ project, tab, onTab, onOpenFile, onLock
           ))}
         </div>
       </div>
+      <div className="assistant-tools">
+        <select
+          aria-label="Model"
+          value={model}
+          onChange={(event) => setModel(event.target.value)}
+          title="Model for this assistant"
+        >
+          <option value="">Server default</option>
+          {models.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.label}
+            </option>
+          ))}
+        </select>
+        <button
+          className="ghost"
+          onClick={() => void undoLastTurn()}
+          disabled={undoing}
+          title="Revert the files changed by the most recent AI turn"
+        >
+          {undoing ? 'Undoing…' : 'Undo turn'}
+        </button>
+      </div>
       <div className="assistant-body">
-        {tab === 'chat' && <ChatPane project={project} onLocked={onLocked} notify={notify} />}
+        {tab === 'chat' && (
+          <ChatPane project={project} model={model} onLocked={onLocked} notify={notify} />
+        )}
         {tab === 'ask' && (
           <AskPane project={project} onLocked={onLocked} onOpenFile={onOpenFile} notify={notify} />
         )}
@@ -49,10 +121,12 @@ export default function AssistantPanel({ project, tab, onTab, onOpenFile, onLock
 
 function ChatPane({
   project,
+  model,
   onLocked,
   notify,
 }: {
   project: string;
+  model: string;
   onLocked: () => void;
   notify: (message: string) => void;
 }) {
@@ -103,6 +177,7 @@ function ChatPane({
       await streamChat(
         project,
         text,
+        model,
         (delta) =>
           setMessages((previous) =>
             previous.map((message, index) =>

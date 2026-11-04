@@ -9,6 +9,7 @@ const projects = {
   plan: `smoke-plan-${runId}`,
   search: `smoke-search-${runId}`,
   learning: `smoke-learning-${runId}`,
+  turn: `smoke-turn-${runId}`,
 };
 const token = 'smoke-admin-token';
 
@@ -32,6 +33,11 @@ test.beforeAll(() => {
   fs.writeFileSync(
     path.join(workspaceRoot, projects.search, 'app.py'),
     'def smoke_feature():\n    return 42\n',
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(workspaceRoot, projects.turn, 'app.py'),
+    'value = 1\n',
     'utf8',
   );
 });
@@ -97,4 +103,42 @@ test('Studio captures local feedback and records an evaluation', async ({ page }
 
   await page.locator('#learning').click();
   await expect(page.locator('#learningStatus')).toContainText('Feedback examples: 1');
+});
+
+test('Studio saves an approved edit and undoes the whole AI turn', async ({ page }) => {
+  await page.goto('/studio');
+  await page.locator('#token').fill(token);
+  await page.locator('#project').fill(projects.turn);
+  await page.locator('#path').fill('app.py');
+  await page.locator('#open').click();
+  await expect(page.locator('#editor')).toHaveValue('value = 1\n');
+
+  await page.evaluate(() => {
+    const editor = document.querySelector('#editor');
+    editor.value = 'value = 2\n';
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('#diff').click();
+  await expect(page.locator('#save')).toBeEnabled();
+
+  answerDialogs(page, []);
+  await page.locator('#save').click();
+  await expect(page.locator('#status')).toContainText('Saved app.py');
+  page.removeAllListeners('dialog');
+
+  answerDialogs(page, []);
+  await page.locator('#undoturn').click();
+  await expect(page.locator('#status')).toContainText('Reverted 1 file');
+  await expect(page.locator('#editor')).toHaveValue('value = 1\n');
+});
+
+test('Studio runs a command only after explicit approval', async ({ page }) => {
+  await page.goto('/studio');
+  await page.locator('#token').fill(token);
+  await page.locator('#project').fill(projects.turn);
+
+  answerDialogs(page, ['python3 -c "print(\'smoke-command-ok\')"']);
+  await page.locator('#runcommand').click();
+  await expect(page.locator('#changes')).toContainText('smoke-command-ok');
+  await expect(page.locator('#status')).toContainText('Command succeeded');
 });

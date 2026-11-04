@@ -1,9 +1,10 @@
 """Git status, branch, commit and pull-request preparation.
 
 Commits are local and explicit: the operator approves a digest-free, path-scoped
-staging list and a message. Nothing here pushes, force-updates a ref, rewrites
-history or contacts a remote. Pull-request preparation only assembles a branch
-name, a body and a compare URL so the operator can open the PR themselves.
+staging list and a message. Nothing here force-updates a ref or rewrites history.
+Pushing is opt-in: it needs ``GIT_ALLOW_PUSH=1`` in the server environment and an
+approval header, and it only ever pushes the current branch to its upstream.
+Pull-request preparation assembles a branch name, a body and a compare URL.
 """
 from __future__ import annotations
 
@@ -107,6 +108,28 @@ def commit(root, message, paths) -> dict:
             "files": pending["stdout"].splitlines(), "output": result["stdout"][:2000]}
 
 
+def push(root, remote: str = "origin") -> dict:
+    """Opt-in, non-force push of the current branch. Never rewrites history."""
+    if os.getenv("GIT_ALLOW_PUSH") != "1":
+        raise HTTPException(
+            503, "Set GIT_ALLOW_PUSH=1 in the server environment to push from the app")
+    branch = _branch(root)
+    if branch == "(detached)":
+        raise HTTPException(409, "Check out a branch before pushing")
+    if not _remote_url(root):
+        raise HTTPException(400, "No origin remote is configured")
+    result = worktrees.git(root, "push", "--set-upstream", remote, branch)
+    if result["code"] != 0:
+        raise HTTPException(400, "Push failed: " + ((result["stderr"] or "git failed")[:500]))
+    return {
+        "pushed": True,
+        "branch": branch,
+        "remote": remote,
+        "head": worktrees.git(root, "rev-parse", "HEAD")["stdout"],
+        "note": "Create the pull request on your forge from this branch.",
+    }
+
+
 def _remote_url(root) -> str:
     result = worktrees.git(root, "remote", "get-url", "origin")
     return result["stdout"] if result["code"] == 0 else ""
@@ -151,7 +174,8 @@ def pull_request(root, title, base) -> dict:
         "body": body[:20_000],
         "compare_url": compare_url(remote, base, branch),
         "pushed": False,
-        "note": "Push the branch yourself, then open the compare URL.",
+        "note": ("Push with POST /api/git/push when GIT_ALLOW_PUSH=1, or push the "
+                 "branch yourself, then open the compare URL."),
     }
 
 
@@ -201,6 +225,15 @@ def git_commit(body: CommitRequest, authorization: str | None = Header(default=N
         return commit(repository(body.project), body.message, body.paths)
     except ValueError as error:
         raise HTTPException(400, str(error))
+
+
+@router.post("/push")
+def git_push(body: StatusRequest, authorization: str | None = Header(default=None),
+             x_confirm_change: str | None = Header(default=None)):
+    authorize(authorization)
+    if x_confirm_change != "approve":
+        raise HTTPException(428, "Explicit human approval required")
+    return push(repository(body.project))
 
 
 @router.post("/pull-request")

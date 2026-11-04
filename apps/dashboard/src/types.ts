@@ -305,3 +305,36 @@ export interface DeviceStatus {
   limits: Record<string, number>;
   privacy: string;
 }
+
+export interface ModelInfo {
+  id: string;
+  label: string;
+  provider: string;
+  model: string;
+  context_chars: number;
+}
+
+export interface ModelsResponse {
+  models: ModelInfo[];
+  default: string;
+  local_only: boolean;
+}
+
+export interface TurnSummary {
+  turn_id: string;
+  files: number;
+  paths: string[];
+  created_at: string;
+}
+
+export interface TurnsResponse {
+  project: string;
+  turns: TurnSummary[];
+}
+
+export interface RevertResult {
+  turn_id: string;
+  files_reverted: number;
+  reverted: { path: string; undo_checkpoint_id: string }[];
+  skipped: { path: string; reason: string }[];
+}

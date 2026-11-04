@@ -22,7 +22,8 @@ router = APIRouter(prefix="/api/ai", tags=["completions"])
 MAX_CONTEXT_CHARS = 20_000
 MAX_COMPLETION_CHARS = 2_000
 MAX_COMPLETION_LINES = 12
-FENCE = re.compile(r"^```[A-Za-z0-9_+#.-]*\s*\n?|\n?```\s*$")
+# Keep the indentation of the first content line: only the fence line is removed.
+FENCE = re.compile(r"^```[A-Za-z0-9_+#.-]*[ \t]*\r?\n?|\n?```[ \t]*$")
 SYSTEM_PROMPT = (
     "You are an inline code completion engine inside an editor. Return ONLY the "
     "exact text that belongs at the cursor. No explanation, no markdown fences, "
@@ -77,6 +78,35 @@ def _prompt(path: str, prefix: str, suffix: str) -> str:
     )
 
 
+def fim_payload(model: str, prefix: str, suffix: str, max_tokens: int) -> dict:
+    """Body for a native fill-in-the-middle /completions endpoint (llama.cpp, vLLM)."""
+    return {
+        "model": model,
+        "prompt": prefix,
+        "suffix": suffix,
+        "max_tokens": max_tokens,
+        "temperature": 0.15,
+        "stop": ["<|file_separator|>", "\n\n\n\n"],
+    }
+
+
+async def fim_text(*, base_url: str, api_key: str, model: str, prefix: str, suffix: str,
+                   max_tokens: int, trust_env: bool, timeout: float) -> dict:
+    """One native FIM request; callers fall back to the chat route on failure."""
+    started = time.monotonic()
+    async with httpx.AsyncClient(timeout=timeout, trust_env=trust_env,
+                                 follow_redirects=False) as client:
+        response = await client.post(base_url + "/completions",
+                                     headers={"Authorization": "Bearer " + api_key},
+                                     json=fim_payload(model, prefix, suffix, max_tokens))
+        response.raise_for_status()
+        data = response.json()
+    text = data["choices"][0].get("text")
+    if not isinstance(text, str):
+        raise ValueError("model returned non-text completion")
+    return {"text": text, "elapsed_ms": int((time.monotonic() - started) * 1000)}
+
+
 async def complete_text(*, base_url: str, api_key: str, model: str, prompt: str,
                         max_tokens: int, trust_env: bool, timeout: float) -> dict:
     started = time.monotonic()
@@ -116,11 +146,19 @@ async def complete(body: CompleteRequest,
                      int(os.getenv("COMPLETION_MAX_TOKENS", "160") or 160))
     timeout = float(os.getenv("COMPLETION_TIMEOUT_SECONDS", "12") or 12)
     try:
-        result = await complete_text(
-            base_url=model["base_url"], api_key=model["api_key"],
-            model=model["model"], prompt=prompt, max_tokens=max_tokens,
-            trust_env=bool(model["trust_env"]), timeout=timeout,
-        )
+        if os.getenv("COMPLETION_FIM") == "1":
+            result = await fim_text(
+                base_url=model["base_url"], api_key=model["api_key"],
+                model=model["model"], prefix=body.prefix[-MAX_CONTEXT_CHARS:],
+                suffix=body.suffix[:MAX_CONTEXT_CHARS], max_tokens=max_tokens,
+                trust_env=bool(model["trust_env"]), timeout=timeout,
+            )
+        else:
+            result = await complete_text(
+                base_url=model["base_url"], api_key=model["api_key"],
+                model=model["model"], prompt=prompt, max_tokens=max_tokens,
+                trust_env=bool(model["trust_env"]), timeout=timeout,
+            )
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
         raise HTTPException(502, "Completion model did not return usable text")
     completion = clean(result["text"], body.prefix, body.suffix)
