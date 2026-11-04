@@ -20,11 +20,11 @@ jobs:
       CI: '1'
       npm_config_audit: 'false'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.22.1'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install native Code-OSS build prerequisites
@@ -111,7 +111,7 @@ jobs:
             exit 1
           fi
           echo "Electron remained running for the smoke-test interval."
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: agentic-workbench-code-oss-linux-x64
           path: |
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: agentic-workbench-code-oss-linux-x64
           path: artifact
