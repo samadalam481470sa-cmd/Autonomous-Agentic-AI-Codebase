@@ -33,6 +33,30 @@ jobs:
           npm ci
           npm run build
 
+      - name: Build browser editor assets
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Confirm downloadable UI assets exist
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              'apps/dashboard/dist/index.html',
+              'apps/web/assets/monaco-entry.js',
+              'apps/web/assets/monaco-entry.css',
+              'apps/web/assets/ts.worker.js',
+              'apps/web/assets/MONACO_LICENSE.txt',
+              'packages/ui/tokens.css',
+          ]
+          missing = [path for path in required if not Path(path).is_file()]
+          if missing:
+              raise SystemExit('Missing bundle assets: ' + ', '.join(missing))
+          print('All downloadable UI assets are present')
+          PY
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip

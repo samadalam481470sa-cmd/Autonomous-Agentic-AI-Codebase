@@ -187,8 +187,11 @@ the thermal and battery governor. The local GPU is left to model inference; the
 learner itself is CPU-light so it cannot starve a 24/7 session. See
 [docs/LIFELONG_LEARNING.md](docs/LIFELONG_LEARNING.md).
 
-Build the downloadable archive with `python scripts/package_local.py`. Full
-details, model sizing, thresholds and troubleshooting: [docs/LOCAL_RUNTIME.md](docs/LOCAL_RUNTIME.md).
+Build the downloadable archive with `python scripts/package_local.py`. Build
+both front ends first (`apps/dashboard` and `apps/web`); the packager now
+refuses to create a bundle without the dashboard and Studio/Monaco assets.
+Full details, model sizing, thresholds and troubleshooting:
+[docs/LOCAL_RUNTIME.md](docs/LOCAL_RUNTIME.md).
 Framework status: [docs/FRAMEWORK_COMPLIANCE.md](docs/FRAMEWORK_COMPLIANCE.md).
 
 ## Platform support

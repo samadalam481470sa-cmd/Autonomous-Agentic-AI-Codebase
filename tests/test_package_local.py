@@ -27,6 +27,8 @@ def test_bundle_is_runnable_and_clean(tmp_path):
             "run.bat",
             "AETHERION.md",
             "apps/dashboard/dist/index.html",
+            "apps/web/assets/monaco-entry.js",
+            "apps/web/assets/monaco-entry.css",
             "services/api/device.py",
             "docs/LOCAL_RUNTIME.md",
             "MANIFEST.json",

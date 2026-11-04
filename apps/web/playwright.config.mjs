@@ -1,12 +1,12 @@
 import { defineConfig } from '@playwright/test';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
-const workspace = process.env.SMOKE_WORKSPACE || path.join(os.tmpdir(), 'agentic-ai-smoke');
+const workspace = process.env.SMOKE_WORKSPACE
+  || path.resolve(here, 'test-results', 'smoke-workspace');
 const venvPython = process.platform === 'win32'
   ? path.join(root, '.venv', 'Scripts', 'python.exe')
   : path.join(root, '.venv', 'bin', 'python');

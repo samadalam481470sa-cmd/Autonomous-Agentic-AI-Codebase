@@ -126,6 +126,12 @@ def build_bundle(output_dir: Path | str | None = None,
     dashboard_html = dashboard.read_text(encoding="utf-8")
     if "/dashboard/assets/" not in dashboard_html:
         raise BundleError("Dashboard build does not reference /dashboard/assets/")
+    editor_assets = root / "apps" / "web" / "assets"
+    for name in ("monaco-entry.js", "monaco-entry.css", "ts.worker.js", "MONACO_LICENSE.txt"):
+        if not (editor_assets / name).is_file():
+            raise BundleError(
+                "Browser editor assets missing. Run: cd apps/web && npm ci && npm run build"
+            )
 
     version = version or _project_version(root)
     output = Path(output_dir or root / "dist").resolve()

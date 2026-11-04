@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const workspaceRoot = process.env.SMOKE_WORKSPACE || path.join(os.tmpdir(), 'agentic-ai-smoke');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = process.env.SMOKE_WORKSPACE
+  || path.resolve(here, '..', 'test-results', 'smoke-workspace');
 const runId = `${process.pid}-${Date.now()}`;
 const projects = {
   plan: `smoke-plan-${runId}`,
@@ -95,6 +97,20 @@ test('Studio indexes, searches, and opens a code hit', async ({ page }) => {
   await expect(hit).toContainText('app.py:1');
   await hit.click();
   await expect(page.locator('#path')).toHaveValue('app.py');
+});
+
+test('Control page reports worker actions without page errors', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/control');
+  await page.locator('#token').fill(token);
+
+  await page.locator('#pause').click();
+  await expect(page.locator('#status')).toContainText('pause requested');
+  await page.locator('#resume').click();
+  await expect(page.locator('#status')).toContainText('resume requested');
+
+  expect(errors).toEqual([]);
 });
 
 test('Studio captures local feedback and records an evaluation', async ({ page }) => {
