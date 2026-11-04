@@ -20,6 +20,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from services.api.path_safety import unsafe_relative_path
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TASKS = ROOT / "evals" / "benchmark" / "tasks.json"
 EXPECTED_TASKS = 30
@@ -49,8 +51,7 @@ def load_tasks(path=DEFAULT_TASKS) -> list[dict]:
         for name, content in files.items():
             if not isinstance(name, str) or not isinstance(content, str):
                 raise ValueError(f"{task_id}: invalid file entry")
-            target = Path(name)
-            if target.is_absolute() or ".." in target.parts or not name.strip():
+            if unsafe_relative_path(name):
                 raise ValueError(f"{task_id}: file path escapes the task directory")
             if len(content.encode("utf-8")) > MAX_FILE_BYTES:
                 raise ValueError(f"{task_id}: file is too large")
@@ -65,6 +66,8 @@ def load_tasks(path=DEFAULT_TASKS) -> list[dict]:
 
 def _write_files(workspace: Path, files: dict) -> None:
     for name, content in files.items():
+        if unsafe_relative_path(name):
+            raise ValueError("Refusing to write outside the task directory")
         destination = (workspace / name).resolve()
         if not destination.is_relative_to(workspace):
             raise ValueError("Refusing to write outside the task directory")

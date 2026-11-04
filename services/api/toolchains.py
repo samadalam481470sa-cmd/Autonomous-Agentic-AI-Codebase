@@ -23,6 +23,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from .path_safety import unsafe_relative_path
+
 from .languages import LANGUAGES
 
 MAX_ARGV = 64
@@ -696,9 +698,9 @@ def reset_cache():
 def safe_relative(value: str) -> str:
     if not isinstance(value, str) or not value or len(value) > 400:
         raise ValueError("Target path is required")
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts or "\x00" in value:
+    if unsafe_relative_path(value):
         raise ValueError("Target path must stay inside the workspace")
+    path = Path(value)
     if any(part in (".agent", ".git") for part in path.parts):
         raise ValueError("Internal metadata paths are not executable targets")
     return path.as_posix()

@@ -20,6 +20,8 @@ def test_plan_parser_accepts_fences_and_rejects_escapes():
     for bad in (
         '{"files":{"../escape.py":"x"}}',
         '{"files":{"/etc/passwd":"x"}}',
+        r'{"files":{"C:\\Windows\\win.ini":"x"}}',
+        r'{"files":{"\\Windows\\win.ini":"x"}}',
         '{"files":{".git/config":"x"}}',
         '{"files":{}}',
     ):

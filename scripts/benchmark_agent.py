@@ -17,6 +17,8 @@ from pathlib import Path
 
 import httpx
 
+from services.api.path_safety import unsafe_relative_path
+
 MAX_FILE_BYTES = 100_000
 MAX_TOTAL_BYTES = 300_000
 MAX_PROMPT_CHARS = 60_000
@@ -103,9 +105,9 @@ def parse_plan(text: str) -> dict[str, str]:
     for name, content in files.items():
         if not isinstance(name, str) or not isinstance(content, str):
             raise ValueError("file entries must be strings")
-        target = Path(name)
-        if target.is_absolute() or ".." in target.parts or not name.strip():
+        if unsafe_relative_path(name):
             raise ValueError("file path escapes the task directory")
+        target = Path(name)
         if ".git" in target.parts:
             raise ValueError("refusing to write git metadata")
         encoded = content.encode("utf-8")

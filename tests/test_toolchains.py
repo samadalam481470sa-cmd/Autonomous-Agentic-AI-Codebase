@@ -36,7 +36,10 @@ def test_plan_uses_argv_without_a_shell():
 
 
 def test_plan_and_safe_relative_reject_escapes():
-    for target in ("../evil.py", "/etc/passwd", ".git/config", ".agent/x.py"):
+    for target in (
+        "../evil.py", "/etc/passwd", ".git/config", ".agent/x.py",
+        r"C:\Windows\win.ini", r"\Windows\win.ini", "C:relative",
+    ):
         with pytest.raises(ValueError):
             toolchains.safe_relative(target)
 
