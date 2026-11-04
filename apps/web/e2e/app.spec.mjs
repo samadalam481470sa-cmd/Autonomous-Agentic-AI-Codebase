@@ -24,6 +24,26 @@ function answerDialogs(page, answers) {
   });
 }
 
+async function editorValue(page) {
+  return page.evaluate(() => {
+    const editor = window.agenticMonacoEditor;
+    return editor ? editor.getValue() : document.querySelector('#editor').value;
+  });
+}
+
+async function setEditorValue(page, value) {
+  await page.evaluate(value => {
+    const editor = window.agenticMonacoEditor;
+    if (editor) {
+      editor.setValue(value);
+      return;
+    }
+    const textarea = document.querySelector('#editor');
+    textarea.value = value;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }, value);
+}
+
 test.beforeAll(() => {
   // Do not remove the workspace root: the running API keeps its project
   // database there, and Windows refuses to delete open files.
@@ -83,11 +103,7 @@ test('Studio captures local feedback and records an evaluation', async ({ page }
   await page.locator('#project').fill(projects.learning);
   await page.locator('details.learning summary').click();
 
-  await page.evaluate(() => {
-    const editor = document.querySelector('#editor');
-    editor.value = 'def accepted():\n    return 42';
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await setEditorValue(page, 'def accepted():\n    return 42');
 
   answerDialogs(page, ['Implement the accepted smoke feature']);
   await page.locator('#feedback').click();
@@ -108,13 +124,9 @@ test('Studio saves an approved edit and undoes the whole AI turn', async ({ page
   await page.locator('#project').fill(projects.turn);
   await page.locator('#path').fill('app.py');
   await page.locator('#open').click();
-  await expect(page.locator('#editor')).toHaveValue('value = 1\n');
+  await expect.poll(() => editorValue(page)).toBe('value = 1\n');
 
-  await page.evaluate(() => {
-    const editor = document.querySelector('#editor');
-    editor.value = 'value = 2\n';
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await setEditorValue(page, 'value = 2\n');
   await page.locator('#diff').click();
   await expect(page.locator('#save')).toBeEnabled();
 
@@ -126,7 +138,7 @@ test('Studio saves an approved edit and undoes the whole AI turn', async ({ page
   answerDialogs(page, []);
   await page.locator('#undoturn').click();
   await expect(page.locator('#status')).toContainText('Reverted 1 file');
-  await expect(page.locator('#editor')).toHaveValue('value = 1\n');
+  await expect.poll(() => editorValue(page)).toBe('value = 1\n');
 });
 
 test('Studio runs a command only after explicit approval', async ({ page }) => {
@@ -134,7 +146,7 @@ test('Studio runs a command only after explicit approval', async ({ page }) => {
   await page.locator('#token').fill(token);
   await page.locator('#project').fill(projects.turn);
 
-  answerDialogs(page, ['python3 -c "print(\'smoke-command-ok\')"']);
+  answerDialogs(page, [`node -e "console.log('smoke-command-ok')"`]);
   await page.locator('#runcommand').click();
   await expect(page.locator('#changes')).toContainText('smoke-command-ok');
   await expect(page.locator('#status')).toContainText('Command succeeded');
