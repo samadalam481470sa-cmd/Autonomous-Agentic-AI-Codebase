@@ -1,5 +1,6 @@
 """The policy gate fails closed and enforces role, autonomy and path limits."""
 import json
+import os
 
 from services.api import policy
 
@@ -83,4 +84,5 @@ def test_audit_appends_private_jsonl(tmp_path):
     record = json.loads(target.read_text(encoding="utf-8").strip())
     assert record["tool"] == "run_command"
     assert "token" not in record
-    assert target.stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert target.stat().st_mode & 0o777 == 0o600

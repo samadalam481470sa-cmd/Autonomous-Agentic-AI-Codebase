@@ -72,6 +72,18 @@ def _write_files(workspace: Path, files: dict) -> None:
         destination.write_text(content, encoding="utf-8")
 
 
+def command_argv(command: str, platform: str = os.name) -> list[str]:
+    """Split an agent command without mangling native Windows paths."""
+    if platform != "nt":
+        return shlex.split(command)
+    tokens = shlex.split(command, posix=False)
+    quote_chars = "\"'"
+    return [
+        token[1:-1] if len(token) >= 2 and token[0] == token[-1] and token[0] in quote_chars else token
+        for token in tokens
+    ]
+
+
 def run_task(task: dict, *, solution_files: dict | None = None,
              agent_command: str | None = None, agent_timeout: int = 120) -> dict:
     with tempfile.TemporaryDirectory(prefix="bench-") as tmp:
@@ -81,7 +93,7 @@ def run_task(task: dict, *, solution_files: dict | None = None,
             _write_files(workspace, solution_files)
         agent = {"ran": False, "exit_code": None, "error": ""}
         if agent_command:
-            argv = shlex.split(agent_command)
+            argv = command_argv(agent_command)
             if not argv:
                 raise ValueError("agent command is empty")
             environment = {

@@ -1,4 +1,5 @@
 """Sign-in autostart generation for the always-on worker."""
+import os
 import sys
 from pathlib import Path
 
@@ -42,7 +43,8 @@ def test_install_writes_private_user_units(tmp_path):
     assert linux["installed"] is True
     unit = Path(linux["path"])
     assert unit.is_file()
-    assert unit.stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert unit.stat().st_mode & 0o777 == 0o600
     assert "systemctl --user" in linux["instructions"]
 
     mac = autostart.install(platform="darwin", python=sys.executable,

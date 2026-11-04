@@ -32,6 +32,13 @@ def test_starter_fails_and_reference_solution_passes():
     assert passed["passed"] is True
 
 
+def test_windows_agent_commands_keep_native_paths():
+    argv = benchmark.command_argv(
+        r'"C:\Program Files\Python312\python.exe" C:\temp\solve.py', platform="nt"
+    )
+    assert argv == [r"C:\Program Files\Python312\python.exe", r"C:\temp\solve.py"]
+
+
 def test_agent_command_receives_prompt_and_can_solve(tmp_path):
     script = tmp_path / "solve.py"
     script.write_text(

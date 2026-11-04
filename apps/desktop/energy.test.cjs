@@ -47,8 +47,10 @@ test('preference round-trips in a private file', () => {
   assert.deepEqual(loadPreference(file), { enabled: false });
   assert.deepEqual(savePreference(file, true), { enabled: true });
   assert.deepEqual(loadPreference(file), { enabled: true });
-  const mode = fs.statSync(file).mode & 0o777;
-  assert.equal(mode, 0o600);
+  if (process.platform !== 'win32') {
+    const mode = fs.statSync(file).mode & 0o777;
+    assert.equal(mode, 0o600);
+  }
   assert.deepEqual(savePreference(file, 'yes'), { enabled: false });
   fs.rmSync(dir, { recursive: true, force: true });
 });
