@@ -4,6 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 const workspaceRoot = process.env.SMOKE_WORKSPACE || path.join(os.tmpdir(), 'agentic-ai-smoke');
+const runId = `${process.pid}-${Date.now()}`;
+const projects = {
+  plan: `smoke-plan-${runId}`,
+  search: `smoke-search-${runId}`,
+  learning: `smoke-learning-${runId}`,
+};
 const token = 'smoke-admin-token';
 
 function answerDialogs(page, answers) {
@@ -18,25 +24,28 @@ function answerDialogs(page, answers) {
 }
 
 test.beforeAll(() => {
-  fs.rmSync(workspaceRoot, { recursive: true, force: true });
-  for (const project of ['smoke-plan', 'smoke-search', 'smoke-learning']) {
+  // Do not remove the workspace root: the running API keeps its project
+  // database there, and Windows refuses to delete open files.
+  for (const project of Object.values(projects)) {
     fs.mkdirSync(path.join(workspaceRoot, project), { recursive: true });
   }
   fs.writeFileSync(
-    path.join(workspaceRoot, 'smoke-search', 'app.py'),
+    path.join(workspaceRoot, projects.search, 'app.py'),
     'def smoke_feature():\n    return 42\n',
     'utf8',
   );
 });
 
 test.afterAll(() => {
-  fs.rmSync(workspaceRoot, { recursive: true, force: true });
+  for (const project of Object.values(projects)) {
+    fs.rmSync(path.join(workspaceRoot, project), { recursive: true, force: true });
+  }
 });
 
 test('Chat creates and displays a bounded project plan', async ({ page }) => {
   await page.goto('/');
   await page.locator('#token').fill(token);
-  await page.locator('#project').fill('smoke-plan');
+  await page.locator('#project').fill(projects.plan);
   answerDialogs(page, ['Build a smoke-tested project']);
 
   await page.getByRole('button', { name: /Plan project/ }).click();
@@ -51,7 +60,7 @@ test('Chat creates and displays a bounded project plan', async ({ page }) => {
 test('Studio indexes, searches, and opens a code hit', async ({ page }) => {
   await page.goto('/studio');
   await page.locator('#token').fill(token);
-  await page.locator('#project').fill('smoke-search');
+  await page.locator('#project').fill(projects.search);
 
   await page.locator('#refresh').click();
   await page.locator('#reindex').click();
@@ -68,7 +77,7 @@ test('Studio indexes, searches, and opens a code hit', async ({ page }) => {
 test('Studio captures local feedback and records an evaluation', async ({ page }) => {
   await page.goto('/studio');
   await page.locator('#token').fill(token);
-  await page.locator('#project').fill('smoke-learning');
+  await page.locator('#project').fill(projects.learning);
   await page.locator('details.learning summary').click();
 
   await page.evaluate(() => {

@@ -18,14 +18,14 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
-  reporter: 'line',
+  reporter: process.env.CI ? [['line'], ['github']] : 'line',
   use: {
     baseURL: 'http://127.0.0.1:8765',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: `"${python}" -m uvicorn services.api.main:app --host 127.0.0.1 --port 8765`,
+    command: `${process.platform === 'win32' ? python : `"${python}"`} -m uvicorn services.api.main:app --host 127.0.0.1 --port 8765`,
     cwd: root,
     url: 'http://127.0.0.1:8765/health',
     timeout: 120_000,
