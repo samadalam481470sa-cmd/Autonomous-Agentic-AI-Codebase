@@ -57,7 +57,28 @@ jobs:
       - name: Confirm offline editor and design-system assets exist
         run: python -c "from pathlib import Path; root=Path('apps/web/assets'); names=('monaco-entry.js','monaco-entry.css','editor.worker.js','ts.worker.js','MONACO_LICENSE.txt','tokens.css','icons.svg','favicon.svg'); assert all((root/name).is_file() for name in names), 'Offline editor or design-system bundle incomplete'"
       - run: python scripts/build_backend.py
-      - run: python -m pytest -q
+      - run: python -m pytest -q --junitxml=pytest-results.xml
+      - name: Report Python test failures
+        if: failure()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("pytest-results.xml")
+          if report.is_file():
+              for case in ET.parse(report).iter("testcase"):
+                  failure = case.find("failure")
+                  error = case.find("error")
+                  problem = failure if failure is not None else error
+                  if problem is None:
+                      continue
+                  title = f"{case.get('classname', '')}.{case.get('name', '')}"
+                  message = " ".join((problem.get("message") or "").split())[:800]
+                  message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error title={title}::{message}")
+          PY
       - run: python scripts/check_model_license.py --validate
       - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs apps/desktop/model-license.test.cjs apps/desktop/cross-platform.test.cjs
       - run: node --check apps/desktop/main.cjs

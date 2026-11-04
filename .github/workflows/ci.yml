@@ -56,7 +56,28 @@ jobs:
       - run: python scripts/code_metrics.py
       - name: Verify third-party licenses and notices
         run: python scripts/check_oss_licenses.py
-      - run: pytest -q
+      - run: pytest -q --junitxml=pytest-results.xml
+      - name: Report Python test failures
+        if: failure()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("pytest-results.xml")
+          if report.is_file():
+              for case in ET.parse(report).iter("testcase"):
+                  failure = case.find("failure")
+                  error = case.find("error")
+                  problem = failure if failure is not None else error
+                  if problem is None:
+                      continue
+                  title = f"{case.get('classname', '')}.{case.get('name', '')}"
+                  message = " ".join((problem.get("message") or "").split())[:800]
+                  message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error title={title}::{message}")
+          PY
       - name: Browser smoke tests
         working-directory: apps/web
         run: npm run test:e2e
