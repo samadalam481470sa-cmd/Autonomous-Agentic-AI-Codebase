@@ -39,6 +39,10 @@ jobs:
           npm ci
           npm run build
 
+      - name: Install Chromium for the packaged smoke test
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
       - name: Confirm downloadable UI assets exist
         run: |
           python - <<'PY'
@@ -72,6 +76,53 @@ jobs:
         run: |
           cd dist
           sha256sum -c ./*.sha256
+
+      - name: Verify extracted bundle in Chromium
+        run: |
+          set -euo pipefail
+          rm -rf bundle-smoke
+          mkdir -p bundle-smoke
+          archive=$(find dist -maxdepth 1 -name '*.zip' -print -quit)
+          test -n "$archive"
+          unzip -q "$archive" -d bundle-smoke
+          bundle_root=$(realpath "$(find bundle-smoke -mindepth 1 -maxdepth 1 -type d -print -quit)")
+          test -n "$bundle_root"
+
+          cd "$bundle_root"
+          chmod +x run.sh
+          ./run.sh --check
+          mkdir -p "$bundle_root/.smoke-workspace/bundle-smoke"
+          printf 'def bundle_feature():\n    return 42\n' > "$bundle_root/.smoke-workspace/bundle-smoke/app.py"
+
+          WORKSPACE_ROOT="$bundle_root/.smoke-workspace" \
+            .venv/bin/python aetherion.py --port 8131 --no-open --no-keep-awake \
+            --token bundle-smoke-token > "$bundle_root/.smoke-server.log" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8131/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 100 "$bundle_root/.smoke-server.log"
+            exit 1
+          fi
+
+          cd "$GITHUB_WORKSPACE/apps/web"
+          if ! BUNDLE_URL=http://127.0.0.1:8131 BUNDLE_TOKEN=bundle-smoke-token \
+            npx playwright test -c playwright.bundle.config.mjs; then
+            tail -n 100 "$bundle_root/.smoke-server.log"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
