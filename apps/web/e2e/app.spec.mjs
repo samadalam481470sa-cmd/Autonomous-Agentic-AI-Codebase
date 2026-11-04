@@ -42,11 +42,8 @@ test.beforeAll(() => {
   );
 });
 
-test.afterAll(() => {
-  for (const project of Object.values(projects)) {
-    fs.rmSync(path.join(workspaceRoot, project), { recursive: true, force: true });
-  }
-});
+// The workspace is unique per run and lives under the OS temp directory. Leave
+// it for the runner: SQLite may still hold its files open on Windows.
 
 test('Chat creates and displays a bounded project plan', async ({ page }) => {
   await page.goto('/');
