@@ -12,8 +12,8 @@
     "test": "node --test hardware.test.cjs model-runtime.test.cjs"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
   },
   "build": {
     "appId": "dev.autonomous.agenticai",
