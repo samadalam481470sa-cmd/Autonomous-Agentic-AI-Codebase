@@ -48,7 +48,8 @@ def test_export_is_idempotent_and_only_uses_accepted_answers(gpu_project):
     assert third["inserted"] == 0
 
 
-def test_gpu_status_reports_prerequisites_without_a_gpu(gpu_project):
+def test_gpu_status_reports_prerequisites_without_a_gpu(gpu_project, monkeypatch):
+    monkeypatch.setattr(gpu_training.power, "gpu_status", lambda: {"detected": False})
     status = gpu_training.status("demo")
     assert status["enabled"] is True
     assert status["approved_examples"] == 12
