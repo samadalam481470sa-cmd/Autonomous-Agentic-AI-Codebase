@@ -27,6 +27,7 @@ import json
 import os
 import re
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -160,12 +161,24 @@ def scan_sinks(path: Path, text: str, findings: list[dict]) -> None:
                                     "review this sink; prefer a safe API"))
 
 
+def is_git_ignored(path: Path) -> bool:
+    """True when Git excludes the path, so it is not in the repository."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(ROOT), "check-ignore", "-q", "--", str(path)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+            check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
 def scan_exposed(path: Path, text: str, findings: list[dict]) -> None:
     name = path.name.lower()
     if name in {"id_rsa", "id_ed25519", "id_dsa"} or path.suffix.lower() in {".pem", ".key"}:
         findings.append(finding("critical", "private-key-file", path, 1,
                                 "remove from the repository and rotate"))
-    if path.suffix.lower() == ".sqlite3":
+    if path.suffix.lower() == ".sqlite3" and not is_git_ignored(path):
         findings.append(finding("medium", "database-in-repository", path, 1,
                                 "keep databases outside version control"))
     if name == ".env":
@@ -189,12 +202,20 @@ def scan_manifests(path: Path, text: str, findings: list[dict]) -> None:
             data = json.loads(text)
         except ValueError:
             return
-        for section in ("dependencies", "devDependencies", "peerDependencies"):
-            for name, version in (data.get(section) or {}).items():
+        has_dependencies = False
+        for section in ("dependencies", "devDependencies", "peerDependencies",
+                        "optionalDependencies"):
+            entries = data.get(section)
+            if not isinstance(entries, dict):
+                continue
+            for name, version in entries.items():
+                has_dependencies = True
                 if isinstance(version, str) and UNPINNED.search(version):
                     findings.append(finding("low", "unpinned-dependency", path, 1,
                                             f"{name} uses {version}"))
-        if not (path.parent / "package-lock.json").is_file() and \
+        # A manifest with no dependencies has no tree to pin.
+        if has_dependencies and \
+                not (path.parent / "package-lock.json").is_file() and \
                 not (path.parent / "yarn.lock").is_file() and \
                 not (path.parent.parent / "package-lock.json").is_file():
             findings.append(finding("medium", "missing-lockfile", path, 1,
