@@ -178,6 +178,15 @@ temperatures, the thermal governor, local model backends and a keep-awake toggle
 Agent runs pause automatically when the device runs hot, and the launcher holds
 the machine awake for long sessions with a TTL and automatic release.
 
+Search returns a grounded **RAG packet** with citations, and rated answers feed a
+local lifelong learner. It captures redacted prompts and outputs in the project's
+`.agent` directory, trains a retrieval reranker, promotes it only when it beats a
+chronological holdout and self-supervised probes, and keeps rollback versions. A
+background loop indexes changed files and learns while the app is open, gated by
+the thermal and battery governor. The local GPU is left to model inference; the
+learner itself is CPU-light so it cannot starve a 24/7 session. See
+[docs/LIFELONG_LEARNING.md](docs/LIFELONG_LEARNING.md).
+
 Build the downloadable archive with `python scripts/package_local.py`. Full
 details, model sizing, thresholds and troubleshooting: [docs/LOCAL_RUNTIME.md](docs/LOCAL_RUNTIME.md).
 Framework status: [docs/FRAMEWORK_COMPLIANCE.md](docs/FRAMEWORK_COMPLIANCE.md).

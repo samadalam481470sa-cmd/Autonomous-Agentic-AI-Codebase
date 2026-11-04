@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ApiError, api, setCredentials } from './api';
-import type { IndexStats, SearchResult } from './types';
+import type { IndexStats, RagPacket, SearchResult } from './types';
 import {
   CloseIcon,
   CommandIcon,
@@ -17,9 +17,10 @@ import {
 import AssistantPanel from './components/AssistantPanel';
 import CommandPalette, { type PaletteAction } from './components/CommandPalette';
 import DevicePanel from './components/DevicePanel';
+import LearningPanel from './components/LearningPanel';
 import SecurityPanel from './components/SecurityPanel';
 
-type View = 'files' | 'search' | 'device' | 'security' | 'settings';
+type View = 'files' | 'search' | 'device' | 'learning' | 'security' | 'settings';
 type AssistantTab = 'chat' | 'ask' | 'agents';
 type OpenFile = { path: string; content: string; lines: number };
 
@@ -39,6 +40,7 @@ export default function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchRag, setSearchRag] = useState<RagPacket | null>(null);
   const [searching, setSearching] = useState(false);
   const [stats, setStats] = useState<IndexStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -122,8 +124,12 @@ export default function App() {
     try {
       const data = await api.search(project, query);
       setSearchResults(data.results);
+      setSearchRag(data.rag ?? null);
       setView('search');
-      setStatus(`${data.results.length} matches for “${query}”`);
+      setStatus(
+        `${data.results.length} matches for “${query}”` +
+          (data.retrieval?.learned_rerank ? ' · learned rerank' : ''),
+      );
     } catch (error) {
       handleError(error);
     } finally {
@@ -137,6 +143,7 @@ export default function App() {
     setTabs([]);
     setActivePath(null);
     setSearchResults([]);
+    setSearchRag(null);
     (async () => {
       try {
         const [fileData, indexStats] = await Promise.all([
@@ -212,6 +219,12 @@ export default function App() {
         label: 'Device runtime',
         hint: 'GPU, thermals, keep-awake',
         run: () => setView('device'),
+      },
+      {
+        id: 'learning',
+        label: 'Continuous learning',
+        hint: 'Learned retrieval and feedback',
+        run: () => setView('learning'),
       },
       { id: 'security', label: 'Security posture', hint: 'Auth, lockouts, audit', run: () => setView('security') },
       { id: 'settings', label: 'Settings', hint: 'Credentials and project', run: () => setView('settings') },
@@ -325,6 +338,13 @@ export default function App() {
             <DeviceIcon size={18} />
           </RailButton>
           <RailButton
+            active={view === 'learning'}
+            label="Continuous learning"
+            onClick={() => setView('learning')}
+          >
+            <SparkIcon size={18} />
+          </RailButton>
+          <RailButton
             active={view === 'security'}
             label="Security"
             onClick={() => setView('security')}
@@ -351,7 +371,9 @@ export default function App() {
                     ? 'Search'
                     : view === 'device'
                       ? 'Device'
-                      : view === 'security'
+                      : view === 'learning'
+                        ? 'Learning'
+                        : view === 'security'
                         ? 'Security'
                         : 'Settings'}
               </span>
@@ -436,6 +458,24 @@ export default function App() {
                       Hybrid vector and keyword search across the indexed project.
                     </p>
                   )}
+                  {searchRag && searchRag.citations.length > 0 && (
+                    <div className="rag-packet">
+                      <span className="rag-title">RAG packet</span>
+                      <p className="muted small">
+                        {searchRag.results} excerpts · {searchRag.used_chars} chars ·{' '}
+                        {searchRag.safety.risk} risk
+                      </p>
+                      {searchRag.citations.slice(0, 6).map((citation) => (
+                        <button
+                          key={`${citation.path}:${citation.line}`}
+                          className="link"
+                          onClick={() => void openFile(citation.path, citation.line)}
+                        >
+                          {citation.path}:{citation.line}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -465,6 +505,8 @@ export default function App() {
         <main className="center">
           {view === 'device' ? (
             <DevicePanel notify={notify} onLocked={lock} />
+          ) : view === 'learning' ? (
+            <LearningPanel project={project} notify={notify} onLocked={lock} />
           ) : view === 'security' ? (
             <SecurityPanel notify={notify} onLocked={lock} />
           ) : view === 'settings' ? (

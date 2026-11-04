@@ -6,7 +6,8 @@ import type {
   HistoryResponse,
   IndexReport,
   IndexStats,
-  SearchResult,
+  LearningStatus,
+  SearchResponse,
   SecurityPosture,
 } from './types';
 
@@ -81,9 +82,9 @@ export const api = {
       body: JSON.stringify({ project, message }),
     }),
   search: (project: string, query: string, limit = 12) =>
-    request<{ results: SearchResult[] }>('/api/ai/search', {
+    request<SearchResponse>('/api/ai/search', {
       method: 'POST',
-      body: JSON.stringify({ project, query, limit, mode: 'hybrid' }),
+      body: JSON.stringify({ project, query, limit, mode: 'hybrid', rag: true }),
     }),
   ask: (project: string, question: string) =>
     request<AskResponse>('/api/ai/ask', {
@@ -127,6 +128,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ enabled, ttl_minutes: ttlMinutes }),
     }),
+  learningStatus: (project: string) =>
+    request<LearningStatus>(
+      `/api/learning/continuous/status?project=${encodeURIComponent(project)}`,
+    ),
+  learningStart: () =>
+    request<{ enabled: boolean; thread_started: boolean }>('/api/learning/continuous/start', {
+      method: 'POST',
+    }),
+  learningPause: () =>
+    request<{ paused: boolean }>('/api/learning/continuous/pause', { method: 'POST' }),
+  learningTick: () =>
+    request<Record<string, unknown>>('/api/learning/continuous/tick', { method: 'POST' }),
+  learningTrain: (project: string, force = false) =>
+    request<Record<string, unknown>>(`/api/learning/${encodeURIComponent(project)}/train`, {
+      method: 'POST',
+      body: JSON.stringify({ force }),
+    }),
+  learningRollback: (project: string) =>
+    request<Record<string, unknown>>(`/api/learning/${encodeURIComponent(project)}/rollback`, {
+      method: 'POST',
+    }),
+  rateInteraction: (project: string, interactionId: string, rating: 'up' | 'down') =>
+    request<{ id: string; rating: string; rated: boolean }>(
+      `/api/learning/${encodeURIComponent(project)}/interactions/${interactionId}/rate`,
+      { method: 'POST', body: JSON.stringify({ project, rating }) },
+    ),
 };
 
 /**

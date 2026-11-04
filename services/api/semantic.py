@@ -25,7 +25,7 @@ from contextlib import closing
 from pathlib import Path
 
 from .engine import safe_path, workspace
-from . import code_index, content_safety, ranking
+from . import code_index, content_safety, lifelong, ranking
 
 EMBEDDING_MODEL = "local-hashed-tfidf-v1"
 DEFAULT_DIMENSIONS = 256
@@ -288,7 +288,8 @@ def semantic_scores(project: str, query: str, limit: int = 50) -> list[dict]:
     return scored[:max(1, limit)]
 
 
-def search(project: str, query: str, limit: int = 10, mode: str = "hybrid") -> list[dict]:
+def search(project: str, query: str, limit: int = 10, mode: str = "hybrid",
+           apply_learning: bool = True) -> list[dict]:
     query = (query or "").strip()
     if not query:
         return []
@@ -325,6 +326,8 @@ def search(project: str, query: str, limit: int = 10, mode: str = "hybrid") -> l
         item["score"] = round(item["score"], 6)
         item["sources"] = sorted(set(item["sources"]))
     results = _apply_feedback(project, results)
+    if apply_learning:
+        results = lifelong.rerank(project, query, results)
     return results[:limit]
 
 
@@ -347,13 +350,23 @@ def _apply_feedback(project: str, results: list[dict]) -> list[dict]:
 def context(project: str, query: str, budget_chars: int = 6000,
             max_files: int = 6) -> dict:
     """Budgeted, deduplicated excerpts for a model prompt."""
-    budget = max(200, min(int(budget_chars), 24000))
-    max_files = max(1, min(int(max_files), 20))
     try:
         results = search(project, query, limit=max(12, max_files * 4), mode="hybrid")
     except (sqlite3.Error, OSError, ValueError):
         return {"text": "", "citations": [], "used_chars": 0,
                 "safety": {"secrets": 0, "injection": 0, "risk": "none"}}
+    return context_from_results(results, budget_chars, max_files)
+
+
+def context_from_results(results: list[dict], budget_chars: int = 6000,
+                         max_files: int = 6) -> dict:
+    """Build the RAG packet from results already retrieved.
+
+    Reusing the search results avoids a second retrieval pass when the search
+    endpoint returns both ranked matches and the grounded context packet.
+    """
+    budget = max(200, min(int(budget_chars), 24000))
+    max_files = max(1, min(int(max_files), 20))
     blocks: list[str] = []
     citations: list[dict] = []
     used = 0
@@ -387,6 +400,7 @@ def context(project: str, query: str, budget_chars: int = 6000,
                 + "</untrusted_repository_context>")
     risk = "high" if redactions else ("medium" if injection_flags else "none")
     return {"text": text, "citations": citations, "used_chars": used,
+            "results": len(results),
             "safety": {"secrets": redactions, "injection": injection_flags,
                        "risk": risk}}
 
@@ -443,8 +457,16 @@ def stats(project: str) -> dict:
         "last_indexed_at": int(meta["indexed_at"]) if meta.get("indexed_at") else None,
         "backend": "numpy" if _numpy_available() else "pure-python",
         "feedback": ranking.summary(project),
+        "lifelong": _lifelong_summary(project),
         "safety_screening": "secrets + prompt-injection redaction",
     }
+
+
+def _lifelong_summary(project: str) -> dict:
+    try:
+        return lifelong.summary(project)
+    except (sqlite3.Error, OSError, ValueError):
+        return {"interactions": 0, "positive": 0, "negative": 0, "model": None}
 
 
 def _numpy_available() -> bool:

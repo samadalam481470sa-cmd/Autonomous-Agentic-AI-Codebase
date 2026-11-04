@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import content_safety, ranking, semantic
+from . import content_safety, lifelong, ranking, semantic
 from .code_agent import config
 from .engine import safe_path
 from .studio import authorize
@@ -31,6 +31,9 @@ class SearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=500)
     mode: str = Field(default="hybrid", pattern=r"^(hybrid|semantic|lexical)$")
     limit: int = Field(default=10, ge=1, le=50)
+    rag: bool = True
+    budget_chars: int = Field(default=6000, ge=200, le=24000)
+    max_files: int = Field(default=6, ge=1, le=20)
 
 
 class ContextRequest(BaseModel):
@@ -105,6 +108,8 @@ def health(authorization: str | None = Header(default=None)):
         "embedding_model": semantic.EMBEDDING_MODEL,
         "dimensions": semantic.dimensions(),
         "feedback_learning": bool(ranking.weight()),
+        "continuous_learning": True,
+        "rag_search": True,
         "safety_screening": "secrets + prompt-injection redaction",
         "model_endpoint_configured": bool(os.getenv("MODEL_API_KEY")) or os.getenv("LOCAL_MODEL_ONLY") == "1",
     }
@@ -123,7 +128,21 @@ def search(body: SearchRequest, authorization: str | None = Header(default=None)
         results = semantic.search(body.project, body.query, body.limit, body.mode)
     except ValueError as error:
         raise HTTPException(400, str(error))
-    return {"query": body.query, "mode": body.mode, "results": results}
+    payload = {
+        "query": body.query,
+        "mode": body.mode,
+        "results": results,
+        "retrieval": {
+            "results": len(results),
+            "learned_rerank": any("learned_score" in item for item in results),
+            "sources": sorted({source for item in results for source in item["sources"]}),
+        },
+    }
+    if body.rag:
+        payload["rag"] = semantic.context_from_results(
+            results, body.budget_chars, body.max_files
+        )
+    return payload
 
 
 @router.post("/context")
@@ -204,10 +223,14 @@ async def ask(body: AskRequest, authorization: str | None = Header(default=None)
         answer = await _complete(SYSTEM_PROMPT, user, body.max_tokens)
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
         raise HTTPException(502, "Model did not return a usable answer")
+    interaction = lifelong.capture(
+        body.project, "ask", body.question, answer, retrieved["citations"]
+    )
     return {
         "answer": answer,
         "citations": retrieved["citations"],
         "safety": retrieved["safety"],
+        "interaction_id": interaction,
         "retrieval": {"used_chars": retrieved["used_chars"],
                       "results": len(retrieved["citations"])},
     }

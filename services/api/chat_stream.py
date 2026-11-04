@@ -116,6 +116,7 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
         settings = {"base_url": chosen["base_url"], "model": chosen["model"]}
     from . import context_refs, rules
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    citations: list = []
     instructions = rules.prompt_block(project)
     if instructions:
         messages.append({"role": "system", "content": instructions})
@@ -128,6 +129,7 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
             retrieved = semantic_context(
                 project, message, int(os.getenv("SEMANTIC_RAG_CHARS", "6000"))
             )
+            citations = retrieved.get("citations", [])
             if retrieved["text"]:
                 messages.append({
                     "role": "system",
@@ -261,4 +263,9 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
         return
 
     save_chat_pair(project, message, answer)
+    try:
+        from . import lifelong
+        lifelong.capture(project, "chat_stream", message, answer, citations)
+    except Exception:
+        pass
     yield encode_event("done", {"saved": True, "truncated": truncated})

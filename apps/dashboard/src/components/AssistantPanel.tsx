@@ -203,6 +203,7 @@ function AskPane({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [votes, setVotes] = useState<Record<string, 'up' | 'down'>>({});
+  const [answerVote, setAnswerVote] = useState<'up' | 'down' | null>(null);
 
   async function submit() {
     const text = query.trim();
@@ -212,6 +213,7 @@ function AskPane({
     try {
       const data = await api.ask(project, text);
       setResult(data);
+      setAnswerVote(null);
       notify(`Answer grounded in ${data.retrieval.results} excerpts`);
     } catch (caught) {
       if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
@@ -221,6 +223,21 @@ function AskPane({
       setError(caught instanceof Error ? caught.message : 'Codebase question failed');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function rateAnswer(rating: 'up' | 'down') {
+    if (!result?.interaction_id) return;
+    try {
+      await api.rateInteraction(project, result.interaction_id, rating);
+      setAnswerVote(rating);
+      notify(`Answer feedback stored · ${rating === 'up' ? 'accepted' : 'rejected'}`);
+    } catch (caught) {
+      if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
+        onLocked();
+        return;
+      }
+      setError(caught instanceof Error ? caught.message : 'Answer feedback failed');
     }
   }
 
@@ -274,6 +291,25 @@ function AskPane({
             </p>
           )}
           <article className="bubble assistant">{result.answer}</article>
+          {result.interaction_id && (
+            <div className="answer-learning">
+              <span className="muted small">Train the local reranker:</span>
+              <button
+                className={`vote ${answerVote === 'up' ? 'active' : ''}`}
+                onClick={() => void rateAnswer('up')}
+                title="Accept this answer for learning"
+              >
+                👍
+              </button>
+              <button
+                className={`vote ${answerVote === 'down' ? 'active' : ''}`}
+                onClick={() => void rateAnswer('down')}
+                title="Reject this answer for learning"
+              >
+                👎
+              </button>
+            </div>
+          )}
           <h3 className="section-title">Citations</h3>
           {result.citations.length === 0 && <p className="muted small">No citations returned.</p>}
           {result.citations.map((citation) => {

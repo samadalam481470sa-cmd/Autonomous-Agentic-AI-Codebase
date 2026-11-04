@@ -1,0 +1,75 @@
+.learning-page {
+  gap: 16px;
+}
+
+.learning-page h2 {
+  font-size: 15px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.learning-recent {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.learning-interaction {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 10px 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.learning-meta,
+.learning-votes,
+.answer-learning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.learning-prompt {
+  margin: 0;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.learning-response {
+  margin: 0;
+  overflow-wrap: anywhere;
+  max-height: 72px;
+  overflow: hidden;
+}
+
+.rag-packet {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.rag-title {
+  color: var(--accent-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.rag-packet .link {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.answer-learning {
+  margin: 4px 0 8px;
+}

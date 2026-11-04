@@ -102,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
     os.chdir(ROOT)
     os.environ.setdefault("LOCAL_MODEL_ONLY", "1")
     os.environ.setdefault("DEVICE_THERMAL_GUARD", "1")
+    os.environ.setdefault("AETHERION_CONTINUOUS", "1")
+    os.environ.setdefault("AETHERION_LEARN_CAPTURE", "1")
     token = args.token or os.getenv("AGENT_ADMIN_TOKEN") or secrets.token_urlsafe(24)
     os.environ["AGENT_ADMIN_TOKEN"] = token
 

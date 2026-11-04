@@ -12,7 +12,24 @@ export interface SearchResult {
   semantic_score: number | null;
   lexical_score: number | null;
   learned_boost?: number;
+  learned_score?: number;
   sources: string[];
+}
+
+export interface RagPacket {
+  text: string;
+  citations: Citation[];
+  used_chars: number;
+  results: number;
+  safety: Safety;
+}
+
+export interface SearchResponse {
+  query: string;
+  mode: string;
+  results: SearchResult[];
+  retrieval?: { results: number; learned_rerank: boolean; sources: string[] };
+  rag?: RagPacket;
 }
 
 export interface Citation {
@@ -34,6 +51,7 @@ export interface AskResponse {
   answer: string;
   citations: Citation[];
   safety?: Safety;
+  interaction_id?: string | null;
   retrieval: { used_chars: number; results: number };
 }
 
@@ -46,6 +64,13 @@ export interface IndexStats {
   last_indexed_at: number | null;
   backend: string;
   feedback?: { positive: number; negative: number; paths: number; weight: number };
+  lifelong?: {
+    interactions: number;
+    positive: number;
+    negative: number;
+    model: { id: string; metrics: Record<string, unknown>; created_at: number } | null;
+    capture?: boolean;
+  };
   safety_screening?: string;
 }
 
@@ -146,6 +171,62 @@ export interface ThermalStatus {
   events: ThermalEvent[];
   sample_seconds: number;
   admission: { allowed: boolean; reason: string; retry_after: number; mode: string };
+}
+
+export interface LearningInteraction {
+  id: string;
+  kind: string;
+  prompt: string;
+  response: string;
+  citations: Citation[];
+  rating: string;
+  redactions: number;
+  created_at: number;
+}
+
+export interface LearningStatus {
+  runtime: {
+    thread_running: boolean;
+    enabled: boolean;
+    paused: boolean;
+    interval_seconds: number;
+    started_at: number | null;
+    last_tick: Record<string, unknown> | null;
+    capture: boolean;
+  };
+  gpu: {
+    detected: boolean;
+    vendor: string | null;
+    device_count: number;
+    max_utilization_percent: number | null;
+    max_temperature_c: number | null;
+    metrics_available: boolean;
+    note: string;
+  };
+  power: { on_ac: boolean | null; battery_percent: number | null; source: string };
+  projects: string[];
+  project?: {
+    interactions: number;
+    positive: number;
+    negative: number;
+    capture: boolean;
+    model: { id: string; metrics: Record<string, unknown>; created_at: number } | null;
+    models: {
+      active: { id: string; metrics: Record<string, unknown>; created_at: number } | null;
+      latest: ({
+        id: string;
+        metrics: Record<string, unknown>;
+        created_at: number;
+        active: boolean;
+        notes: string;
+      }) | null;
+    };
+    interactions_recent: LearningInteraction[];
+    feedback: { positive: number; negative: number; paths: number; weight: number };
+    recent_cycles: { status: string; detail: string; created_at: number }[];
+    privacy: string;
+  };
+  privacy: string;
 }
 
 export interface DeviceStatus {

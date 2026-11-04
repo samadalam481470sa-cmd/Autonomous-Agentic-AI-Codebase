@@ -15,11 +15,14 @@ async def lifespan(app):
     # Start the always-on worker only when explicitly enabled. It runs while
     # this computer is on and stops with the process (or the /stop switch).
     from .worker import maybe_start, runtime
+    from .lifelong import maybe_start as maybe_start_learning, runtime as learning_runtime
     from .device import shutdown as shutdown_device
     maybe_start()
+    maybe_start_learning()
     try:
         yield
     finally:
+        learning_runtime.stop()
         runtime.stop()
         shutdown_device()
 
