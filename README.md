@@ -166,7 +166,7 @@ docs/                    Architecture, licensing, and roadmap
 
 ```bash
 node packages/ui/build.mjs --check   # generated artifacts must be current
-node --test packages/ui/test         # token parity, WCAG AA contrast, icon contract
+node --test packages/ui/test/icons.test.mjs packages/ui/test/provenance.test.mjs packages/ui/test/tokens.test.mjs  # token parity, WCAG AA contrast, icon contract
 ```
 
 Read the [design system guide](packages/ui/README.md).

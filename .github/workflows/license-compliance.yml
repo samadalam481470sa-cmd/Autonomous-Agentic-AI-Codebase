@@ -76,4 +76,4 @@ jobs:
       - name: Verify generated tokens, sprite, and favicon are current
         run: node packages/ui/build.mjs --check
       - name: Test tokens, contrast, and icon contract
-        run: node --test packages/ui/test
+        run: node --test packages/ui/test/icons.test.mjs packages/ui/test/provenance.test.mjs packages/ui/test/tokens.test.mjs

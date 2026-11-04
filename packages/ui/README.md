@@ -69,7 +69,7 @@ Rules for adding a glyph:
 ```bash
 node packages/ui/build.mjs          # regenerate tokens.css, icons.svg, favicon.svg, dist/
 node packages/ui/build.mjs --check  # fail if committed artifacts are stale
-node --test packages/ui/test        # token, contrast, icon, and freshness checks
+node --test packages/ui/test/icons.test.mjs packages/ui/test/provenance.test.mjs packages/ui/test/tokens.test.mjs  # token, contrast, icon, and freshness checks
 ```
 
 ## Provenance

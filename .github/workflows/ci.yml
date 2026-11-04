@@ -37,7 +37,7 @@ jobs:
       - run: node --check apps/web/e2e/app.spec.mjs
       - run: node --check apps/desktop/model-license.cjs
       - run: node packages/ui/build.mjs --check
-      - run: node --test packages/ui/test
+      - run: node --test packages/ui/test/icons.test.mjs packages/ui/test/provenance.test.mjs packages/ui/test/tokens.test.mjs
       - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs apps/desktop/model-license.test.cjs apps/desktop/cross-platform.test.cjs
       - name: Verify Code-OSS extension transport and source syntax
         run: |
