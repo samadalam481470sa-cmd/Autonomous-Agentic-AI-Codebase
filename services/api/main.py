@@ -61,6 +61,18 @@ from .worker import router as worker_router
 app.include_router(worker_router)
 from .device import router as device_router
 app.include_router(device_router)
+from .commands import router as command_router
+app.include_router(command_router)
+from .mcp import router as mcp_router
+app.include_router(mcp_router)
+from .models import router as models_router
+app.include_router(models_router)
+from .completions import router as completions_router
+app.include_router(completions_router)
+from .turns import router as turns_router
+app.include_router(turns_router)
+from .gitflow import router as git_router
+app.include_router(git_router)
 import sys
 BASE=Path(getattr(sys,"_MEIPASS",Path(__file__).resolve().parents[2]))
 WEB=BASE/"apps"/"web"/"index.html"
@@ -81,6 +93,7 @@ def ui_favicon():
 class ChatRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     message:str=Field(min_length=1,max_length=12000)
+    model:str|None=Field(default=None,max_length=120)
 class ToolRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     name:str
@@ -97,7 +110,7 @@ def get_history(project:str, authorization: str | None = Header(default=None)):
 @app.post("/api/chat")
 async def chat(body:ChatRequest, authorization: str | None = Header(default=None)):
     require_admin(authorization)
-    try: return {"answer":await respond(body.project,body.message)}
+    try: return {"answer":await respond(body.project,body.message,body.model)}
     except Exception as e: raise HTTPException(502,"Model provider error: "+type(e).__name__)
 @app.post("/api/chat/stream")
 async def chat_stream(body:ChatRequest, authorization: str | None = Header(default=None)):
@@ -106,7 +119,7 @@ async def chat_stream(body:ChatRequest, authorization: str | None = Header(defau
         raise HTTPException(409,"Local streaming requires LOCAL_MODEL_ONLY=1; use /api/chat otherwise")
     from .chat_stream import stream_local_chat
     return StreamingResponse(
-        stream_local_chat(body.project,body.message),
+        stream_local_chat(body.project,body.message,model=body.model),
         media_type="text/event-stream",
         headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no","X-Content-Type-Options":"nosniff"}
     )
@@ -149,6 +162,18 @@ def get_project_plan(project: str, authorization: str | None = Header(default=No
         return load_plan(project)
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(404, str(exc))
+
+
+@app.get('/api/projects/{project}/instructions')
+def project_instructions(project: str, authorization: str | None = Header(default=None)):
+    """Show which project instruction files are injected into prompts."""
+    require_admin(authorization)
+    try:
+        workspace(project)
+        from .rules import instructions
+        return instructions(project)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 @app.get("/studio",response_class=HTMLResponse)

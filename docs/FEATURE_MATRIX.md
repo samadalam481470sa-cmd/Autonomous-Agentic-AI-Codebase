@@ -27,6 +27,16 @@ This is the audit map for implemented capabilities. “API” means the authenti
 | License/model/provenance gates | CI and CLI | `security/`, `scripts/` | `tests/test_licensing.py`, `tests/test_license_scan.py`, `tests/test_provenance.py` |
 | Browser smoke coverage | Playwright against Chat and Studio | Real FastAPI app on an isolated workspace | `apps/web/e2e/app.spec.mjs` |
 
+| Inline completions | Studio ghost text; Code-OSS provider | `/api/ai/complete` | `tests/test_completions.py` |
+| Explicit @-mention context | Chat messages | `services/api/context_refs.py` | `tests/test_context_refs.py` |
+| Project instruction files | Every agent prompt | `services/api/rules.py`, `GET /api/projects/{project}/instructions` | `tests/test_rules.py` |
+| Turn-level undo | Studio **Undo AI turn** | `/api/studio/turns/revert` | `tests/test_turns.py` |
+| Approved commands | Studio **Run command** | `/api/execution/command/*` | `tests/test_commands.py` |
+| Model picker and usage | Studio model select; Code-OSS chat | `/api/models`, `/api/models/{project}/usage` | `tests/test_models.py` |
+| MCP tool servers | API `/docs` | `/api/mcp/*` | `tests/test_mcp.py` |
+| Git branch, commit and PR prep | API `/docs` | `/api/git/*` | `tests/test_gitflow.py` |
+| Worktree test loop | `POST /api/agents/execute` | `services/api/executor.py` | `tests/test_agent_loop.py` |
+
 ## Deliberately not in the browser
 
 - **Arbitrary shell execution** is not exposed. Only the allowlisted, approval-gated Docker command set is callable.

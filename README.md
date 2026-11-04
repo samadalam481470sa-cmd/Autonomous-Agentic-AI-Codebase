@@ -89,6 +89,61 @@ All API routes are protected by [services/api/security.py](services/api/security
 
 This is hardening for a local single-operator tool, not a production internet service. Multi-user identity, TLS termination, global rate limiting and independent penetration testing remain outstanding.
 
+## Editor-first agent loop (new)
+
+The interaction model now matches a modern agent editor: ask in the editor, get
+an edit, see the diff, let the agent run the project's own checks, then accept or
+revert the whole turn. Everything below is local-first and approval-gated.
+
+- **Inline completions** — `POST /api/ai/complete` is a bounded fill-in-the-middle
+  endpoint (short context window, small output budget, hard timeout, fence and
+  echo stripping). Monaco registers an inline completion provider in
+  [monaco-entry.js](apps/web/monaco-entry.js), and the Code-OSS overlay registers
+  a real `InlineCompletionItemProvider` in
+  [completions.js](code_oss_integration/extension/completions.js). Toggle it with
+  `agenticLocal.completions`. Expect roughly one model round trip per pause; it is
+  not a fine-tuned completion model.
+- **`@`-context** — chat messages may name context explicitly:
+  `@file:src/app.py`, `@folder:tests`, `@rules`, `@diff`. Paths are contained to the
+  project, symlinks and internal metadata are rejected, and content is labelled
+  untrusted before it reaches a model. Automatic retrieval still runs.
+- **Project instructions** — `AGENTS.md`, `CLAUDE.md`, `AGENTIC.md`,
+  `.agentic/rules.md` and `.cursor/rules/*.mdc` are read into agent prompts, bounded
+  to 12 KB, with frontmatter stripped. `GET /api/projects/{project}/instructions`
+  shows exactly what is loaded. Instruction text cannot ask for secrets or
+  destructive actions and be obeyed.
+- **Turn-level undo** — approved single-file and batch writes record a turn id, and
+  `POST /api/studio/turns/revert` restores every file in that turn newest-first.
+  A file edited after the turn is skipped, never overwritten, and every revert
+  writes its own inverse checkpoint. Studio exposes this as **Undo AI turn**.
+- **Approved commands** — `POST /api/execution/command/request` records a pending
+  argv with a SHA-256 digest; `/decide` runs it only after the operator approves
+  that exact digest. Execution is argv-only (never a shell), restricted to an
+  allowlisted executable set, with `git push`/`reset`/`clean`/`rebase` refused.
+  This replaces the all-or-nothing `ALLOW_COMMANDS` switch; commands still run on
+  the host, not in a sandbox.
+- **Model picker and usage** — `GET /api/models` lists an operator-controlled
+  catalog (hosted, local, plus `MODEL_CATALOG` entries). Chat, completions and code
+  proposals accept a `model` id from that catalog only, so a client cannot supply
+  its own base URL. `GET /api/models/{project}/usage` returns estimated local token
+  counts; no metering data leaves the machine.
+- **MCP client** — `services/api/mcp.py` speaks JSON-RPC 2.0 over stdio to
+  operator-configured servers in `database/mcp_servers.json`. Server definitions
+  cannot come from a request body without an approval header, calls need explicit
+  approval, argv is bounded and every call is time-limited. Requires
+  `MCP_ENABLED=1`.
+- **Git and pull-request preparation** — `/api/git/status`, `/branch`, `/commit` and
+  `/pull-request` operate locally. Commit and branch need approval headers; the PR
+  endpoint assembles a title, body and GitHub compare URL from the committed diff
+  and **never pushes or creates a PR**.
+- **Test-aware executor loop** — the lead executor may now call `run_tests`, which
+  runs the registered toolchain's own check/build/test command (argv-only) inside
+  its disposable git worktree and feeds the output back into the next turn. Sandbox
+  autonomy allows it directly; `worktree` autonomy needs it in `approved`.
+  `run_command`, dependency installs and network access remain unavailable there.
+
+See the [feature coverage map](docs/FEATURE_MATRIX.md) for tests and surfaces.
+
 ## Aetherion OmniForge dashboard and multi-agent runs (new)
 
 An original React 18 + TypeScript dashboard is served at **http://127.0.0.1:8000/dashboard** (prebuilt bundle committed in `apps/dashboard/dist`; source in [apps/dashboard](apps/dashboard)). It has a dense editor-style layout: activity rail, project explorer, file tabs with a read-only code viewer, a right-hand assistant with streaming chat, grounded codebase Q&A with 👍/👎 citations, and a security page showing lockouts, limits and the audit trail. `Ctrl`/`Cmd`+`K` opens a command palette. See [the dashboard guide](docs/AETHERION_DASHBOARD.md).
@@ -199,7 +254,7 @@ This is an **experimental developer preview**, not a million-line first-party im
 
 An opt-in, separate-process bridge is available. A pinned upstream AgenticSeek **GPL-3.0 git submodule** is now linked at `upstream/agenticseek` for optional independent source review; it is not bundled, installed, executed or included in the Code-OSS release. The [user-provided Forge Dashboard design specification](docs/forge-dashboard/README.md) is preserved as documentation only; the React dashboard source and Rust sidecar described there were not included in the upload. Review [integration and licensing guidance](docs/AGENTICSEEK_INTEGRATION.md), [uploaded archive security findings](security/UPLOAD_SCAN.md), and [open-source references](docs/OPEN_SOURCE_REFERENCES.md). The bridge does **not** execute or vendor the uploaded GPL-3.0 archive. To use it, independently run and secure AgenticSeek, configure `AGENTICSEEK_URL`, `AGENTICSEEK_API_TOKEN` and `AGENT_ADMIN_TOKEN`, then call `POST /api/integrations/agenticseek/query` with a bearer administrator token and `{ "project": "demo", "message": "..." }`. The same administrator token protects `POST /api/projects/plan` and `GET /api/projects/{project}/plan`. CI runs `python scripts/check_provenance.py` to enforce that GPL code never enters first-party paths, build artifacts, or the adapter.
 
-**Not yet supported:** complete Cursor-style IDE, safe arbitrary code execution, live application preview, autonomous background execution, or verified malware-free third-party agents. Do not expose the local API to the public internet.
+**Not yet supported:** full Cursor feature parity, safe arbitrary code execution, live application preview, autonomous background execution, remote or hosted MCP servers, automatic `git push`/PR creation, or verified malware-free third-party agents. Inline completions are single-shot model calls, not a trained Tab model. Do not expose the local API to the public internet.
 
 ## Code Studio (new)
 

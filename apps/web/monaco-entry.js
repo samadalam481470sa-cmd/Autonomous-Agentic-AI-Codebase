@@ -33,6 +33,7 @@ if (editorElement) {
       theme:'vs-dark',
       automaticLayout:true,
       minimap:{enabled:false},
+      inlineSuggest:{enabled:true},
       fontSize:13,
       tabSize:2,
       scrollBeyondLastLine:false,
@@ -49,6 +50,46 @@ if (editorElement) {
     });
     editorElement.style.display='none';
     window.agenticMonacoEditor = editor;
+    // Cursor-style ghost text: ask the local completion endpoint for the
+    // missing text at the cursor. Silent on any failure, cancellable.
+    const token = () => document.getElementById('token')?.value ?? '';
+    monaco.languages.registerInlineCompletionItemProvider({pattern:'**'},{
+      async provideInlineCompletionItems(model,position,_context,cancelToken){
+        if(!token()) return {items:[]};
+        const text = model.getValue();
+        const offset = model.getOffsetAt(position);
+        if(offset < 8) return {items:[]};
+        const prefix = text.slice(Math.max(0,offset-4000),offset);
+        const suffix = text.slice(offset,offset+1500);
+        const controller = new AbortController();
+        const cancel = cancelToken.onCancellationRequested(()=>controller.abort());
+        const timer = setTimeout(()=>controller.abort(),9000);
+        try {
+          const response = await fetch('/api/ai/complete',{
+            method:'POST',signal:controller.signal,
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+token()},
+            body:JSON.stringify({
+              project:document.getElementById('project')?.value||'demo',
+              path:document.getElementById('path')?.value||'',
+              prefix,suffix,max_tokens:128,model:window.agenticModel||null
+            })
+          });
+          if(!response.ok) return {items:[]};
+          const data = await response.json();
+          if(!data.completion||cancelToken.isCancellationRequested) return {items:[]};
+          return {items:[{
+            insertText:data.completion,
+            range:new monaco.Range(position.lineNumber,position.column,
+                                   position.lineNumber,position.column)
+          }]};
+        } catch(error) {
+          return {items:[]};
+        } finally {
+          clearTimeout(timer);
+          cancel.dispose();
+        }
+      }
+    });
   } catch(error) {
     mount.remove();
     console.error('Local code editor startup failed; using native textarea.',error);

@@ -17,7 +17,7 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 from .studio import authorize, current, digest, resolve, WRITE_LOCK
-from . import checkpoints
+from . import checkpoints, turns
 from .engine import workspace
 from .code_agent import config, strip_fence
 
@@ -29,6 +29,7 @@ class BatchRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     instruction:str=Field(min_length=4,max_length=4000)
     paths:list[str]=Field(min_length=1,max_length=MAX_FILES)
+    model:str|None=Field(default=None,max_length=120)
 
 class ApplyRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
@@ -88,7 +89,7 @@ def create_record(project,changes):
 async def propose_batch(body:BatchRequest,authorization:str|None=Header(default=None)):
     authorize(authorization)
     files=check_paths(body.project,body.paths)
-    base,model,key=config()
+    base,model,key=config(body.model) if body.model else config()
     changes=[]
     try:
         async with httpx.AsyncClient(timeout=180,follow_redirects=False,trust_env=False) as client:
@@ -155,8 +156,12 @@ def _apply_record_locked(project,proposal_id,proposal_hash):
     finally:
         for temporary,_ in staged:
             temporary.unlink(missing_ok=True)
+    turn_id=turns.new_turn()
+    for change,checkpoint_id in zip(changes,checkpoint_ids):
+        turns.record(project,turn_id,change["path"],checkpoint_id)
     return {"applied":len(applied),"paths":[c["path"] for c in changes],
-            "proposal_id":proposal_id,"checkpoint_ids":checkpoint_ids}
+            "proposal_id":proposal_id,"checkpoint_ids":checkpoint_ids,
+            "turn_id":turn_id}
 
 @router.post("/apply")
 def apply_batch(body:ApplyRequest,authorization:str|None=Header(default=None),

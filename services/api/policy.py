@@ -20,7 +20,7 @@ ROLE_TOOLS = {
     "planner": {"read_file", "list_files", "search_files"},
     "explorer": {"read_file", "list_files", "search_files", "git_status"},
     "builder": {"read_file", "list_files", "search_files", "write_file", "apply_patch",
-                "run_command", "git_status", "install_dependency", "network_fetch"},
+                "run_command", "run_tests", "git_status", "install_dependency", "network_fetch"},
     "tester": {"read_file", "list_files", "search_files", "write_file", "apply_patch",
                "run_command", "run_tests", "install_dependency", "network_fetch"},
     "reviewer": {"read_file", "list_files", "search_files", "git_diff"},

@@ -108,12 +108,26 @@ def bounded_local_history(messages,budget):
         used+=cost
     return head+list(reversed(kept))
 
-async def respond(project,message):
+async def respond(project,message,model=None):
+    from .models import record_usage, resolve as resolve_model
+    from . import context_refs, rules
     save(project,"user",message)
-    local=os.getenv("LOCAL_MODEL_ONLY")=="1"
-    key="local" if local else os.getenv("MODEL_API_KEY","")
-    if not key: return "Configure MODEL_API_KEY or enable LOCAL_MODEL_ONLY=1 with a running local model."
-    msgs=[{"role":"system","content":"You are an AI software engineer. Use tools to inspect and edit project files. Do not claim to have executed actions without tool results. Ask before risky or destructive actions."}]+history(project)
+    try:
+        chosen=resolve_model(model)
+    except ValueError as error:
+        return str(error)
+    local=chosen["provider"]=="local"
+    key=chosen["api_key"]
+    base=chosen["base_url"]
+    model_name=chosen["model"]
+    system=("You are an AI software engineer. Use tools to inspect and edit project files. "
+            "Do not claim to have executed actions without tool results. Ask before risky "
+            "or destructive actions.")
+    instructions=rules.prompt_block(project)
+    if instructions: system=system+"\n\n"+instructions
+    attached=context_refs.prompt_block(project,message,chosen["context_chars"])
+    if attached: system=system+"\n\n"+attached
+    msgs=[{"role":"system","content":system}]+history(project)
     if os.getenv("SEMANTIC_RAG","1")=="1":
         try:
             from .semantic import context as semantic_context
@@ -127,18 +141,11 @@ async def respond(project,message):
         except Exception:
             pass
     if local:
-        from .local_model import model_settings
-        settings=model_settings()
-        base=settings["base_url"]
-        model=settings["model"]
-        msgs=bounded_local_history(msgs,os.getenv("LOCAL_CONTEXT_CHAR_BUDGET","12000"))
-    else:
-        base=os.getenv("MODEL_BASE_URL","https://api.openai.com/v1").rstrip("/")
-        model=os.getenv("MODEL_NAME","gpt-4.1-mini")
+        msgs=bounded_local_history(msgs,str(chosen["context_chars"]))
     max_output=max(64,min(int(os.getenv("LOCAL_MAX_OUTPUT_TOKENS","1024")),8192)) if local else None
     async with httpx.AsyncClient(timeout=180,trust_env=not local,follow_redirects=False) as client:
         for _ in range(8):
-            payload={"model":model,"messages":msgs,"tools":TOOLS,"tool_choice":"auto"}
+            payload={"model":model_name,"messages":msgs,"tools":TOOLS,"tool_choice":"auto"}
             if local:payload["max_tokens"]=max_output
             r=await client.post(base+"/chat/completions",headers={"Authorization":"Bearer "+key},json=payload)
             r.raise_for_status()
@@ -147,6 +154,8 @@ async def respond(project,message):
             if not calls:
                 answer=choice.get("content") or "(No response)"
                 save(project,"assistant",answer)
+                record_usage(project,chosen["id"],
+                             sum(len(str(m.get("content",""))) for m in msgs),len(answer))
                 return answer
             msgs.append(choice)
             for call in calls:

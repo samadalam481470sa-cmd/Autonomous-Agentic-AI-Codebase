@@ -2,8 +2,8 @@
   "name": "agentic-local",
   "publisher": "agentic-workbench",
   "displayName": "Agentic Local AI",
-  "description": "Native Code-OSS local AI chat and approved selection rewrites",
-  "version": "0.3.0",
+  "description": "Native Code-OSS local AI chat, inline completions and approved selection rewrites",
+  "version": "0.4.0",
   "license": "MIT",
   "engines": {
     "vscode": "^1.144.0"
@@ -90,6 +90,11 @@
           "type": "string",
           "default": "http://127.0.0.1:8000",
           "description": "Loopback FastAPI endpoint; non-loopback endpoints are deliberately rejected."
+        },
+        "agenticLocal.completions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline ghost-text completions from the local completion endpoint. Sends the cursor window (up to 6000 characters before and 2000 after) to your configured model endpoint."
         }
       }
     }

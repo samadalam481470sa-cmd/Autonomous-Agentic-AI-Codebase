@@ -92,14 +92,36 @@ def _merge_tool_delta(accumulator: dict, deltas) -> None:
             entry["function"]["arguments"] += function["arguments"][:8_000]
 
 
-async def stream_local_chat(project: str, message: str, client_factory=None):
+async def stream_local_chat(project: str, message: str, client_factory=None, *,
+                            model=None):
     """Emit SSE events for text deltas and read-only tool calls.
 
     A final [DONE], at least one tool/text round and nonempty text are required
-    before persisting the pair. Interrupted streams are not saved.
+    before persisting the pair. Interrupted streams are not saved. Streaming is
+    local-only, so a model override must resolve to the local provider.
     """
     settings = model_settings()
+    if model:
+        try:
+            from .models import resolve as resolve_model
+            chosen = resolve_model(model)
+        except ValueError:
+            yield encode_event("error", {"message": "Unknown or unconfigured model."})
+            return
+        if chosen["provider"] != "local":
+            yield encode_event("error", {
+                "message": "Streaming chat requires a local model; use /api/chat."
+            })
+            return
+        settings = {"base_url": chosen["base_url"], "model": chosen["model"]}
+    from . import context_refs, rules
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    instructions = rules.prompt_block(project)
+    if instructions:
+        messages.append({"role": "system", "content": instructions})
+    attached = context_refs.prompt_block(project, message)
+    if attached:
+        messages.append({"role": "system", "content": attached})
     if os.getenv("SEMANTIC_RAG", "1") == "1":
         try:
             from .semantic import context as semantic_context
