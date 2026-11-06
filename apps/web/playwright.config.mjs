@@ -14,6 +14,9 @@ const python = process.env.PYTHON || (fs.existsSync(venvPython) ? venvPython : '
 
 export default defineConfig({
   testDir: './e2e',
+  // bundle.spec.mjs needs the packaged bundle served on its own port; the
+  // release workflow runs it with playwright.bundle.config.mjs.
+  testIgnore: '**/bundle.spec.mjs',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
