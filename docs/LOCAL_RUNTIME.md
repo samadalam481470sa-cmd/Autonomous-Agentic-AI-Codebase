@@ -40,8 +40,9 @@ run the application.
    ```
 
 3. The launcher creates `.venv`, installs the local Python dependencies, prints
-   an administrator token, and opens
-   `http://127.0.0.1:8000/dashboard`.
+   an administrator token and the dashboard URL, and opens it. It uses
+   `http://127.0.0.1:8000` when that port is free and the next free loopback
+   port when it is busy, so a previous run does not block startup.
 
 The first run needs network access once to install FastAPI, Uvicorn, HTTPX and
 Pydantic. After that the app runs offline; the dashboard is prebuilt and no
@@ -58,12 +59,14 @@ launcher sets `LOCAL_MODEL_ONLY=1` by default.
 ```bash
 python aetherion.py --check            # hardware, thermal and backend report
 python aetherion.py --no-open          # do not open a browser
-python aetherion.py --port 8123        # different loopback port
+python aetherion.py --port 8123        # exact loopback port; errors if busy
 python aetherion.py --hours 12         # keep-awake budget
 python aetherion.py --no-keep-awake    # allow normal sleep
 ```
 
-The launcher refuses non-loopback bind addresses.
+The launcher refuses non-loopback bind addresses. Without `--port`, a busy
+`8000` is skipped automatically; the printed URL and token are for the new
+process. An explicit `--port` never falls back, so a conflict is reported.
 
 ## Local models
 
@@ -200,7 +203,8 @@ checksum to the GitHub Release.
 
 | Symptom | Fix |
 | --- | --- |
-| `Port already in use` | Stop the other process or use `--port 8123` |
+| `Port 8000 is already in use; using 8001 instead` | Expected after a previous run; open the printed URL and use the new token |
+| `Port ... is already in use` with explicit `--port` | Stop the other process or choose a free port, for example `--port 8123` |
 | `/dashboard` returns 503 | Rebuild the dashboard or use a release bundle with `dist/` |
 | Device page says no sensors | Expected on many desktops and VMs; monitor-only mode |
 | Keep-awake shows unsupported | Linux needs `systemd-inhibit`; install `systemd` or use macOS/Windows |

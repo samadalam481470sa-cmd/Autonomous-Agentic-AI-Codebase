@@ -4,7 +4,7 @@
 Starts the API and dashboard on this computer only, with a generated
 administrator token, thermal monitoring and an optional keep-awake hold.
 
-    python aetherion.py                 # open http://127.0.0.1:8000/dashboard
+    python aetherion.py                 # open the printed dashboard URL
     python aetherion.py --no-open
     python aetherion.py --check         # probe hardware and exit
 
@@ -25,6 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+DEFAULT_PORT = 8000
+PORT_SCAN_ATTEMPTS = 20
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -33,8 +35,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1",
                         help="Bind address; loopback only (default 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000,
-                        help="Port to listen on (default 8000)")
+    parser.add_argument("--port", type=int, default=None,
+                        help="Port to listen on (default 8000; next free port when busy)")
     parser.add_argument("--token", help="Administrator token; generated when omitted")
     parser.add_argument("--no-open", action="store_true",
                         help="Do not open the browser")
@@ -51,6 +53,15 @@ def _busy(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.settimeout(0.4)
         return probe.connect_ex((host, port)) == 0
+
+
+def _next_free_port(
+    host: str, start: int, attempts: int = PORT_SCAN_ATTEMPTS
+) -> int | None:
+    for port in range(start, min(start + attempts, 65536)):
+        if not _busy(host, port):
+            return port
+    return None
 
 
 def _open_when_ready(url: str, timeout: float = 30.0) -> None:
@@ -92,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.host not in LOOPBACK:
         print("Refusing to bind a non-loopback address. Use 127.0.0.1.", file=sys.stderr)
         return 2
-    if not (1024 <= args.port <= 65535):
+    requested_port = DEFAULT_PORT if args.port is None else args.port
+    if not (1024 <= requested_port <= 65535):
         print("Port must be between 1024 and 65535.", file=sys.stderr)
         return 2
     if args.hours < 0.25 or args.hours > 48:
@@ -124,11 +136,26 @@ def main(argv: list[str] | None = None) -> int:
         }, indent=2))
         return 0
 
-    url = f"http://{args.host}:{args.port}"
-    if _busy(args.host, args.port):
-        print(f"{url} is already in use. Stop the other process or use --port.",
-              file=sys.stderr)
-        return 3
+    port = requested_port
+    if _busy(args.host, port):
+        if args.port is not None:
+            print(f"Port {port} on {args.host} is already in use.",
+                  file=sys.stderr)
+            print("If Aetherion is already running, use the token printed by "
+                  "that terminal.", file=sys.stderr)
+            print("Stop that process, or choose another port with --port 8123.",
+                  file=sys.stderr)
+            return 3
+        replacement = _next_free_port(args.host, port + 1)
+        if replacement is None:
+            last = min(port + PORT_SCAN_ATTEMPTS, 65535)
+            print(f"Ports {port}-{last} are all in use. Stop one or pass --port.",
+                  file=sys.stderr)
+            return 3
+        print(f"Port {port} is already in use; using {replacement} instead. "
+              "The token below belongs to this new process.", file=sys.stderr)
+        port = replacement
+    url = f"http://{args.host}:{port}"
 
     report = device.status_report()
     if not args.no_keep_awake:

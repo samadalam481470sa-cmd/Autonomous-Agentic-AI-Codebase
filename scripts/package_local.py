@@ -52,8 +52,8 @@ QUICKSTART = """Aetherion OmniForge - local bundle
 1. Install Python 3.11 or newer.
 2. Linux/macOS:  ./run.sh
    Windows:      run.bat
-3. Open http://127.0.0.1:8000/dashboard and paste the token printed in the
-   terminal.
+3. Open the dashboard URL printed in the terminal (normally
+   http://127.0.0.1:8000/dashboard) and paste the token printed there too.
 
 Optional local models:
   - Install Ollama from https://ollama.com, then run the pull command shown
