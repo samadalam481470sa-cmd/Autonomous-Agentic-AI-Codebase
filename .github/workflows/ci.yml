@@ -74,7 +74,10 @@ jobs:
                   if problem is None:
                       continue
                   title = f"{case.get('classname', '')}.{case.get('name', '')}"
-                  message = " ".join((problem.get("message") or "").split())[:800]
+                  message = " ".join((problem.get("message") or "").split())[:600]
+                  detail = " ".join((problem.text or "").split())[:1200]
+                  if detail:
+                      message = f"{message} | {detail}"
                   message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
                   print(f"::error title={title}::{message}")
           PY

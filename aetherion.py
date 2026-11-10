@@ -172,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     config = uvicorn.Config(
         "services.api.main:app",
         host=args.host,
-        port=args.port,
+        port=port,
         log_level="warning",
         access_log=False,
     )
