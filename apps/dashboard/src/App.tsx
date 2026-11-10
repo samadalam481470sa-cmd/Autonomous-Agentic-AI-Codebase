@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { ApiError, api, setCredentials } from './api';
-import type { IndexStats, SearchResult } from './types';
+import type { ChatSeed, IndexStats, SearchResult } from './types';
 import {
   CloseIcon,
   CommandIcon,
@@ -9,6 +9,7 @@ import {
   LogoMark,
   RefreshIcon,
   SearchIcon,
+  SendIcon,
   SettingsIcon,
   ShieldIcon,
   SparkIcon,
@@ -43,7 +44,11 @@ export default function App() {
   const [status, setStatus] = useState('Ready');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [explorerOpen, setExplorerOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(() =>
+    window.matchMedia('(min-width: 901px)').matches,
+  );
+  const [chatSeed, setChatSeed] = useState<ChatSeed | null>(null);
+  const [quickInput, setQuickInput] = useState('');
 
   const notify = useCallback((message: string) => setStatus(message), []);
 
@@ -219,6 +224,17 @@ export default function App() {
     const list = needle ? files.filter((file) => file.toLowerCase().includes(needle)) : files;
     return list.slice(0, 500);
   }, [files, fileFilter]);
+
+  function askFromQuickBar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const text = quickInput.trim();
+    if (!text) return;
+    setQuickInput('');
+    setRightOpen(true);
+    setAssistantTab('chat');
+    setChatSeed({ id: Date.now(), text });
+    setStatus('Message sent to assistant');
+  }
 
   function closeTab(path: string) {
     const next = tabs.filter((tab) => tab.path !== path);
@@ -497,9 +513,37 @@ export default function App() {
             onOpenFile={(path, line) => void openFile(path, line)}
             onLocked={lock}
             notify={notify}
+            seed={chatSeed}
+            onSeedConsumed={() => setChatSeed(null)}
           />
         )}
       </div>
+
+      <form className="quickbar" onSubmit={askFromQuickBar}>
+        <span className="quickbar-icon">
+          <SparkIcon size={16} />
+        </span>
+        <textarea
+          value={quickInput}
+          rows={1}
+          maxLength={12000}
+          onChange={(event) => setQuickInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
+          }}
+          placeholder="Ask anything — or describe the code you want to build…"
+          aria-label="Ask the assistant"
+        />
+        <span className="quickbar-hint">
+          <kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline
+        </span>
+        <button className="primary" type="submit" disabled={!quickInput.trim()}>
+          <SendIcon size={14} /> Send
+        </button>
+      </form>
 
       <footer className="statusbar">
         <span className={`status-dot ${busy ? 'busy' : 'ok'}`} />

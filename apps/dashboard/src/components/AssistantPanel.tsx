@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, api, streamChat } from '../api';
-import type { AskResponse, ChatMessage, Citation } from '../types';
+import type { AskResponse, ChatMessage, ChatSeed, Citation } from '../types';
 import { BotIcon, SendIcon, SparkIcon } from '../icons';
 import AgentsPanel from './AgentsPanel';
 
@@ -13,9 +13,20 @@ interface Props {
   onOpenFile: (path: string, line?: number) => void;
   onLocked: () => void;
   notify: (message: string) => void;
+  seed: ChatSeed | null;
+  onSeedConsumed: () => void;
 }
 
-export default function AssistantPanel({ project, tab, onTab, onOpenFile, onLocked, notify }: Props) {
+export default function AssistantPanel({
+  project,
+  tab,
+  onTab,
+  onOpenFile,
+  onLocked,
+  notify,
+  seed,
+  onSeedConsumed,
+}: Props) {
   return (
     <aside className="assistant" aria-label="AI assistant">
       <div className="assistant-head">
@@ -37,7 +48,15 @@ export default function AssistantPanel({ project, tab, onTab, onOpenFile, onLock
         </div>
       </div>
       <div className="assistant-body">
-        {tab === 'chat' && <ChatPane project={project} onLocked={onLocked} notify={notify} />}
+        {tab === 'chat' && (
+          <ChatPane
+            project={project}
+            onLocked={onLocked}
+            notify={notify}
+            seed={seed}
+            onSeedConsumed={onSeedConsumed}
+          />
+        )}
         {tab === 'ask' && (
           <AskPane project={project} onLocked={onLocked} onOpenFile={onOpenFile} notify={notify} />
         )}
@@ -51,10 +70,14 @@ function ChatPane({
   project,
   onLocked,
   notify,
+  seed,
+  onSeedConsumed,
 }: {
   project: string;
   onLocked: () => void;
   notify: (message: string) => void;
+  seed: ChatSeed | null;
+  onSeedConsumed: () => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -62,6 +85,7 @@ function ChatPane({
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const lastSeed = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,8 +110,15 @@ function ChatPane({
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  async function send() {
-    const text = input.trim();
+  useEffect(() => {
+    if (!seed || seed.id === lastSeed.current) return;
+    lastSeed.current = seed.id;
+    void send(seed.text);
+    onSeedConsumed();
+  }, [seed, onSeedConsumed]);
+
+  async function send(override?: string) {
+    const text = (override ?? input).trim();
     if (!text || busy) return;
     setInput('');
     setError(null);

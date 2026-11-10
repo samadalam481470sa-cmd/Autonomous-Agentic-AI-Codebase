@@ -109,6 +109,11 @@ export interface SecurityPosture {
   request_id?: string;
 }
 
+export interface ChatSeed {
+  id: number;
+  text: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;

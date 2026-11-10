@@ -17,6 +17,10 @@ TOOLS = [
  
  {"type":"function","function":{"name":"search_files","description":"Search text in project files","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}
 ]
+class ModelNotConfigured(RuntimeError):
+    """Raised when neither hosted nor local inference is configured."""
+
+
 def workspace(project):
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}",project): raise ValueError("Invalid project name")
     path = (ROOT/project).resolve()
@@ -127,8 +131,20 @@ async def respond(project,message):
     save(project,"user",message)
     local=os.getenv("LOCAL_MODEL_ONLY")=="1"
     key="local" if local else os.getenv("MODEL_API_KEY","")
-    if not key: return "Configure MODEL_API_KEY or enable LOCAL_MODEL_ONLY=1 with a running local model."
-    msgs=[{"role":"system","content":"You are an AI software engineer. Use tools to inspect and edit project files. Do not claim to have executed actions without tool results. Ask before risky or destructive actions."}]+history(project)
+    if not key:
+        raise ModelNotConfigured(
+            "No model is configured. Set MODEL_API_KEY, or set LOCAL_MODEL_ONLY=1 "
+            "with a running local model, then try again."
+        )
+    msgs=[{"role":"system","content":(
+        "You are a helpful, general-purpose AI assistant and software engineer. "
+        "Answer any question the user asks, including non-coding questions, clearly and accurately. "
+        "For coding tasks, provide complete, runnable code and explain key decisions. "
+        "You can inspect this project with the read-only tools; direct file writes and shell commands "
+        "are disabled, so never claim to have changed or executed anything. If the user wants edits, "
+        "return the proposed code and tell them to use Studio's diff-and-approval workflow. "
+        "Use tool results as evidence and never invent them."
+    )}]+history(project)
     if os.getenv("SEMANTIC_RAG","1")=="1":
         try:
             from .semantic import context as semantic_context

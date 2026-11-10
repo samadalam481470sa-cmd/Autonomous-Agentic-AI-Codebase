@@ -138,8 +138,10 @@ enabled by default; every setting is in [.env.example](../.env.example).
   `SECURITY_ALLOWED_HOSTS` (wildcards such as `*.example.com` are supported).
   This blocks DNS rebinding against a local service; a mismatch returns `421`.
   Set the hostname of your reverse proxy before exposing the app.
-- API writes require `Content-Length`; chunked writes get `411`, so the body
-  limit cannot be bypassed by omitting the length.
+- API writes require `Content-Length` unless they use a single
+  `Transfer-Encoding: chunked`. Chunked bodies are streamed into a buffer
+  capped at `SECURITY_MAX_BODY_BYTES`; larger bodies get `413`, so the limit
+  cannot be bypassed by omitting the length.
 - API writes must use `application/json` (or `application/*+json`); anything
   else gets `415`.
 - Browser writes carrying `Sec-Fetch-Site: cross-site` get `403`, in addition

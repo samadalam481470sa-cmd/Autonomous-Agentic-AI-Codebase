@@ -259,11 +259,14 @@ def fetch_metadata_problem(request) -> str | None:
 
 
 def framing_problem(request) -> str | None:
-    """Chunked writes are refused so body size limits cannot be bypassed."""
+    """Require explicit framing for writes; chunked bodies are bounded later."""
     if request.method not in WRITE_METHODS or not request.url.path.startswith("/api/"):
         return None
+    # request_integrity already rejects conflicting or non-chunked framing.
+    # A single chunked body is accepted and read through a hard size cap by
+    # the middleware, so reverse proxies and browsers that stream JSON work.
     if request.headers.get("transfer-encoding"):
-        return "Chunked request bodies are not accepted"
+        return None
     if os.getenv("SECURITY_REQUIRE_CONTENT_LENGTH", "1") == "1":
         if request.headers.get("content-length") is None:
             return "Content-Length required"
@@ -274,7 +277,7 @@ def content_type_problem(request) -> str | None:
     if request.method not in WRITE_METHODS or not request.url.path.startswith("/api/"):
         return None
     length = request.headers.get("content-length")
-    if length in (None, "0"):
+    if length in (None, "0") and not request.headers.get("transfer-encoding"):
         return None
     ctype = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
     if ctype in ALLOWED_CONTENT_TYPES:

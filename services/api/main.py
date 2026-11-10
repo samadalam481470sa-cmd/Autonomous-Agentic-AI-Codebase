@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from .engine import history, respond, tool, workspace
+from .engine import history, respond, tool, workspace, ModelNotConfigured
 from . import hardening
 from .security import SecurityMiddleware, audit as security_audit, status as security_status
 
@@ -63,6 +63,7 @@ def get_history(project:str, authorization: str | None = Header(default=None)):
 async def chat(body:ChatRequest, authorization: str | None = Header(default=None)):
     require_admin(authorization)
     try: return {"answer":await respond(body.project,body.message)}
+    except ModelNotConfigured as e: raise HTTPException(503,str(e))
     except Exception as e: raise HTTPException(502,"Model provider error: "+type(e).__name__)
 @app.post("/api/chat/stream")
 async def chat_stream(body:ChatRequest, authorization: str | None = Header(default=None)):

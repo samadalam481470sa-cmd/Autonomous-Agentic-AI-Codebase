@@ -599,6 +599,25 @@ def _valid_body_limit(request) -> int | None:
     return None
 
 
+async def _bounded_chunked_body(request) -> str | None:
+    """Read a chunked API body into a capped buffer, then let handlers reuse it."""
+    if request.method not in {"POST", "PUT", "PATCH"} or not request.url.path.startswith("/api/"):
+        return None
+    if not request.headers.get("transfer-encoding"):
+        return None
+    body = bytearray()
+    limit = max_body_bytes()
+    try:
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > limit:
+                return "too large"
+    except Exception:
+        return "unreadable"
+    request._body = bytes(body)
+    return None
+
+
 class SecurityMiddleware(BaseHTTPMiddleware):
     """Applies hardening to every request and brute-force limits to the API."""
 
@@ -698,6 +717,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return reject(401, "Multi-factor code required or invalid", request)
 
             if request.method in {"GET", "HEAD", "POST", "PUT", "PATCH"}:
+                chunked_problem = await _bounded_chunked_body(request)
+                if chunked_problem:
+                    audit("request.body_rejected", path[:200], actor=ip,
+                          request_id=request.state.request_id)
+                    status = 413 if chunked_problem == "too large" else 400
+                    detail = "Request body too large" if chunked_problem == "too large" else "Unreadable request body"
+                    return reject(status, detail, request)
                 report = await hardening.inspect_request(request)
                 if report["blocked"]:
                     audit("request.injection_blocked",

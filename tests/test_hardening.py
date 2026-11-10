@@ -1,4 +1,5 @@
 """Defence-in-depth hardening: request integrity, injection, SSRF, audit chain."""
+import asyncio
 import json
 import sqlite3
 
@@ -106,8 +107,11 @@ def test_free_text_code_is_not_blocked(clean, monkeypatch):
         "project": "demo",
         "message": "Explain '<script>alert(1)</script>' and SELECT * FROM users",
     })
-    assert response.status_code == 200
+    # No model is configured, so the request must reach the model layer and
+    # fail there with an actionable 503, not be rejected as an injection.
+    assert response.status_code == 503
     assert "security policy" not in response.text.lower()
+    assert "MODEL_API_KEY" in response.json()["detail"]
 
 
 def test_ssrf_guard_blocks_private_and_metadata_targets():
@@ -179,7 +183,7 @@ def test_static_mounts_do_not_expose_protected_directories():
     assert hardening.static_mount_problems(app) == []
 
 
-def test_framing_requires_length_and_rejects_chunked():
+def test_framing_requires_length_and_accepts_single_chunked(monkeypatch):
     from starlette.datastructures import URL
 
     class FrameRequest:
@@ -191,8 +195,29 @@ def test_framing_requires_length_and_rejects_chunked():
                                         for name, value in pairs])
 
     assert hardening.framing_problem(FrameRequest([]))
-    assert hardening.framing_problem(FrameRequest([("transfer-encoding", "chunked")]))
+    assert hardening.framing_problem(FrameRequest([("transfer-encoding", "chunked")])) is None
     assert hardening.framing_problem(FrameRequest([("content-length", "12")])) is None
+    assert hardening.content_type_problem(FrameRequest([
+        ("transfer-encoding", "chunked"), ("content-type", "application/json")])) is None
+    assert hardening.content_type_problem(FrameRequest([
+        ("transfer-encoding", "chunked"), ("content-type", "text/plain")])) \
+        == "Unsupported content type"
+
+    class ChunkedRequest(FrameRequest):
+        def __init__(self, pairs, chunks):
+            super().__init__(pairs)
+            self.chunks = chunks
+
+        async def stream(self):
+            for chunk in self.chunks:
+                yield chunk
+
+    monkeypatch.setenv("SECURITY_MAX_BODY_BYTES", "1024")
+    small = ChunkedRequest([("transfer-encoding", "chunked")], [b"{", b"}"])
+    assert asyncio.run(security._bounded_chunked_body(small)) is None
+    assert small._body == b"{}"
+    large = ChunkedRequest([("transfer-encoding", "chunked")], [b"x" * 1025])
+    assert asyncio.run(security._bounded_chunked_body(large)) == "too large"
 
 
 def test_outbound_integrations_use_the_ssrf_guard(clean, monkeypatch):
