@@ -129,6 +129,11 @@ def bounded_local_history(messages,budget):
 
 async def respond(project,message):
     save(project,"user",message)
+    from .direct_answer import answer_directly
+    direct=answer_directly(message)
+    if direct is not None:
+        save(project,"assistant",direct)
+        return direct
     local=os.getenv("LOCAL_MODEL_ONLY")=="1"
     key="local" if local else os.getenv("MODEL_API_KEY","")
     if not key:
@@ -138,7 +143,10 @@ async def respond(project,message):
         )
     msgs=[{"role":"system","content":(
         "You are a helpful, general-purpose AI assistant and software engineer. "
-        "Answer any question the user asks, including non-coding questions, clearly and accurately. "
+        "Answer the latest user message directly, specifically, and accurately. "
+        "For simple factual or arithmetic questions, give the answer first and do not "
+        "respond with a generic plan, template, or unnecessary clarifying questions. "
+        "If you are unsure, say so instead of inventing details. "
         "For coding tasks, provide complete, runnable code and explain key decisions. "
         "You can inspect this project with the read-only tools; direct file writes and shell commands "
         "are disabled, so never claim to have changed or executed anything. If the user wants edits, "
