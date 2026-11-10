@@ -11,7 +11,8 @@ import uuid
 
 import httpx
 
-from .engine import TOOLS, bounded_local_history, db, history, tool as run_tool
+from .engine import (TOOLS, bounded_local_history, db, history, model_error_message,
+                     response_detail, tool as run_tool, tools_unsupported)
 from .local_model import model_settings
 
 MAX_ANSWER_CHARS = 200_000
@@ -149,8 +150,9 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
     length = 0
     truncated = False
     finished = False
+    round_index = 0
     try:
-        for round_index in range(MAX_TOOL_ROUNDS + 1):
+        while round_index <= MAX_TOOL_ROUNDS:
             payload = {
                 "model": settings["model"],
                 "messages": messages,
@@ -160,10 +162,9 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
             if tools:
                 payload["tools"] = tools
                 payload["tool_choice"] = "auto"
-            else:
-                payload["tool_choice"] = "none"
             tool_calls: dict[int, dict] = {}
             round_finished = False
+            retry_without_tools = False
             async with factory() as client:
                 async with client.stream(
                     "POST",
@@ -171,6 +172,13 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
                     headers={"Authorization": "Bearer local"},
                     json=payload,
                 ) as response:
+                    if response.status_code == 400 and tools:
+                        await response.aread()
+                        if tools_unsupported(response):
+                            tools = []
+                            retry_without_tools = True
+                    if retry_without_tools:
+                        continue
                     response.raise_for_status()
                     if not response.headers.get("content-type", "").lower().startswith(
                         "text/event-stream"
@@ -249,6 +257,29 @@ async def stream_local_chat(project: str, message: str, client_factory=None, *,
             messages.append({"role": "assistant", "content": "", "tool_calls": assistant_calls})
             messages.extend(tool_messages)
             finished = False
+            round_index += 1
+    except httpx.TimeoutException:
+        yield encode_event("error", {"message":
+            f"The local model at {settings['base_url']} timed out after 180 seconds. "
+            "Try a smaller model or reduce LOCAL_CONTEXT_CHAR_BUDGET."})
+        return
+    except httpx.ConnectError:
+        yield encode_event("error", {"message":
+            f"Cannot reach the local model at {settings['base_url']}. "
+            "Start your local model server. For Ollama, run `ollama serve` and "
+            f"install the model with `ollama pull {settings['model']}`."})
+        return
+    except httpx.HTTPStatusError as exc:
+        detail = ""
+        try:
+            await exc.response.aread()
+            detail = response_detail(exc.response)
+        except Exception:
+            pass
+        yield encode_event("error", {"message": model_error_message(
+            settings["base_url"], settings["model"], True,
+            status=exc.response.status_code, detail=detail)})
+        return
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, json.JSONDecodeError):
         yield encode_event("error", {
             "message": "Local model streaming failed; the incomplete answer was not saved."

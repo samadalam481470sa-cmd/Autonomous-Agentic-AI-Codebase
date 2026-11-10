@@ -176,3 +176,38 @@ def test_output_limit_handles_invalid_environment(monkeypatch):
     assert chat_stream.output_token_limit() == 1024
     monkeypatch.setenv("LOCAL_MAX_OUTPUT_TOKENS", "999999")
     assert chat_stream.output_token_limit() == 8192
+
+
+def test_tools_unsupported_retries_without_tools(monkeypatch):
+    monkeypatch.setattr(chat_stream, "history", lambda project: [])
+    saved = []
+    monkeypatch.setattr(chat_stream, "save_chat_pair", lambda *args: saved.append(args))
+    monkeypatch.setattr(chat_stream, "model_settings", lambda: {
+        "base_url": "http://127.0.0.1:8088/v1", "model": "local-model"
+    })
+    requests = []
+    responses = [
+        httpx.Response(400, headers={"content-type": "application/json"},
+                       text='{"error":"model does not support tools"}'),
+        httpx.Response(200, headers={"content-type": "text/event-stream"},
+                       text='data: {"choices":[{"delta":{"content":"Plain answer"}}]}\n\n'
+                            "data: [DONE]\n\n"),
+    ]
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        return responses.pop(0)
+
+    transport = httpx.MockTransport(handler)
+
+    async def collect():
+        return [item async for item in chat_stream.stream_local_chat(
+            "demo", "hello",
+            lambda: httpx.AsyncClient(transport=transport, trust_env=False))]
+
+    events = records(asyncio.run(collect()))
+    assert [kind for kind, _ in events] == ["delta", "done"]
+    assert saved == [("demo", "hello", "Plain answer")]
+    assert "tools" in requests[0]
+    assert "tools" not in requests[1]
+    assert "tool_choice" not in requests[1]

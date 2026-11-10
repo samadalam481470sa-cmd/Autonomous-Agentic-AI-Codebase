@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
-from .engine import history, respond, tool, workspace
+from .engine import ModelCallError, history, respond, tool, workspace
 from .security import SecurityMiddleware, status as security_status
 
 @asynccontextmanager
@@ -114,6 +114,7 @@ def get_history(project:str, authorization: str | None = Header(default=None)):
 async def chat(body:ChatRequest, authorization: str | None = Header(default=None)):
     require_admin(authorization)
     try: return {"answer":await respond(body.project,body.message,body.model)}
+    except ModelCallError as e: raise HTTPException(e.status_code,str(e))
     except Exception as e: raise HTTPException(502,"Model provider error: "+type(e).__name__)
 @app.post("/api/chat/stream")
 async def chat_stream(body:ChatRequest, authorization: str | None = Header(default=None)):
