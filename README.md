@@ -32,6 +32,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 cp .env.example .env
+# .env is loaded automatically at startup; exported shell variables win.
 python -m uvicorn services.api.main:app --reload --no-server-header
 ```
 

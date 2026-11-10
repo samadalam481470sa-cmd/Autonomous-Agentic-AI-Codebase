@@ -5,6 +5,10 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from .config import load_env_file
+# Load repository .env before the imports below read configuration at module
+# scope. Explicit environment variables take precedence.
+load_env_file()
 from .engine import history, respond, tool, workspace, ModelNotConfigured
 from . import hardening
 from .security import SecurityMiddleware, audit as security_audit, status as security_status
