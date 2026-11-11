@@ -243,6 +243,13 @@ Read the [design system guide](packages/ui/README.md).
 Playwright drives the real Chat and Studio pages against an isolated temporary workspace and admin token. The suite covers project planning, indexed code search/reindex, opening a search hit, local feedback capture, evaluation recording, and learning status.
 
 ```bash
+python scripts/bootstrap_dev.py   # dependencies, editor assets and Chromium; skips whatever is current
+cd apps/web && npm run test:e2e
+```
+
+The bootstrap is idempotent and cheap to re-run: installs are stamped with the lockfile hash, editor assets are rebuilt only when a source is newer than the build, and Chromium is downloaded only when it is missing. `--check` reports what is missing without changing anything, `--with-deps` also installs the browser's Linux libraries, and `--dashboard` installs the dashboard dependencies too. The equivalent manual steps are:
+
+```bash
 cd apps/web
 npm ci
 npx playwright install chromium
@@ -250,7 +257,7 @@ npm run build
 npm run test:e2e
 ```
 
-On a bare Linux machine, use `npx playwright install --with-deps chromium` once to install the browser libraries. CI runs the suite on Windows, macOS, and Linux; see the [feature coverage map](docs/FEATURE_MATRIX.md).
+CI runs the suite on Windows, macOS, and Linux; see the [feature coverage map](docs/FEATURE_MATRIX.md).
 
 ## Open source and legal provenance
 
