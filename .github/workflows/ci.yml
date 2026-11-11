@@ -18,19 +18,16 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: Install web and browser-test dependencies
+      # One setup path shared with local development: dependencies, editor
+      # assets and Chromium, skipping anything already current.
+      - name: Bootstrap the browser test toolchain
+        if: runner.os != 'Linux'
         working-directory: apps/web
-        run: npm ci
-      - name: Install Chromium for smoke tests
-        working-directory: apps/web
-        run: npx playwright install chromium
-      - name: Install Chromium system libraries
+        run: python ../../scripts/bootstrap_dev.py
+      - name: Bootstrap the browser test toolchain
         if: runner.os == 'Linux'
         working-directory: apps/web
-        run: npx playwright install-deps chromium
-      - name: Build offline editor assets
-        working-directory: apps/web
-        run: npm run build
+        run: python ../../scripts/bootstrap_dev.py --with-deps
       - run: node --check apps/web/monaco-entry.js
       - run: node --check apps/web/build.mjs
       - run: node --check apps/web/playwright.config.mjs

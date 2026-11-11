@@ -85,6 +85,15 @@ def test_with_deps_reaches_the_playwright_command(tmp_path, monkeypatch):
     assert step.command[-1] == "chromium"
 
 
+def test_with_deps_repairs_libraries_even_when_the_browser_exists(tmp_path, monkeypatch):
+    monkeypatch.setattr(bootstrap, "chromium_binary", lambda: Path("/browser"))
+    monkeypatch.setattr(bootstrap, "missing_libraries", lambda binary: ["libnspr4.so"])
+    step = [item for item in bootstrap.plan(tmp_path, with_deps=True)
+            if "libraries" in item.label][0]
+    assert "install-deps" in step.command
+    assert step.command[-1] == "chromium"
+
+
 def test_dashboard_dependencies_are_opt_in(tmp_path, monkeypatch):
     monkeypatch.setattr(bootstrap, "chromium_binary", lambda: Path("/browser"))
     assert not any(str(bootstrap.DASHBOARD) in step.label

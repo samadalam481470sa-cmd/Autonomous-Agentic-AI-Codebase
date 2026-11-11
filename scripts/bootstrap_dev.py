@@ -59,6 +59,12 @@ def npm() -> str:
     return found
 
 
+def npm_command(*args: str) -> list[str]:
+    """npm is npm.cmd on Windows, so it needs the command interpreter there."""
+    executable = npm()
+    return ["cmd", "/c", executable, *args] if os.name == "nt" else [executable, *args]
+
+
 def lock_hash(app: Path) -> str:
     lock = app / "package-lock.json"
     if not lock.is_file():
@@ -133,19 +139,25 @@ def plan(root: Path = ROOT, *, with_deps: bool = False, dashboard: bool = False,
         if force or not dependencies_current(root, app):
             steps.append(Step(
                 label="install " + str(app) + " dependencies",
-                command=[npm(), "ci"],
+                command=npm_command("ci"),
                 cwd=root / app,
                 stamp=root / app / "node_modules" / STAMP,
             ))
     if force or not assets_current(root):
         steps.append(Step("build browser editor assets",
-                          [npm(), "run", "build"], root / WEB))
-    if force or chromium_binary() is None:
-        command = [npm(), "exec", "--yes", "--", "playwright", "install"]
+                          npm_command("run", "build"), root / WEB))
+    binary = chromium_binary()
+    if force or binary is None:
+        command = npm_command("exec", "--yes", "--", "playwright", "install")
         if with_deps:
             command.append("--with-deps")
         command.append("chromium")
         steps.append(Step("download Chromium", command, root / WEB))
+    elif with_deps and missing_libraries(binary):
+        steps.append(Step(
+            "install Chromium system libraries",
+            npm_command("exec", "--yes", "--", "playwright", "install-deps", "chromium"),
+            root / WEB))
     return steps
 
 
