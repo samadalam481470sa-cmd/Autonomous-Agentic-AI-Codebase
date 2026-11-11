@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../api';
 import type { AgentRun } from '../types';
-import { PlayIcon, PlusIcon, RefreshIcon } from '../icons';
+import { PlayIcon, PlusIcon, RefreshIcon, SparkIcon } from '../icons';
 
 interface Props {
   project: string;
@@ -73,6 +73,28 @@ export default function AgentsPanel({ project, notify, onLocked }: Props) {
       const run = await api.advanceRun(selectedId);
       setRuns((previous) => previous.map((item) => (item.id === run.id ? run : item)));
       notify(`Step complete: ${run.progress.completed}/${run.progress.total} · ${run.status}`);
+    } catch (caught) {
+      fail(caught);
+      try {
+        const fresh = await api.run(selectedId);
+        setRuns((previous) => previous.map((item) => (item.id === fresh.id ? fresh : item)));
+      } catch {
+        // The original error is already shown.
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function autoRun() {
+    if (!selectedId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const run = await api.autoAdvance(selectedId, 8);
+      setRuns((previous) => previous.map((item) => (item.id === run.id ? run : item)));
+      const detail = run.auto ? ` · ${run.auto.steps_run} steps · ${run.auto.stopped}` : '';
+      notify(`Auto-run finished: ${run.status}${detail}`);
     } catch (caught) {
       fail(caught);
       try {
@@ -168,6 +190,14 @@ export default function AgentsPanel({ project, notify, onLocked }: Props) {
             </div>
             <div className="run-actions">
               <button
+                className="ghost"
+                onClick={() => void autoRun()}
+                disabled={busy || selected.status === 'completed' || selected.status === 'cancelled'}
+                title="Run all remaining model-only specialist steps"
+              >
+                <SparkIcon size={14} /> Auto-run
+              </button>
+              <button
                 className="primary"
                 onClick={() => void advance()}
                 disabled={busy || selected.status === 'completed' || selected.status === 'cancelled'}
@@ -210,6 +240,12 @@ export default function AgentsPanel({ project, notify, onLocked }: Props) {
               )}
             </details>
           ))}
+          {selected.auto && (
+            <p className="muted small">
+              Auto-run: {selected.auto.steps_run}/{selected.auto.limit} steps ·{' '}
+              {selected.auto.stopped}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -105,6 +105,65 @@ export interface AgentRun {
   updated_at: number;
   steps: AgentStep[];
   progress: { completed: number; total: number };
+  auto?: {
+    steps_run: number;
+    limit: number;
+    stopped: string;
+    status_code?: number;
+  };
+}
+
+export interface GithubSource {
+  id: string;
+  repo: string;
+  branch: string;
+  commit: string;
+  license: string;
+  project: string;
+  files: number;
+  bytes: number;
+  created_at: number;
+  url: string;
+}
+
+export interface GithubLearnResponse {
+  source: GithubSource;
+  index: {
+    embedded_files?: number;
+    vectors?: number;
+    elapsed_seconds?: number;
+    error?: string;
+  };
+}
+
+export interface GithubSearchResult extends SearchResult {
+  repo: string;
+  project: string;
+  license: string;
+}
+
+export interface DiagramNode {
+  id: string;
+  path: string;
+  label: string;
+  group: string;
+  language: string;
+  lines: number;
+  degree: number;
+}
+
+export interface DiagramResponse {
+  project: string;
+  nodes: DiagramNode[];
+  edges: { source: string; target: string }[];
+  mermaid: string;
+  svg: string;
+  stats: {
+    files_scanned: number;
+    files_shown: number;
+    edges: number;
+    truncated: boolean;
+  };
 }
 
 export interface AuditEntry {

@@ -398,6 +398,9 @@ def resolve_handler(kind):
     if kind == "polyglot.check":
         from .polyglot import run_check_job
         return run_check_job
+    if kind == "agent.auto":
+        from .orchestrator import auto_advance_job
+        return auto_advance_job
     if kind == "noop":
         return lambda payload: {"ok": True, "payload": payload}
     raise KeyError(f"No handler is registered for job kind {kind}")

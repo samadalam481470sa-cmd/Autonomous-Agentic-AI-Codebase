@@ -7,6 +7,7 @@ import {
   CommandIcon,
   DeviceIcon,
   FilesIcon,
+  LabsIcon,
   LogoMark,
   RefreshIcon,
   SearchIcon,
@@ -17,10 +18,11 @@ import {
 import AssistantPanel from './components/AssistantPanel';
 import CommandPalette, { type PaletteAction } from './components/CommandPalette';
 import DevicePanel from './components/DevicePanel';
+import LabsPanel from './components/LabsPanel';
 import LearningPanel from './components/LearningPanel';
 import SecurityPanel from './components/SecurityPanel';
 
-type View = 'files' | 'search' | 'device' | 'learning' | 'security' | 'settings';
+type View = 'files' | 'search' | 'labs' | 'device' | 'learning' | 'security' | 'settings';
 type AssistantTab = 'chat' | 'ask' | 'agents';
 type OpenFile = { path: string; content: string; lines: number };
 
@@ -215,6 +217,12 @@ export default function App() {
       },
       { id: 'search', label: 'Search code', hint: 'Hybrid retrieval', run: () => setView('search') },
       {
+        id: 'labs',
+        label: 'Open Labs',
+        hint: 'GitHub learning and diagrams',
+        run: () => setView('labs'),
+      },
+      {
         id: 'device',
         label: 'Device runtime',
         hint: 'GPU, thermals, keep-awake',
@@ -330,6 +338,9 @@ export default function App() {
           <RailButton active={view === 'search'} label="Search" onClick={() => setView('search')}>
             <SearchIcon size={18} />
           </RailButton>
+          <RailButton active={view === 'labs'} label="Labs" onClick={() => setView('labs')}>
+            <LabsIcon size={18} />
+          </RailButton>
           <RailButton
             active={view === 'device'}
             label="Device runtime"
@@ -369,6 +380,8 @@ export default function App() {
                   ? 'Explorer'
                   : view === 'search'
                     ? 'Search'
+                    : view === 'labs'
+                      ? 'Labs'
                     : view === 'device'
                       ? 'Device'
                       : view === 'learning'
@@ -505,6 +518,18 @@ export default function App() {
         <main className="center">
           {view === 'device' ? (
             <DevicePanel notify={notify} onLocked={lock} />
+          ) : view === 'labs' ? (
+            <LabsPanel
+              project={project}
+              notify={notify}
+              onLocked={lock}
+              onOpenProject={(next) => {
+                setProject(next);
+                setProjectDraft(next);
+                localStorage.setItem('omniforge.project', next);
+                setStatus(`Opened learned project ${next}`);
+              }}
+            />
           ) : view === 'learning' ? (
             <LearningPanel project={project} notify={notify} onLocked={lock} />
           ) : view === 'security' ? (

@@ -56,6 +56,10 @@ from .ai_features import router as ai_features_router
 app.include_router(ai_features_router)
 from .orchestrator import router as orchestrator_router
 app.include_router(orchestrator_router)
+from .diagrams import router as diagrams_router
+app.include_router(diagrams_router)
+from .github_learning import router as github_learning_router
+app.include_router(github_learning_router)
 from .executor import router as executor_router
 app.include_router(executor_router)
 from .polyglot import router as polyglot_router

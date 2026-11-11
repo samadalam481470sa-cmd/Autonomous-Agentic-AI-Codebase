@@ -77,6 +77,16 @@ test('Dashboard unlocks, searches, navigates every view, and locks', async ({ pa
   await page.keyboard.press('Escape');
   await expect(palette).toBeHidden();
 
+  await page.locator('.rail-button[title="Labs"]').click();
+  await expect(page.getByRole('heading', { name: 'Labs' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Diagrams' }).click();
+  await page.getByRole('button', { name: 'Generate diagram' }).click();
+  await expect(page.locator('.diagram-frame img')).toBeVisible();
+  await expect(page.locator('.diagram-stats')).toContainText('files shown');
+  await page.getByRole('tab', { name: 'GitHub learning' }).click();
+  await expect(page.getByRole('button', { name: 'Learn repository' })).toBeDisabled();
+  await expect(page.locator('.labs-note')).toContainText('GITHUB_LEARNING');
+
   await page.getByTitle('Lock workspace').click();
   await expect(page.getByRole('button', { name: 'Unlock workspace' })).toBeVisible();
   expect(pageErrors).toEqual([]);

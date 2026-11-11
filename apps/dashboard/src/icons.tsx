@@ -163,6 +163,15 @@ export function BoltIcon({ size }: IconProps) {
   );
 }
 
+export function LabsIcon({ size }: IconProps) {
+  return (
+    <svg {...frame(size)}>
+      <path d="M9 4.5h6M10 4.5v5.2L5.3 18a1.7 1.7 0 0 0 1.5 2.5h10.4a1.7 1.7 0 0 0 1.5-2.5L14 9.7V4.5" />
+      <path d="M7.5 15h9M10.3 12.2h.01M13.7 13.7h.01" />
+    </svg>
+  );
+}
+
 export function DownloadIcon({ size }: IconProps) {
   return (
     <svg {...frame(size)}>

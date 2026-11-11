@@ -41,6 +41,7 @@ The split is enforced by [`scripts/check_provenance.py`](scripts/check_provenanc
 - Polyglot toolchain registry for 64 language families with local detection, starter scaffolding, check/build/test/run planning and argv-only execution
 - Autonomous generate → compile/test → retry loop that writes to a trial directory first, then applies checkpointed changes in any language whose toolchain is installed
 - Durable always-on local worker with retryable SQLite jobs, a persisted stop switch, `always`/`ac_only`/`manual`/`off` policies, active hours and a GPU thermal guard; optional sign-in autostart
+- [Labs](docs/LABS.md): opt-in public GitHub repository learning, cross-repository retrieval search, standalone SVG/Mermaid architecture diagrams, and bounded auto-advance for multi-agent runs
 - Unit tests, local hardware tests, GitHub CI, and a million-line index benchmark
 
 ## Start

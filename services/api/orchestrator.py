@@ -213,6 +213,43 @@ async def _complete(system: str, user: str, max_tokens: int = 1200) -> str:
     return await shared_complete(system, user, max_tokens)
 
 
+async def run_to_completion(run_id: str, max_steps: int = 8) -> dict:
+    """Advance a bounded run until it completes, blocks, or hits the limit.
+
+    This is still model-only: it never writes project files or runs commands.
+    The caller may use it interactively or enqueue it through the durable worker.
+    """
+    limit = max(1, min(int(max_steps), 12))
+    current = get_run(run_id)
+    steps_run = 0
+    stopped = "step_limit"
+    while steps_run < limit:
+        if current["status"] in ("completed", "cancelled"):
+            stopped = "terminal"
+            break
+        try:
+            current = await advance_run(run_id)
+        except HTTPException as error:
+            fresh = get_run(run_id)
+            return {**fresh, "auto": {
+                "steps_run": steps_run, "limit": limit,
+                "stopped": str(error.detail), "status_code": error.status_code,
+            }}
+        steps_run += 1
+        if current["status"] in ("completed", "cancelled", "blocked"):
+            stopped = "terminal" if current["status"] in ("completed", "cancelled") else "blocked"
+            break
+    else:
+        current = get_run(run_id)
+    return {**current, "auto": {"steps_run": steps_run, "limit": limit, "stopped": stopped}}
+
+
+async def auto_advance_job(payload: dict) -> dict:
+    """Durable worker handler for an auto-advanced multi-agent run."""
+    run_id = str(payload.get("run_id", ""))
+    return await run_to_completion(run_id, int(payload.get("max_steps", 8)))
+
+
 def _prompt(goal: str, role: str, instruction: str, prior: list[dict],
             context: str, rules: str = "") -> str:
     parts = [
@@ -346,6 +383,11 @@ class RunRequest(BaseModel):
     roles: list[str] | None = Field(default=None, max_length=12)
 
 
+class AutoRunRequest(BaseModel):
+    max_steps: int = Field(default=8, ge=1, le=12)
+    queue: bool = False
+
+
 @router.get("/roles")
 def roles(authorization: str | None = Header(default=None)):
     authorize(authorization)
@@ -409,3 +451,22 @@ def stream_run_events(run_id: str, after: int = 0,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
                  "X-Content-Type-Options": "nosniff"})
+
+
+@router.post("/runs/{run_id}/auto-advance")
+async def auto_advance(run_id: str, body: AutoRunRequest | None = None,
+                       authorization: str | None = Header(default=None)):
+    """Run all remaining specialist steps, or enqueue that bounded loop."""
+    authorize(authorization)
+    request_body = body or AutoRunRequest()
+    get_run(run_id)
+    if request_body.queue:
+        from . import worker
+        try:
+            job = worker.enqueue("agent.auto", {
+                "run_id": run_id, "max_steps": request_body.max_steps,
+            })
+        except ValueError as error:
+            raise HTTPException(400, str(error))
+        return {"queued": True, **job}
+    return await run_to_completion(run_id, request_body.max_steps)

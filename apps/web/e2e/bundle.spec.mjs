@@ -26,6 +26,12 @@ test('downloaded bundle serves the dashboard, editor, and control page', async (
   await expect(page.locator('.status-text')).toContainText('Unlocked bundle-smoke');
   await expect(page.locator('.rail-button[title="Settings"]')).toBeVisible();
 
+  await page.locator('.rail-button[title="Labs"]').click();
+  await expect(page.getByRole('heading', { name: 'Labs' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Diagrams' }).click();
+  await page.getByRole('button', { name: 'Generate diagram' }).click();
+  await expect(page.locator('.diagram-frame img')).toBeVisible();
+
   await page.goto('/studio');
   await page.locator('#token').fill(token);
   await page.locator('#project').fill('bundle-smoke');

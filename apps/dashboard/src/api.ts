@@ -2,7 +2,11 @@ import type {
   AgentRun,
   AskResponse,
   DeviceStatus,
+  DiagramResponse,
   FileRead,
+  GithubLearnResponse,
+  GithubSearchResult,
+  GithubSource,
   GpuTrainingStatus,
   HistoryResponse,
   IndexReport,
@@ -133,6 +137,11 @@ export const api = {
     }),
   advanceRun: (runId: string) =>
     request<AgentRun>(`/api/agents/runs/${runId}/advance`, { method: 'POST' }),
+  autoAdvance: (runId: string, maxSteps = 8) =>
+    request<AgentRun>(`/api/agents/runs/${runId}/auto-advance`, {
+      method: 'POST',
+      body: JSON.stringify({ max_steps: maxSteps }),
+    }),
   cancelRun: (runId: string) =>
     request<AgentRun>(`/api/agents/runs/${runId}/cancel`, { method: 'POST' }),
   device: () => request<DeviceStatus>('/api/device'),
@@ -187,6 +196,23 @@ export const api = {
       `/api/learning/${encodeURIComponent(project)}/gpu-training/rollback`,
       { method: 'POST' },
     ),
+  githubSources: () =>
+    request<{ sources: GithubSource[]; enabled: boolean }>('/api/github/sources'),
+  learnGithub: (repo: string, branch?: string) =>
+    request<GithubLearnResponse>('/api/github/learn', {
+      method: 'POST',
+      body: JSON.stringify(branch ? { repo, branch } : { repo }),
+    }),
+  githubSearch: (query: string, limit = 8) =>
+    request<{ query: string; results: GithubSearchResult[] }>('/api/github/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, limit }),
+    }),
+  diagram: (project: string, maxNodes = 60) =>
+    request<DiagramResponse>('/api/diagrams/architecture', {
+      method: 'POST',
+      body: JSON.stringify({ project, max_nodes: maxNodes }),
+    }),
   rateInteraction: (project: string, interactionId: string, rating: 'up' | 'down') =>
     request<{ id: string; rating: string; rated: boolean }>(
       `/api/learning/${encodeURIComponent(project)}/interactions/${interactionId}/rate`,
