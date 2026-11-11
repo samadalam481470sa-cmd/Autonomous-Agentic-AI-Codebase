@@ -16,6 +16,14 @@ from services.api.direct_answer import answer_directly
         ("what is 7 times 6?", "7 * 6 = 42"),
         ("what is 10 divided by 4?", "10 / 4 = 2.5"),
         ("calculate 2 + 3 * 4", "2 + 3 * 4 = 14"),
+        ("what is 1000000000000 plus 1", "1000000000000 + 1 = 1000000000001"),
+        ("what is 123456789 * 987654321", "123456789 * 987654321 = 121932631112635269"),
+        ("what is 3 subtracted from 10", "10 - (3) = 7"),
+        ("what is 33 subtracted from 100", "100 - (33) = 67"),
+        ("what is -5 + 3", "-5 + 3 = -2"),
+        ("what is 5 * -3", "5 * -3 = -15"),
+        ("what is 7 + -3", "7 + -3 = 4"),
+        ("what is 1 divided by 3", "1 / 3 = 0.333333333333333"),
     ],
 )
 def test_direct_arithmetic_answers(question, expected):
@@ -29,6 +37,7 @@ def test_direct_arithmetic_answers(question, expected):
         "explain 9 plus ten in binary",
         "I have 9 apples and 10 oranges",
         "what is 2 to the power of 8",
+        "what is 3 subtract from 10",
     ],
 )
 def test_non_arithmetic_questions_fall_through(question):

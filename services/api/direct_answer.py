@@ -28,9 +28,12 @@ _PREFIX = re.compile(
 _MATH_ONLY = re.compile(r"[0-9+\-*/%(). ]+\Z")
 _OPERATORS = (
     (re.compile(r"\b(?:plus|added to|add)\b", re.I), "+"),
-    (re.compile(r"\b(?:minus|subtract(?:ed)?(?: from)?)\b", re.I), "-"),
+    (re.compile(r"\b(?:minus|subtract)\b", re.I), "-"),
     (re.compile(r"\b(?:times|multiplied by)\b", re.I), "*"),
     (re.compile(r"\b(?:divided by|over)\b", re.I), "/"),
+)
+_SUBTRACT_FROM = re.compile(
+    r"^\s*(.+?)\s+subtracted\s+from\s+(.+?)\s*$", re.I
 )
 _BINARY = {
     ast.Add: operator.add,
@@ -86,9 +89,25 @@ def _evaluate(node: ast.AST):
 
 
 def _format(value) -> str:
-    if isinstance(value, float) and value.is_integer():
+    """Render a result without silently dropping significant digits."""
+    if isinstance(value, int):
+        return str(value)
+    if value.is_integer() and abs(value) < 2**53:
         return str(int(value))
-    return format(value, ".12g")
+    text = format(value, ".15g")
+    if "e" not in text and "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
+def _display(text: str) -> str:
+    """Space binary operators while keeping unary minus attached to its number."""
+    text = re.sub(r"(?<=[\d)])\s*-\s*", " - ", text)
+    text = re.sub(r"\s*([+*/%])\s*", r" \1 ", text)
+    text = re.sub(r"(^|\()\s*-\s*", r"\1-", text)
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r"\s+\)", ")", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def answer_directly(message: str) -> str | None:
@@ -98,6 +117,9 @@ def answer_directly(message: str) -> str | None:
     text = re.sub(r"=+$", "", text).strip()
     text = text.replace(",", "").replace("^", "**")
     text = _number_words(text)
+    swapped = _SUBTRACT_FROM.match(text)
+    if swapped:
+        text = f"{swapped.group(2)} - ({swapped.group(1)})"
     for pattern, replacement in _OPERATORS:
         text = pattern.sub(f" {replacement} ", text)
     text = re.sub(r"\bx\b", "*", text, flags=re.I)
@@ -114,6 +136,4 @@ def answer_directly(message: str) -> str | None:
             return "That expression is undefined because division by zero is not allowed."
         return None
 
-    display = re.sub(r"\s*([+\-*/%])\s*", r" \1 ", text)
-    display = re.sub(r"\s+", " ", display).strip()
-    return f"{display} = {_format(value)}"
+    return f"{_display(text)} = {_format(value)}"
