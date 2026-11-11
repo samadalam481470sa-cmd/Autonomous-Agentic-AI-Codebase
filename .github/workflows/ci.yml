@@ -18,6 +18,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/dashboard/package-lock.json
       # One setup path shared with local development: dependencies, editor
       # assets and Chromium, skipping anything already current.
       - name: Bootstrap the browser test toolchain

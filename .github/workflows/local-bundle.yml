@@ -25,7 +25,9 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/dashboard/package-lock.json
+          cache-dependency-path: |
+            apps/dashboard/package-lock.json
+            apps/web/package-lock.json
 
       - name: Bootstrap the Node and browser toolchain
         run: python scripts/bootstrap_dev.py --dashboard --with-deps
