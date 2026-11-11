@@ -2,6 +2,18 @@
 
 A self-hostable **agentic coding assistant** with original application code and a separately licensed upstream editor component. Inspired by the workflows of ChatGPT, Claude, and Cursor, but not affiliated with or a copy of their proprietary software.
 
+## Repository provenance at a glance
+
+| Layer | Path | License | Relationship to this project |
+| --- | --- | --- | --- |
+| First-party application | `apps/`, `services/`, `packages/ui`, `packages/client`, `scripts/`, `tests/`, `database/`, `docs/` | MIT | Authored for this repository; the only code counted as first-party |
+| Vendored upstream snapshot | `third_party/monaco-editor` | MIT | Pinned Microsoft Monaco source; notices preserved; built from the matching npm release |
+| Pinned upstream submodule | `upstream/code-oss` | MIT | Microsoft VS Code workbench source, built separately; not a fork and not counted as authored code |
+| Optional external process | `upstream/agenticseek` | **GPL-3.0** | Pinned submodule only; **never imported, linked, packaged, or executed**; accessed only through an authenticated loopback HTTP adapter |
+| Generated output | `apps/web/assets/`, `packages/ui/dist/` | Build output | Reconstructed, never counted as authored source |
+
+The split is enforced by [`scripts/check_provenance.py`](scripts/check_provenance.py) in CI, not only by this table.
+
 ## Verified scale and current build status
 
 - **324,257 licensed upstream Monaco Editor source lines** were committed from Microsoft Monaco v0.57.0 (MIT), verified by [the vendor workflow](https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase/actions/workflows/vendor-monaco.yml). These are not first-party authored lines. Run `python scripts/code_metrics.py` for separate line counts.
@@ -20,18 +32,40 @@ A self-hostable **agentic coding assistant** with original application code and 
 - Learned retrieval: local 👍/👎 feedback re-ranks hybrid results with decayed, smoothed acceptance (no training job or model download), plus a security scan that redacts credentials and flags prompt-injection attempts before any excerpt reaches a model
 - Hardened API: digest-compared admin token, optional TOTP two-factor codes, brute-force lockouts with exponential backoff, distributed-guessing cooldown, per-address rate limits, CSP and security headers, origin and Host checks, request-smuggling defences, injection signature blocking, SSRF and egress guards, body caps and a tamper-evident audit log
 - License-verified third-party registry with an automated permissive-license and notice check
+- Indexed code search, bounded project planning, project registration, and opt-in local learning status/feedback/evaluation in the browser app
 - Bounded multi-file coding trials, explicit Docker-based test approval and up to three offline retries
 - Optional local microphone transcription with whisper.cpp, separately run AgenticSeek browsing adapter, and SQLite feedback evaluation
-- Optional local CUDA LoRA training script with held-out regression gate and versioned adapter rollback (not automatic GGUF loading)
+- Optional local GPU (CUDA/ROCm/MPS) LoRA training script with held-out regression gate and versioned adapter rollback (not automatic GGUF loading)
+- First-party **Axiom design tokens and a 43-glyph icon set** in `packages/ui`, with dark/light themes, WCAG AA contrast tests, and no third-party icon dependency
+- Fail-closed dependency license scanning, a reviewed model license registry, training/shipping gates, and CI provenance checks
+- Polyglot toolchain registry for 64 language families with local detection, starter scaffolding, check/build/test/run planning and argv-only execution
+- Autonomous generate → compile/test → retry loop that writes to a trial directory first, then applies checkpointed changes in any language whose toolchain is installed
+- Durable always-on local worker with retryable SQLite jobs, a persisted stop switch, `always`/`ac_only`/`manual`/`off` policies, active hours and a GPU thermal guard; optional sign-in autostart
+- [Labs](docs/LABS.md): opt-in public GitHub repository learning, cross-repository retrieval search, standalone SVG/Mermaid architecture diagrams, and bounded auto-advance for multi-agent runs
 - Unit tests, local hardware tests, GitHub CI, and a million-line index benchmark
 
 ## Start
 
+Requires Python 3.11+. Use `py -3.12` instead of `python` on Windows if Python is not on PATH.
+
 ```bash
 python -m venv .venv
+
+# macOS / Linux
 source .venv/bin/activate
-pip install -e '.[dev]'
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+# Windows cmd.exe
+.venv\Scripts\activate.bat
+
+python -m pip install -e ".[dev]"
+
+# macOS / Linux
 cp .env.example .env
+# Windows PowerShell
+Copy-Item .env.example .env
+
 # .env is loaded automatically at startup; exported shell variables win.
 python -m uvicorn services.api.main:app --reload --no-server-header
 ```
@@ -57,6 +91,61 @@ All API routes are protected by [services/api/security.py](services/api/security
 
 This is hardening for a local single-operator tool, not a production internet service. Multi-user identity, TLS termination, global rate limiting and independent penetration testing remain outstanding. A control matrix for the 50 tracked attack classes, with honest `mitigated`/`partial`/`delegated` statuses, is in [attack coverage](security/ATTACK_COVERAGE.md) and at the authenticated `GET /api/security/coverage`; it documents coverage and is not a claim of immunity.
 
+## Editor-first agent loop (new)
+
+The interaction model now matches a modern agent editor: ask in the editor, get
+an edit, see the diff, let the agent run the project's own checks, then accept or
+revert the whole turn. Everything below is local-first and approval-gated.
+
+- **Inline completions** — `POST /api/ai/complete` is a bounded fill-in-the-middle
+  endpoint (short context window, small output budget, hard timeout, fence and
+  echo stripping). Monaco registers an inline completion provider in
+  [monaco-entry.js](apps/web/monaco-entry.js), and the Code-OSS overlay registers
+  a real `InlineCompletionItemProvider` in
+  [completions.js](code_oss_integration/extension/completions.js). Toggle it with
+  `agenticLocal.completions`. Expect roughly one model round trip per pause; it is
+  not a fine-tuned completion model.
+- **`@`-context** — chat messages may name context explicitly:
+  `@file:src/app.py`, `@folder:tests`, `@rules`, `@diff`. Paths are contained to the
+  project, symlinks and internal metadata are rejected, and content is labelled
+  untrusted before it reaches a model. Automatic retrieval still runs.
+- **Project instructions** — `AGENTS.md`, `CLAUDE.md`, `AGENTIC.md`,
+  `.agentic/rules.md` and `.cursor/rules/*.mdc` are read into agent prompts, bounded
+  to 12 KB, with frontmatter stripped. `GET /api/projects/{project}/instructions`
+  shows exactly what is loaded. Instruction text cannot ask for secrets or
+  destructive actions and be obeyed.
+- **Turn-level undo** — approved single-file and batch writes record a turn id, and
+  `POST /api/studio/turns/revert` restores every file in that turn newest-first.
+  A file edited after the turn is skipped, never overwritten, and every revert
+  writes its own inverse checkpoint. Studio exposes this as **Undo AI turn**.
+- **Approved commands** — `POST /api/execution/command/request` records a pending
+  argv with a SHA-256 digest; `/decide` runs it only after the operator approves
+  that exact digest. Execution is argv-only (never a shell), restricted to an
+  allowlisted executable set, with `git push`/`reset`/`clean`/`rebase` refused.
+  This replaces the all-or-nothing `ALLOW_COMMANDS` switch; commands still run on
+  the host, not in a sandbox.
+- **Model picker and usage** — `GET /api/models` lists an operator-controlled
+  catalog (hosted, local, plus `MODEL_CATALOG` entries). Chat, completions and code
+  proposals accept a `model` id from that catalog only, so a client cannot supply
+  its own base URL. `GET /api/models/{project}/usage` returns estimated local token
+  counts; no metering data leaves the machine.
+- **MCP client** — `services/api/mcp.py` speaks JSON-RPC 2.0 over stdio to
+  operator-configured servers in `database/mcp_servers.json`. Server definitions
+  cannot come from a request body without an approval header, calls need explicit
+  approval, argv is bounded and every call is time-limited. Requires
+  `MCP_ENABLED=1`.
+- **Git and pull-request preparation** — `/api/git/status`, `/branch`, `/commit` and
+  `/pull-request` operate locally. Commit and branch need approval headers; the PR
+  endpoint assembles a title, body and GitHub compare URL from the committed diff
+  and **never pushes or creates a PR**.
+- **Test-aware executor loop** — the lead executor may now call `run_tests`, which
+  runs the registered toolchain's own check/build/test command (argv-only) inside
+  its disposable git worktree and feeds the output back into the next turn. Sandbox
+  autonomy allows it directly; `worktree` autonomy needs it in `approved`.
+  `run_command`, dependency installs and network access remain unavailable there.
+
+See the [feature coverage map](docs/FEATURE_MATRIX.md) for tests and surfaces.
+
 ## Aetherion OmniForge dashboard and multi-agent runs (new)
 
 An original React 18 + TypeScript dashboard is served at **http://127.0.0.1:8000/dashboard** (prebuilt bundle committed in `apps/dashboard/dist`; source in [apps/dashboard](apps/dashboard)). It has a dense editor-style layout: activity rail, project explorer, file tabs with a read-only code viewer, a right-hand assistant with streaming chat, grounded codebase Q&A with 👍/👎 citations, and a security page showing lockouts, limits and the audit trail. `Ctrl`/`Cmd`+`K` opens a command palette. See [the dashboard guide](docs/AETHERION_DASHBOARD.md).
@@ -65,27 +154,118 @@ The multi-agent backend in [services/api/orchestrator.py](services/api/orchestra
 
 Build the UI with `cd apps/dashboard && npm ci && npm run build`. The Dockerfile builds it in a Node stage; `deploy/k8s/platform.yaml` provides hardened blueprint manifests. PostgreSQL and Redis are not runtime dependencies in this build, and there is no Go service; the local inference gateway is Rust and the API is Python. These are documented as scope limits rather than hidden.
 
+## Seven-phase program (in progress)
+
+The product is being built as seven gated phases: contracts/events, the Code-OSS workbench, the agent core, context and sandboxing, language packs and connectors, scale/learning, then the hosted platform. Phase 0 has contracts, events and a 30-task benchmark (starter 0/30, local Qwen 0.5B agent 10/30); the unsigned Linux Code-OSS `.deb` now builds and clean-room installs in CI; Phase 2 has its core but remains partial. This is **not** an enterprise-grade release, and the GitHub description should say experimental. See [seven-phase status](docs/SEVEN_PHASES.md) for exactly what exists and what does not.
+
+Phase 0 added [shared contracts](packages/contracts/schemas.json) with generated TypeScript, Python, Rust and Go bindings, an append-only run event log with redaction and SSE resume, and a [30-task benchmark](evals/benchmark/README.md) with a 0/30 starter baseline and a measured 10/30 result for Qwen2.5-Coder-0.5B on CPU (one agent failure; not a frontier-model score). Phase 2 added a single [policy gate](services/api/policy.py), [git worktrees](services/api/worktrees.py), evented orchestrator steps, streaming chat that can call read-only tools, and a [bounded lead executor](services/api/executor.py). The Code-OSS overlay now includes an Agent Runs webview for creating, advancing and auditing runs.
+
+## Run on your own computer (new)
+
+Download the bundle from a tagged release or Actions artifact, verify its
+SHA-256, then run `./run.sh` (Linux/macOS) or `run.bat` (Windows). The launcher
+creates a local virtual environment, prints an administrator token, binds only
+to `127.0.0.1`, and opens `/dashboard`.
+
+```bash
+git clone https://github.com/samadalam481470sa-cmd/Autonomous-Agentic-AI-Codebase.git
+cd Autonomous-Agentic-AI-Codebase
+./run.sh              # or: python aetherion.py
+python aetherion.py --check   # hardware, thermal and backend report
+```
+
+The app runs on your CPU, GPU and RAM with SQLite. Docker, PostgreSQL, Redis and
+Kubernetes are not required for local use. The **Device** page shows hardware,
+temperatures, the thermal governor, local model backends and a keep-awake toggle.
+Agent runs pause automatically when the device runs hot, and the launcher holds
+the machine awake for long sessions with a TTL and automatic release.
+
+Search returns a grounded **RAG packet** with citations, and rated answers feed a
+local lifelong learner. It captures redacted prompts and outputs in the project's
+`.agent` directory, trains a retrieval reranker, promotes it only when it beats a
+chronological holdout and self-supervised probes, and keeps rollback versions. A
+background loop indexes changed files and learns while the app is open, gated by
+the thermal and battery governor. The local GPU is left to model inference; the
+learner itself is CPU-light so it cannot starve a 24/7 session. See
+[docs/LIFELONG_LEARNING.md](docs/LIFELONG_LEARNING.md).
+
+Build the downloadable archive with `python scripts/package_local.py`. Build
+both front ends first (`apps/dashboard` and `apps/web`); the packager now
+refuses to create a bundle without the dashboard and Studio/Monaco assets.
+Full details, model sizing, thresholds and troubleshooting:
+[docs/LOCAL_RUNTIME.md](docs/LOCAL_RUNTIME.md).
+Framework status: [docs/FRAMEWORK_COMPLIANCE.md](docs/FRAMEWORK_COMPLIANCE.md).
+
+## Platform support
+
+The Python API, web UI and local tooling target **Windows 10/11, macOS (Intel and Apple Silicon), and Linux**. The test workflow runs on all three operating systems; the desktop packaging workflow builds NSIS, DMG and AppImage artifacts. See [cross-platform setup and limits](docs/CROSS_PLATFORM.md).
+
+- Windows and macOS need Docker Desktop with Linux containers for isolated execution; Linux uses Docker Engine.
+- Local GPU training uses CUDA or ROCm on Windows/Linux and MPS on Apple Silicon. CPU-only training is rejected rather than silently starting an hours-long job.
+- macOS microphone access is declared in the app metadata; the browser and Electron flows still require the user to grant permission.
+- Desktop artifacts are unsigned and not notarized. Build and test each target on its native runner or machine.
+
+**Security:** Command execution is disabled unless ALLOW_COMMANDS=1. If enabled, commands are run on the host; **do not enable for untrusted users**. This prototype is not a secure execution sandbox. Production requires isolated per-task containers or VMs, egress restrictions, authentication, tenant isolation, approval workflows, rate limits, and security review.
+
 ## Project architecture
 
 ```text
-apps/web/                Browser chat/agent interface (classic)
+apps/web/                Browser chat and approval-gated Code Studio
 apps/dashboard/          Aetherion OmniForge React + TypeScript control surface
+apps/desktop/            Electron setup and local runtime supervision
+apps/vscode-extension/   Minimal VS Code bridge
 services/api/            FastAPI, model gateway, agent tools, orchestrator, storage
 deploy/                  Kubernetes blueprint manifests
 services/worker/         Reserved for durable background execution
-services/runtime-rust/   Reserved for hardened execution engine
+services/runtime-rust/   Local inference gateway and workspace indexer
 packages/contracts/      Shared tool and API contracts
+packages/ui/             Axiom design tokens and original icon set
+packages/client/         Loopback-only API client
+scripts/                 Training, packaging, license, provenance, and benchmark tools
 database/                Local SQLite (dev only)
-infrastructure/          Docker deployment
-security/                Security policy and risk register
+security/                Threat model, dependency policy, model registry
 tests/                   Automated tests
-docs/                    Architecture and roadmap
-.github/workflows/       CI
+docs/                    Architecture, licensing, and roadmap
+.github/workflows/       CI, license compliance, and release workflows
 ```
+
+## Design system (Axiom)
+
+[`packages/ui`](packages/ui) is a first-party design system with the canonical values in [`src/tokens.js`](packages/ui/src/tokens.js) and every glyph defined in [`src/icons.js`](packages/ui/src/icons.js). The 43 icons and token system are original and self-contained; see [PROVENANCE.md](packages/ui/PROVENANCE.md). Generated [`tokens.css`](packages/ui/tokens.css), [`icons.svg`](packages/ui/icons.svg), and `favicon.svg` are served by the Python API at `/ui/` and copied into offline desktop bundles. The chat and Code Studio use these tokens, the shared sprite, and a persisted light/dark switch. No icon font, third-party icon library, or remote design asset is used.
+
+```bash
+node packages/ui/build.mjs --check   # generated artifacts must be current
+node --test packages/ui/test/icons.test.mjs packages/ui/test/provenance.test.mjs packages/ui/test/tokens.test.mjs  # token parity, WCAG AA contrast, icon contract
+```
+
+Read the [design system guide](packages/ui/README.md).
+
+## Browser smoke tests
+
+Playwright drives the real Chat and Studio pages against an isolated temporary workspace and admin token. The suite covers project planning, indexed code search/reindex, opening a search hit, local feedback capture, evaluation recording, and learning status.
+
+```bash
+python scripts/bootstrap_dev.py   # dependencies, editor assets and Chromium; skips whatever is current
+cd apps/web && npm run test:e2e
+```
+
+The bootstrap is idempotent and cheap to re-run: installs are stamped with the lockfile hash, editor assets are rebuilt only when a source is newer than the build, and Chromium is downloaded only when it is missing. `--check` reports what is missing without changing anything, `--with-deps` also installs the browser's Linux libraries, and `--dashboard` installs the dashboard dependencies too. The equivalent manual steps are:
+
+```bash
+cd apps/web
+npm ci
+npx playwright install chromium
+npm run build
+npm run test:e2e
+```
+
+CI runs the suite on Windows, macOS, and Linux; see the [feature coverage map](docs/FEATURE_MATRIX.md).
 
 ## Open source and legal provenance
 
-This repository contains original app implementation and a **separately attributed MIT-licensed Monaco Editor source snapshot** in `third_party/monaco-editor`. Monaco's original copyright, MIT license and third-party notices are preserved. Every vendored, linked and referenced project is registered with its SPDX license, pin and notice path in [third_party/oss_registry.json](third_party/oss_registry.json); `python scripts/check_oss_licenses.py` fails the build if a bundled component is not permissively licensed or a notice is missing. The policy and attribution table are in [legal open source](docs/LEGAL_OPEN_SOURCE.md). The compiled editor is built locally from the corresponding pinned npm release. Do not represent vendored Monaco lines as originally authored app code. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed; third-party dependencies require license review and preservation of notices. See [upstream provenance and code size](docs/REPOSITORY_CODE_SIZE.md).
+This repository contains original app implementation and a **separately attributed MIT-licensed Monaco Editor source snapshot** in `third_party/monaco-editor`. Monaco's original copyright, MIT license and third-party notices are preserved. Every vendored, linked and referenced project is registered with its SPDX license, pin and notice path in [third_party/oss_registry.json](third_party/oss_registry.json); `python scripts/check_oss_licenses.py` fails the build if a bundled component is not permissively licensed or a notice is missing. The policy and attribution table are in [legal open source](docs/LEGAL_OPEN_SOURCE.md). The compiled editor is built locally from the corresponding pinned npm release. Do not represent vendored Monaco lines as originally authored app code. Microsoft's [Agent Framework](https://github.com/microsoft/agent-framework) is MIT licensed.
+
+Dependencies are governed by [`security/license-policy.json`](security/license-policy.json) and fail closed: GPL/AGPL/LGPL/SSPL/BUSL, non-commercial, JSON, and unknown licenses are blocked unless a narrow written exception exists. The CI [license compliance workflow](.github/workflows/license-compliance.yml) scans Python, Node, Rust, vendored source, and models. See [license and provenance governance](docs/LICENSING.md) and [upstream provenance and code size](docs/REPOSITORY_CODE_SIZE.md).
 
 ## Scope
 
@@ -93,13 +273,15 @@ This is an **experimental developer preview**, not a million-line first-party im
 
 ## Optional AgenticSeek integration
 
-An opt-in, separate-process bridge is available. A pinned upstream AgenticSeek **GPL-3.0 git submodule** is now linked at `upstream/agenticseek` for optional independent source review; it is not bundled, installed, executed or included in the Code-OSS release. The [user-provided Forge Dashboard design specification](docs/forge-dashboard/README.md) is preserved as documentation only; the React dashboard source and Rust sidecar described there were not included in the upload. Review [integration and licensing guidance](docs/AGENTICSEEK_INTEGRATION.md), [uploaded archive security findings](security/UPLOAD_SCAN.md), and [open-source references](docs/OPEN_SOURCE_REFERENCES.md). The bridge does **not** execute or vendor the uploaded GPL-3.0 archive. To use it, independently run and secure AgenticSeek, configure `AGENTICSEEK_URL`, `AGENTICSEEK_API_TOKEN` and `AGENT_ADMIN_TOKEN`, then call `POST /api/integrations/agenticseek/query` with a bearer administrator token and `{ "project": "demo", "message": "..." }`. The same administrator token protects `POST /api/projects/plan` and `GET /api/projects/{project}/plan`.
+An opt-in, separate-process bridge is available. A pinned upstream AgenticSeek **GPL-3.0 git submodule** is now linked at `upstream/agenticseek` for optional independent source review; it is not bundled, installed, executed or included in the Code-OSS release. The [user-provided Forge Dashboard design specification](docs/forge-dashboard/README.md) is preserved as documentation only; the React dashboard source and Rust sidecar described there were not included in the upload. Review [integration and licensing guidance](docs/AGENTICSEEK_INTEGRATION.md), [uploaded archive security findings](security/UPLOAD_SCAN.md), and [open-source references](docs/OPEN_SOURCE_REFERENCES.md). The bridge does **not** execute or vendor the uploaded GPL-3.0 archive. To use it, independently run and secure AgenticSeek, configure `AGENTICSEEK_URL`, `AGENTICSEEK_API_TOKEN` and `AGENT_ADMIN_TOKEN`, then call `POST /api/integrations/agenticseek/query` with a bearer administrator token and `{ "project": "demo", "message": "..." }`. The same administrator token protects `POST /api/projects/plan` and `GET /api/projects/{project}/plan`. CI runs `python scripts/check_provenance.py` to enforce that GPL code never enters first-party paths, build artifacts, or the adapter.
 
-**Not yet supported:** complete Cursor-style IDE, safe arbitrary code execution, live application preview, autonomous background execution, or verified malware-free third-party agents. Do not expose the local API to the public internet.
+**Not yet supported:** full Cursor feature parity, safe arbitrary code execution, live application preview, autonomous background execution, remote or hosted MCP servers, automatic `git push`/PR creation, or verified malware-free third-party agents. Inline completions are single-shot model calls, not a trained Tab model. Do not expose the local API to the public internet.
 
 ## Code Studio (new)
 
 Set `AGENT_ADMIN_TOKEN` to a strong random secret in `.env` or your process environment. Start the app and visit **http://127.0.0.1:8000/studio**. Enter the admin token, select a project, refresh files, open or create a file, edit its contents, click **Review diff**, then **Approve & save**. HTML preview uses a sandboxed iframe with scripts disabled. The chat workspace also requires the same token.
+
+Studio also exposes indexed code search and reindexing, local learning status, opt-in feedback capture, and evaluation recording. Chat exposes **Plan project** and registers new projects in the local project store. The authenticated API reference is at **http://127.0.0.1:8000/docs**. See the [feature coverage map](docs/FEATURE_MATRIX.md) for where each capability lives and which tests cover it.
 
 **Security boundaries:** This is an authenticated local development console, not a multi-user IDE. The browser token is held in page memory. Direct model file-writing tools are disabled; Studio and batch proposals require explicit approval. Do not connect untrusted models or users. The HTML preview is not an OS-level sandbox. Allowlisted Docker execution requires an explicit approval header and remains disabled by default. Docker containment is not a complete security boundary against container escapes. GitHub integration, PR creation and resumable background jobs are also future work.
 
@@ -111,9 +293,15 @@ The Electron desktop client in [apps/desktop](apps/desktop) opens the local Code
 
 ## Local GPU inference and multi-language database development
 
-Run compatible open-weight models locally using an OpenAI-compatible loopback endpoint, such as Ollama. Set `LOCAL_MODEL_ONLY=1`, `LOCAL_MODEL_BASE_URL=http://127.0.0.1:11434/v1`, and `LOCAL_MODEL_NAME=qwen2.5-coder:7b`. When local-only mode is enabled, the agent uses the loopback endpoint instead of a remote inference API. GPU use depends on compatible hardware and installed model runtime; see [setup and limitations](docs/LOCAL_GPU_AND_LANGUAGES.md).
+Run compatible open-weight models locally using an OpenAI-compatible loopback endpoint, such as Ollama. Set `LOCAL_MODEL_ONLY=1`, `LOCAL_MODEL_BASE_URL=http://127.0.0.1:11434/v1`, and `LOCAL_MODEL_NAME=qwen2.5-coder:7b`. When local-only mode is enabled, the agent uses the loopback endpoint instead of a remote inference API. Use a model reviewed in [`security/model-policy.json`](security/model-policy.json); before training, the LoRA script requires a matching `--model-id` and `--model-license` and a model whose reviewed `training` permission is true. GPU use depends on compatible hardware and installed model runtime; see [setup and limitations](docs/LOCAL_GPU_AND_LANGUAGES.md).
 
 The [language catalog](services/api/languages.py) recognizes dozens of programming languages and file types; arbitrary UTF-8 source files can be edited. PostgreSQL and SQLite starter migrations are in [database/templates](database/templates). **This does not imply every language can be compiled, debugged or executed**, or that the app can provision arbitrary databases yet. Local inference avoids metered remote API usage but does not remove finite model context, VRAM or processing limits.
+
+## Polyglot autonomous coding and always-on local worker (new)
+
+The agent can work in any language the owner's machine can actually build. [services/api/toolchains.py](services/api/toolchains.py) declares probes, check/build/test/run commands, starter files and install hints for 64 language families (Python, JS/TS, Rust, Go, Java, Kotlin, C/C++, C#, Swift, Dart, Ruby, PHP, Elixir, Haskell, Zig, COBOL, Fortran, Solidity, Verilog and more). Commands are argv lists executed **without a shell**, so file names and model output cannot inject commands. Missing toolchains are reported with an install hint instead of being faked. Unknown languages can be added at runtime with `POST /api/polyglot/register` and are persisted locally.
+
+`POST /api/polyglot/scaffold` writes a runnable starter project and verifies it with the real toolchain. `POST /api/polyglot/solve` runs a bounded generate → compile/test → retry loop in a disposable trial directory and applies the result only with approval or `AGENT_AUTONOMY=1` (the desktop default); applied files get normal checkpoints. [services/api/worker.py](services/api/worker.py) provides a SQLite-backed always-on queue that runs while the computer is on, prefers the local model and GPU, and stops with the machine, the persisted Stop control, or the `off` policy. Power, active-hours and GPU-temperature limits are available. A browser control page is at **http://127.0.0.1:8000/control**. See [polyglot and always-on](docs/POLYGLOT_ALWAYS_ON.md) for endpoints, autostart and limits. Host toolchain execution stays opt-in (`AGENT_HOST_TOOLCHAIN=1`), no model, compiler, driver or GPU is bundled, and no certified GPU-inference or clean-machine test is claimed.
 
 ## Rust + llama.cpp inference pipeline
 
@@ -123,7 +311,7 @@ See [complete local inference setup](docs/RUST_LLAMA_INTEGRATION.md) for GGUF Q4
 
 ## Experimental downloadable desktop beta (2026)
 
-The [desktop packaging workflow](.github/workflows/desktop.yml) now builds a bundled Python backend and Rust inference gateway on Windows, macOS and Linux. The Electron app starts the local Python service, displays a hardware/setup screen, lets users select a llama.cpp executable and GGUF model, and can launch both the model and Rust gateway locally. The onboarding screen also supports user-initiated Hugging Face HTTPS model downloads with a **required user-supplied SHA256 checksum and explicit license confirmation**. Model downloads are capped at 20 GB. See [local onboarding](docs/LOCAL_ONBOARDING.md).
+The [desktop packaging workflow](.github/workflows/desktop.yml) now builds a bundled Python backend and Rust inference gateway on Windows, macOS and Linux. The Electron app starts the local Python service, displays a hardware/setup screen, lets users select a llama.cpp executable and GGUF model, and can launch both the model and Rust gateway locally. The onboarding screen also supports user-initiated Hugging Face HTTPS model downloads with a **required user-supplied SHA256 checksum, exact reviewed model id and license id, and explicit license confirmation**. The Electron main process checks [`security/model-policy.json`](security/model-policy.json) before any network request. Model downloads are capped at 20 GB. See [local onboarding](docs/LOCAL_ONBOARDING.md) and [model license gates](docs/LICENSING.md).
 
 The app **does not bundle llama.cpp or GPU drivers**. A downloaded GGUF alone cannot run without a compatible llama.cpp binary. Installer builds, real GPU inference and clean-machine startup have not yet been verified. This is not a production release for thousands of users.
 
@@ -137,7 +325,7 @@ The proposed Code-OSS-based editor, streaming model router, worktree sandbox and
 
 ### Opt-in local streaming chat
 
-The main browser chat has a **Stream local chat** checkbox. It calls the authenticated `POST /api/chat/stream` endpoint when `LOCAL_MODEL_ONLY=1`, which relays SSE token deltas through the loopback Rust gateway. Completed answers are saved with the user message as an atomic SQLite pair. Errors, interrupted streams and missing end markers are not saved as completed answers. Streaming chat intentionally disables model tool calls; keep the checkbox off for the existing agent/tool chat. No model weights, GPU drivers or inference engine are bundled.
+The main browser chat has a **Stream local chat** checkbox. It calls the authenticated `POST /api/chat/stream` endpoint when `LOCAL_MODEL_ONLY=1`, which relays SSE token deltas through the loopback Rust gateway. Completed answers are saved with the user message as an atomic SQLite pair. Errors, interrupted streams and missing end markers are not saved as completed answers. Streaming chat can execute only read-only tools inside the same run; writes and host commands remain disabled. No model weights, GPU drivers or inference engine are bundled.
 
 ## Approved-edit checkpoints and guarded restore
 
@@ -149,4 +337,4 @@ Checkpoints are limited to small files (200 KB), are scoped by project and file,
 
 The [Code-OSS migration guide](docs/CODE_OSS_MIGRATION.md) now provides an exact upstream source pin, branded `product.json` overlay using Open VSX, and a first-party local-chat sidebar extension. This is the initial workbench migration path rather than a claim that the finished desktop app has switched from Monaco. Run `git submodule update --init upstream/code-oss` followed by `python scripts/code_oss_migrate.py` to apply the first-party overlay to the pinned upstream workbench source, then follow the upstream build instructions. The submodule links to MIT-licensed upstream source and is not a GitHub fork. The Python/Rust local model server remains separate and reusable.
 
-**Current status:** The existing Monaco desktop installers are still the downloadable experimental builds. The Code-OSS source overlay and extension must pass dedicated source-build, extension-host, GPU inference and clean-install acceptance tests before becoming the default IDE.
+**Current status:** The Monaco desktop installers remain the downloadable experimental builds. The Linux x64 Code-OSS `.deb` now builds and passes a fresh-runner install/launch test in CI (run 4); Windows/macOS packaging, signing, GPU inference, interactive UI and full extension-host acceptance remain open before it becomes the default IDE.

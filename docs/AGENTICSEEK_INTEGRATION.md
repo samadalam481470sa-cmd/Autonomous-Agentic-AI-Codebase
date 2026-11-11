@@ -8,6 +8,18 @@ The user-supplied `agenticSeek.zip` was inspected **statically** before integrat
 
 AgenticSeek is GPL-3.0; Microsoft's Agent Framework is MIT-licensed. To avoid silently relicensing the entire repository or copying code without preserving obligations, this repository **does not import or modify AgenticSeek inside the first-party runtime**. Its upstream GPL-3.0 source is separately referenced as the pinned optional Git submodule `upstream/agenticseek`, outside the application build. The uploaded ZIP is not copied or automatically executed. Instead it contains an original, optional HTTP adapter calling AgenticSeek's documented `POST /query` API with `{query, tts_enabled:false}`. The adapter reads the answer, status, and agent name. This is a separate-process integration, not a guarantee about whether any particular deployment's distribution arrangement triggers GPL obligations; consult counsel if distributing a combined product.
 
+## Enforced boundary
+
+[`scripts/check_provenance.py`](../scripts/check_provenance.py) and [`tests/test_provenance.py`](../tests/test_provenance.py) enforce this separation in CI:
+
+- `upstream/agenticseek` must remain a pinned git submodule (mode `160000`) at the expected upstream URL, alongside the MIT `upstream/code-oss` submodule.
+- First-party code may not reference or import the upstream tree, and build/packaging files may not include it.
+- `services/api/agenticseek.py` must stay HTTP-only (`httpx`), loopback-only, token-gated, and free of subprocess, `os.system`, `eval`, `exec`, path injection, or upstream imports.
+- The license policy must record AgenticSeek as GPL-3.0 and separately operated.
+- Undeclared `third_party/` directories and a non-MIT first-party license fail the check.
+
+Run `python scripts/check_provenance.py` locally or in CI. The boundary is structural, not a malware verdict.
+
 ## Setup
 
 1. Independently inspect the upstream source and license at https://github.com/Fosowl/agenticSeek.
@@ -30,4 +42,4 @@ AgenticSeek is GPL-3.0; Microsoft's Agent Framework is MIT-licensed. To avoid si
 
 Add authenticated access, human approvals, sandbox isolation, malware scanning (e.g. ClamAV and YARA), SBOM and dependency advisories, signed artifact provenance, and independent security testing before allowing arbitrary user-supplied agents.
 
-For uploaded artifact provenance and the distinct pinned upstream submodule, see [UPLOADED_SOURCE_PROVENANCE.md](UPLOADED_SOURCE_PROVENANCE.md). The upstream commit has not been established as byte-identical to the uploaded ZIP.
+For uploaded artifact provenance and the distinct pinned upstream submodule, see [UPLOADED_SOURCE_PROVENANCE.md](UPLOADED_SOURCE_PROVENANCE.md). The upstream commit has not been established as byte-identical to the uploaded ZIP. For the overall license policy, see [LICENSING.md](LICENSING.md).

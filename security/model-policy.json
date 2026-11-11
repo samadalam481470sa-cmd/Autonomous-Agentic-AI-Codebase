@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "reviewed": "2026-11-03",
+  "policy": "A model may only be used after its exact provider license has been reviewed and registered here. Shipping (bundling weights in an artifact) and training are separate permissions from local inference. Unknown models, unlisted licenses, and license mismatches fail closed. This registry records review; it is not legal advice.",
+  "allowed_license_ids": [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "MIT"
+  ],
+  "custom_licenses": {
+    "Llama-3.1-Community": {
+      "reviewed": true,
+      "license_url": "https://dev.meta.ai/llama/llama3_1/license",
+      "summary": "Meta Llama 3.1 Community License Agreement. Commercial use and fine-tuning are permitted. Distribution requires the agreement, a Notice file, and prominent 'Built with Llama' attribution. Models created from Llama materials must be named with a 'Llama' prefix. Entities above 700 million monthly active users need a separate Meta license. Not an OSI-approved license.",
+      "obligations": [
+        "Provide the Llama 3.1 Community License Agreement with distributed materials.",
+        "Include the required Llama 3.1 notice file.",
+        "Display 'Built with Llama' prominently in related UI, documentation, or release notes.",
+        "Prefix derivative model names with 'Llama'.",
+        "Do not use Meta trademarks beyond the naming requirements.",
+        "Request a separate license above 700 million monthly active users."
+      ]
+    },
+    "Gemma-Terms-of-Use": {
+      "reviewed": true,
+      "license_url": "https://ai.google.dev/gemma/terms",
+      "summary": "Google Gemma Terms of Use plus the Gemma Prohibited Use Policy. Commercial use, modification, redistribution, and training derivatives are permitted subject to pass-through use restrictions, agreement and notice delivery, modification marking, and the prohibited-use policy. Not an OSI-approved license. Gemma 2 remains covered by the archived Gemma Terms of Use.",
+      "obligations": [
+        "Pass through the Gemma use restrictions as an enforceable provision.",
+        "Provide recipients a copy of the Gemma Terms of Use.",
+        "Mark modified files with prominent modification notices.",
+        "Include the required Gemma notice text for non-hosted distribution.",
+        "Comply with the Gemma Prohibited Use Policy.",
+        "Do not claim Google endorsement or use Gemma trademarks."
+      ]
+    }
+  },
+  "models": [
+    {
+      "id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "aliases": [
+        "Qwen2.5-Coder-7B-Instruct",
+        "qwen2.5-coder:7b"
+      ],
+      "license": "Apache-2.0",
+      "license_url": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
+      "reviewed": "2026-11-03",
+      "commercial_use": true,
+      "uses": {
+        "inference": true,
+        "training": true,
+        "redistribution": true,
+        "shipping": true
+      },
+      "requirements": [
+        "Preserve the Apache-2.0 LICENSE and any NOTICE file.",
+        "Mark modified files and state significant changes.",
+        "Do not imply Qwen endorsement."
+      ],
+      "notes": "Permissive Apache-2.0 weights. Preferred default for local inference and optional LoRA training."
+    },
+    {
+      "id": "mistralai/Mistral-7B-Instruct-v0.3",
+      "aliases": [
+        "Mistral-7B-Instruct-v0.3",
+        "mistral:7b-instruct-v0.3"
+      ],
+      "license": "Apache-2.0",
+      "license_url": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3",
+      "reviewed": "2026-11-03",
+      "commercial_use": true,
+      "uses": {
+        "inference": true,
+        "training": true,
+        "redistribution": true,
+        "shipping": true
+      },
+      "requirements": [
+        "Preserve the Apache-2.0 LICENSE and any NOTICE file.",
+        "Mark modified files and state significant changes.",
+        "Do not imply Mistral endorsement."
+      ],
+      "notes": "This specific v0.3 instruct model is Apache-2.0. Newer Mistral models may use different research or commercial licenses and must be reviewed separately."
+    },
+    {
+      "id": "meta-llama/Llama-3.1-8B-Instruct",
+      "aliases": [
+        "Llama-3.1-8B-Instruct",
+        "llama3.1:8b-instruct-q4_K_M",
+        "meta-llama-3.1-8b-instruct"
+      ],
+      "license": "Llama-3.1-Community",
+      "license_url": "https://dev.meta.ai/llama/llama3_1/license",
+      "reviewed": "2026-11-03",
+      "commercial_use": true,
+      "uses": {
+        "inference": true,
+        "training": true,
+        "redistribution": true,
+        "shipping": false
+      },
+      "requirements": [
+        "Ship the Llama 3.1 Community License Agreement with distributed weights.",
+        "Include the required Llama 3.1 notice file.",
+        "Display 'Built with Llama' prominently.",
+        "Prefix any distributed derivative model with 'Llama'.",
+        "Request Meta's separate license above 700 million MAU."
+      ],
+      "notes": "Custom community license, not OSI-approved. This project does not bundle Llama weights in release artifacts; desktop downloads are user-initiated with license acknowledgement."
+    },
+    {
+      "id": "google/gemma-2-9b-it",
+      "aliases": [
+        "gemma-2-9b-it",
+        "gemma2:9b-instruct-q4_K_M"
+      ],
+      "license": "Gemma-Terms-of-Use",
+      "license_url": "https://ai.google.dev/gemma/terms",
+      "reviewed": "2026-11-03",
+      "commercial_use": true,
+      "uses": {
+        "inference": true,
+        "training": true,
+        "redistribution": true,
+        "shipping": false
+      },
+      "requirements": [
+        "Pass through the Gemma use restrictions.",
+        "Deliver the Gemma Terms of Use and required notice.",
+        "Mark modified files.",
+        "Comply with the Gemma Prohibited Use Policy.",
+        "Do not claim Google endorsement."
+      ],
+      "notes": "Custom terms with strict pass-through obligations. This project does not bundle Gemma weights in release artifacts."
+    }
+  ]
+}

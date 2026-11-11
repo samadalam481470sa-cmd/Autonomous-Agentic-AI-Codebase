@@ -1,0 +1,219 @@
+.labs-page {
+  max-width: 1180px;
+}
+
+.labs-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.labs-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
+}
+
+.labs-tabs button.active {
+  color: var(--text);
+  background: #182033;
+}
+
+.lab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.lab-card {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 14px;
+  min-width: 0;
+}
+
+.lab-wide {
+  grid-column: 1 / -1;
+}
+
+.lab-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+}
+
+.lab-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lab-card-head h2 {
+  min-width: 0;
+}
+
+.lab-card p {
+  margin: 0;
+}
+
+.lab-form {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.lab-form .primary,
+.lab-form .ghost {
+  justify-self: start;
+}
+
+.lab-search-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.lab-search-form .field {
+  min-width: 0;
+}
+
+.labs-note {
+  border: 1px solid #4a3a1b;
+  background: #211b0f;
+  color: var(--warn);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 11.5px;
+}
+
+.labs-error {
+  margin-bottom: 10px;
+}
+
+.learned-results {
+  display: grid;
+  gap: 5px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.learned-results .result {
+  margin: 0;
+}
+
+.source-list {
+  display: grid;
+  gap: 6px;
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+}
+
+.source-item > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.source-item strong {
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.source-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.diagram-frame {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: auto;
+  background: #080c13;
+  min-height: 180px;
+}
+
+.diagram-frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.diagram-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.diagram-empty {
+  min-height: 220px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--accent-2);
+  background: radial-gradient(500px 180px at 50% 0%, #162039 0%, transparent 70%);
+}
+
+.mermaid-source {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 8px;
+}
+
+.mermaid-source summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.mermaid-source pre {
+  margin-top: 8px;
+  max-height: 260px;
+}
+
+@media (max-width: 900px) {
+  .lab-grid {
+    grid-template-columns: 1fr;
+  }
+  .lab-wide {
+    grid-column: auto;
+  }
+  .lab-search-form {
+    grid-template-columns: 1fr;
+  }
+  .source-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

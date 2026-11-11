@@ -9,6 +9,8 @@ const https=require('node:https');
 const {pipeline}=require('node:stream/promises');
 const {inspectEngine}=require('./hardware.cjs');
 const {startLocalModel,probeHttp,GATEWAY_URL}=require('./model-runtime.cjs');
+const energy=require('./energy.cjs');
+const {checkModel,loadPolicy,policyPath}=require('./model-license.cjs');
 const SERVER='http://127.0.0.1:8000';
 let win,backend,modelServer,rustGateway,starting=false,modelStarting=false,adminToken='';
 function backendPath(){
@@ -30,7 +32,7 @@ async function startBackend(){
  fs.mkdirSync(data,{recursive:true});
  const token=crypto.randomBytes(32).toString('hex');
  adminToken=token;
- backend=spawn(binary,[],{cwd:data,windowsHide:true,stdio:'ignore',env:{...process.env,AGENT_ADMIN_TOKEN:token,WORKSPACE_ROOT:path.join(data,'workspaces'),DB_PATH:path.join(data,'agent.sqlite3'),PROJECT_DB_PATH:path.join(data,'projects.sqlite3'),LOCAL_MODEL_ONLY:'1',LOCAL_MODEL_BASE_URL:'http://127.0.0.1:8088/v1',LOCAL_MODEL_NAME:process.env.LOCAL_MODEL_NAME||'local-model'}});
+ backend=spawn(binary,[],{cwd:data,windowsHide:true,stdio:'ignore',env:{...energy.workerEnv({enabled:true,baseEnv:process.env}),AGENT_ADMIN_TOKEN:token,WORKSPACE_ROOT:path.join(data,'workspaces'),DB_PATH:path.join(data,'agent.sqlite3'),PROJECT_DB_PATH:path.join(data,'projects.sqlite3'),WORKER_DB_PATH:path.join(data,'worker.sqlite3'),POLYGLOT_TOOLCHAINS_PATH:path.join(data,'toolchains.json'),LOCAL_MODEL_ONLY:'1',LOCAL_MODEL_BASE_URL:'http://127.0.0.1:8088/v1',LOCAL_MODEL_NAME:process.env.LOCAL_MODEL_NAME||'local-model'}});
  backend.on('error',e=>dialog.showErrorBox('Backend error',e.message));
  let ready=false;
  for(let i=0;i<60;i++){
@@ -86,9 +88,33 @@ async function requestModel(url,redirects=0){
   req.on('error',reject);
  });
 }
+function requireModelLicense(details,use='inference'){
+ const policy=loadPolicy(policyPath({packaged:app.isPackaged,resourcesPath:process.resourcesPath}));
+ const decision=checkModel({modelId:details?.modelId,license:details?.modelLicense,use},policy);
+ if(!decision.approved)throw new Error('Model license blocked: '+decision.reason);
+ return decision;
+}
+function alwaysOnConfig(){return energy.loadPreference(energy.preferencePath(app.getPath('userData')))}
+async function backendControl(action){
+ if(!adminToken)return false;
+ try{const response=await fetch(SERVER+'/api/worker/'+action,{method:'POST',headers:{Authorization:'Bearer '+adminToken}});return response.ok}catch(_){return false}
+}
+ipcMain.handle('get-always-on',async(event)=>{requireSetup(event);return alwaysOnConfig()});
+ipcMain.handle('set-always-on',async(event,enabled)=>{
+ requireSetup(event);
+ const pref=energy.savePreference(energy.preferencePath(app.getPath('userData')),enabled===true);
+ try{app.setLoginItemSettings({...energy.loginItemOptions(process.platform),openAtLogin:pref.enabled})}catch(_){}
+ await backendControl(pref.enabled?'start':'stop');
+ return pref;
+});
+ipcMain.handle('check-model-license',async(event,details)=>{
+ requireSetup(event);
+ return requireModelLicense(details,details?.use||'inference');
+});
 ipcMain.handle('download-model',async (event,details)=>{
  requireSetup(event);
  if(!details||details.licenseAccepted!==true)throw new Error('Confirm model license and download permission');
+ requireModelLicense(details,'inference');
  if(typeof details.url!=='string'||typeof details.sha256!=='string'||!/^[a-f0-9]{64}$/i.test(details.sha256))throw new Error('A valid HTTPS URL and SHA256 checksum are required');
  const url=trustedModelURL(details.url);
  if(!url.pathname.toLowerCase().endsWith('.gguf'))throw new Error('Download URL must point to a .gguf file');
@@ -179,7 +205,11 @@ ipcMain.handle('start-model',async (event,settings)=>{
  }
 });
 ipcMain.handle('open-studio',async(event)=>{requireSetup(event);const old=win;await create(adminToken);if(old&&!old.isDestroyed())old.close();return true});
-app.whenReady().then(startBackend);
+app.whenReady().then(async()=>{
+ const pref=alwaysOnConfig();
+ try{app.setLoginItemSettings({...energy.loginItemOptions(process.platform),openAtLogin:pref.enabled})}catch(_){}
+ await startBackend();
+});
 app.on('before-quit',()=>{for(const p of [rustGateway,modelServer,backend])if(p&&!p.killed)p.kill()});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
 app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)setupWindow()});

@@ -33,6 +33,7 @@ if (editorElement) {
       theme:'vs-dark',
       automaticLayout:true,
       minimap:{enabled:false},
+      inlineSuggest:{enabled:true},
       fontSize:13,
       tabSize:2,
       scrollBeyondLastLine:false,
@@ -52,5 +53,64 @@ if (editorElement) {
   } catch(error) {
     mount.remove();
     console.error('Local code editor startup failed; using native textarea.',error);
+  }
+  // Cursor-style ghost text: ask the local completion endpoint for the missing
+  // text at the cursor. Optional, so a missing API or a failed request must
+  // never take the editor down with it.
+  try {
+    const token = () => document.getElementById('token')?.value ?? '';
+    const register = typeof monaco.languages.registerInlineCompletionsProvider === 'function'
+      ? monaco.languages.registerInlineCompletionsProvider.bind(monaco.languages)
+      : typeof monaco.languages.registerInlineCompletionItemProvider === 'function'
+        ? monaco.languages.registerInlineCompletionItemProvider.bind(monaco.languages)
+        : null;
+    if (!register) throw new Error('This Monaco build exposes no inline completion API');
+    // The newer provider passes (model, position, context, token); the older one
+    // passes (model, position, context, token) too, so accept the last argument.
+    const suggest = async (model,position,_context,cancelToken) => {
+      if (!token() || !model || !position) return {items:[]};
+      const text = model.getValue();
+      const offset = model.getOffsetAt(position);
+      if (offset < 8) return {items:[]};
+      const prefix = text.slice(Math.max(0,offset-4000),offset);
+      const suffix = text.slice(offset,offset+1500);
+      const controller = new AbortController();
+      const cancel = cancelToken?.onCancellationRequested
+        ? cancelToken.onCancellationRequested(()=>controller.abort())
+        : null;
+      const timer = setTimeout(()=>controller.abort(),9000);
+      try {
+        const response = await fetch('/api/ai/complete',{
+          method:'POST',signal:controller.signal,
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token()},
+          body:JSON.stringify({
+            project:document.getElementById('project')?.value||'demo',
+            path:document.getElementById('path')?.value||'',
+            prefix,suffix,max_tokens:128,model:window.agenticModel||null
+          })
+        });
+        if(!response.ok) return {items:[]};
+        const data = await response.json();
+        if(!data.completion || cancelToken?.isCancellationRequested) return {items:[]};
+        return {items:[{
+          insertText:data.completion,
+          range:new monaco.Range(position.lineNumber,position.column,
+                                 position.lineNumber,position.column)
+        }]};
+      } catch(error) {
+        return {items:[]};
+      } finally {
+        clearTimeout(timer);
+        cancel?.dispose();
+      }
+    };
+    register({pattern:'**'},{
+      provideInlineCompletions:suggest,
+      provideInlineCompletionItems:suggest,
+      freeInlineCompletions(){},
+      freeInlineCompletionItems(){}
+    });
+  } catch(error) {
+    console.warn('Inline completions unavailable; the editor stays usable.',error);
   }
 }

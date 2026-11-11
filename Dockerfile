@@ -14,6 +14,7 @@ COPY pyproject.toml README.md ./
 COPY services ./services
 COPY apps ./apps
 COPY --from=dashboard /ui/dist ./apps/dashboard/dist
+COPY packages ./packages
 RUN pip install --no-cache-dir .
 RUN useradd -m agent && mkdir -p /app/workspaces /app/database && chown -R agent:agent /app
 USER agent

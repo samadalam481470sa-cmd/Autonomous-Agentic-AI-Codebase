@@ -1,0 +1,142 @@
+name: Local bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - "release/**"
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            apps/dashboard/package-lock.json
+            apps/web/package-lock.json
+
+      - name: Bootstrap the Node and browser toolchain
+        run: python scripts/bootstrap_dev.py --dashboard --with-deps
+
+      - name: Build dashboard
+        working-directory: apps/dashboard
+        run: npm run build
+
+      - name: Confirm downloadable UI assets exist
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              'apps/dashboard/dist/index.html',
+              'apps/web/assets/monaco-entry.js',
+              'apps/web/assets/monaco-entry.css',
+              'apps/web/assets/ts.worker.js',
+              'apps/web/assets/MONACO_LICENSE.txt',
+              'packages/ui/tokens.css',
+          ]
+          missing = [path for path in required if not Path(path).is_file()]
+          if missing:
+              raise SystemExit('Missing bundle assets: ' + ', '.join(missing))
+          print('All downloadable UI assets are present')
+          PY
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Test
+        run: python -m pytest -q
+
+      - name: Build downloadable bundle
+        run: python scripts/package_local.py --output-dir dist
+
+      - name: Verify bundle checksum
+        run: |
+          cd dist
+          sha256sum -c ./*.sha256
+
+      - name: Verify extracted bundle in Chromium
+        run: |
+          set -euo pipefail
+          rm -rf bundle-smoke
+          mkdir -p bundle-smoke
+          archive=$(find dist -maxdepth 1 -name '*.zip' -print -quit)
+          test -n "$archive"
+          unzip -q "$archive" -d bundle-smoke
+          bundle_root=$(realpath "$(find bundle-smoke -mindepth 1 -maxdepth 1 -type d -print -quit)")
+          test -n "$bundle_root"
+
+          cd "$bundle_root"
+          chmod +x run.sh
+          ./run.sh --check
+          mkdir -p "$bundle_root/.smoke-workspace/bundle-smoke"
+          printf 'def bundle_feature():\n    return 42\n' > "$bundle_root/.smoke-workspace/bundle-smoke/app.py"
+
+          WORKSPACE_ROOT="$bundle_root/.smoke-workspace" \
+            .venv/bin/python aetherion.py --port 8131 --no-open --no-keep-awake \
+            --token bundle-smoke-token > "$bundle_root/.smoke-server.log" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8131/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 100 "$bundle_root/.smoke-server.log"
+            exit 1
+          fi
+
+          cd "$GITHUB_WORKSPACE/apps/web"
+          if ! BUNDLE_URL=http://127.0.0.1:8131 BUNDLE_TOKEN=bundle-smoke-token \
+            npx playwright test -c playwright.bundle.config.mjs; then
+            tail -n 100 "$bundle_root/.smoke-server.log"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aetherion-omniforge-local
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+      - name: Publish the release and attach assets
+        if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/release/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)
+            TAG="v$VERSION"
+          fi
+          echo "Publishing $TAG from $GITHUB_SHA"
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --target "$GITHUB_SHA" --generate-notes
+          gh release upload "$TAG" dist/*.zip dist/*.sha256 --clobber

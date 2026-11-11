@@ -12,7 +12,24 @@ export interface SearchResult {
   semantic_score: number | null;
   lexical_score: number | null;
   learned_boost?: number;
+  learned_score?: number;
   sources: string[];
+}
+
+export interface RagPacket {
+  text: string;
+  citations: Citation[];
+  used_chars: number;
+  results: number;
+  safety: Safety;
+}
+
+export interface SearchResponse {
+  query: string;
+  mode: string;
+  results: SearchResult[];
+  retrieval?: { results: number; learned_rerank: boolean; sources: string[] };
+  rag?: RagPacket;
 }
 
 export interface Citation {
@@ -34,6 +51,7 @@ export interface AskResponse {
   answer: string;
   citations: Citation[];
   safety?: Safety;
+  interaction_id?: string | null;
   retrieval: { used_chars: number; results: number };
 }
 
@@ -46,6 +64,13 @@ export interface IndexStats {
   last_indexed_at: number | null;
   backend: string;
   feedback?: { positive: number; negative: number; paths: number; weight: number };
+  lifelong?: {
+    interactions: number;
+    positive: number;
+    negative: number;
+    model: { id: string; metrics: Record<string, unknown>; created_at: number } | null;
+    capture?: boolean;
+  };
   safety_screening?: string;
 }
 
@@ -80,6 +105,65 @@ export interface AgentRun {
   updated_at: number;
   steps: AgentStep[];
   progress: { completed: number; total: number };
+  auto?: {
+    steps_run: number;
+    limit: number;
+    stopped: string;
+    status_code?: number;
+  };
+}
+
+export interface GithubSource {
+  id: string;
+  repo: string;
+  branch: string;
+  commit: string;
+  license: string;
+  project: string;
+  files: number;
+  bytes: number;
+  created_at: number;
+  url: string;
+}
+
+export interface GithubLearnResponse {
+  source: GithubSource;
+  index: {
+    embedded_files?: number;
+    vectors?: number;
+    elapsed_seconds?: number;
+    error?: string;
+  };
+}
+
+export interface GithubSearchResult extends SearchResult {
+  repo: string;
+  project: string;
+  license: string;
+}
+
+export interface DiagramNode {
+  id: string;
+  path: string;
+  label: string;
+  group: string;
+  language: string;
+  lines: number;
+  degree: number;
+}
+
+export interface DiagramResponse {
+  project: string;
+  nodes: DiagramNode[];
+  edges: { source: string; target: string }[];
+  mermaid: string;
+  svg: string;
+  stats: {
+    files_scanned: number;
+    files_shown: number;
+    edges: number;
+    truncated: boolean;
+  };
 }
 
 export interface AuditEntry {
@@ -109,11 +193,6 @@ export interface SecurityPosture {
   request_id?: string;
 }
 
-export interface ChatSeed {
-  id: number;
-  text: string;
-}
-
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -121,4 +200,233 @@ export interface ChatMessage {
 
 export interface HistoryResponse {
   messages: ChatMessage[];
+}
+
+export interface ThermalSensor {
+  label: string;
+  celsius: number;
+}
+
+export interface ThermalEvent {
+  at: number;
+  from: string;
+  to: string;
+  celsius: number | null;
+}
+
+export interface ThermalStatus {
+  state: string;
+  max_c: number | null;
+  ewma_c: number | null;
+  slope_c_per_min: number;
+  predicted_c: number | null;
+  sensors: ThermalSensor[];
+  thresholds: { warn: number; hot: number; critical: number; resume: number };
+  cooldown_remaining: number;
+  duty_cycle: number;
+  sensors_available: boolean;
+  note: string;
+  history: { t: number; c: number }[];
+  events: ThermalEvent[];
+  sample_seconds: number;
+  admission: { allowed: boolean; reason: string; retry_after: number; mode: string };
+}
+
+export interface LearningInteraction {
+  id: string;
+  kind: string;
+  prompt: string;
+  response: string;
+  citations: Citation[];
+  rating: string;
+  redactions: number;
+  created_at: number;
+}
+
+export interface LearningStatus {
+  runtime: {
+    thread_running: boolean;
+    enabled: boolean;
+    paused: boolean;
+    interval_seconds: number;
+    started_at: number | null;
+    last_tick: Record<string, unknown> | null;
+    capture: boolean;
+  };
+  gpu: {
+    detected: boolean;
+    vendor: string | null;
+    device_count: number;
+    max_utilization_percent: number | null;
+    max_temperature_c: number | null;
+    metrics_available: boolean;
+    note: string;
+  };
+  power: { on_ac: boolean | null; battery_percent: number | null; source: string };
+  projects: string[];
+  project?: {
+    interactions: number;
+    positive: number;
+    negative: number;
+    capture: boolean;
+    model: { id: string; metrics: Record<string, unknown>; created_at: number } | null;
+    models: {
+      active: { id: string; metrics: Record<string, unknown>; created_at: number } | null;
+      latest: ({
+        id: string;
+        metrics: Record<string, unknown>;
+        created_at: number;
+        active: boolean;
+        notes: string;
+      }) | null;
+    };
+    interactions_recent: LearningInteraction[];
+    feedback: { positive: number; negative: number; paths: number; weight: number };
+    recent_cycles: { status: string; detail: string; created_at: number }[];
+    privacy: string;
+  };
+  privacy: string;
+}
+
+export interface GpuTrainingStatus {
+  enabled: boolean;
+  approved_examples: number;
+  required_examples: number;
+  gpu: LearningStatus['gpu'];
+  dependencies: Record<string, boolean>;
+  config: {
+    model_dir: string;
+    model_id: string;
+    model_license: string;
+    steps: number;
+    max_examples: number;
+    min_gain: number;
+    max_tokens: number;
+    targets: string;
+    enabled: boolean;
+    model_ready: boolean;
+  };
+  running: boolean;
+  can_train: boolean;
+  reasons: string[];
+  active_adapter: { active: string; previous?: string | null; candidate_eval_loss?: number } | null;
+  last_run: {
+    state: string;
+    started_at?: number;
+    finished_at?: number;
+    result?: { promoted?: boolean; device?: string; baseline_loss?: number; candidate_loss?: number } | null;
+    error?: string;
+  } | null;
+  trainer: string;
+  note: string;
+}
+
+export interface DeviceStatus {
+  platform: {
+    system: string;
+    release: string;
+    machine: string;
+    python: string;
+    hostname: string;
+    apple_silicon: boolean;
+    container: boolean;
+  };
+  cpu: {
+    model: string;
+    logical_cores: number | null;
+    physical_cores: number | null;
+    max_frequency_mhz: number | null;
+    architecture: string;
+  };
+  memory: {
+    total_mb: number | null;
+    available_mb: number | null;
+    used_percent: number | null;
+    source: string;
+  };
+  disk: { total_gb: number; free_gb: number; used_percent: number } | null;
+  gpus: {
+    vendor: string;
+    name: string;
+    vram_mb: number | null;
+    used_mb: number | null;
+    temp_c: number | null;
+    utilization_pct: number | null;
+    driver: string | null;
+    unified_memory?: boolean;
+  }[];
+  battery: {
+    present: boolean;
+    percent: number | null;
+    plugged: boolean | null;
+    status: string;
+  } | null;
+  thermal: ThermalStatus;
+  keep_awake: {
+    active: boolean;
+    backend: string | null;
+    pid: number | null;
+    started_at: number | null;
+    expires_at: number | null;
+    ttl_remaining_seconds: number | null;
+    note: string;
+    supported: boolean;
+  };
+  session: {
+    started_at: number;
+    uptime_seconds: number;
+    keep_awake_seconds: number;
+    max_hours: number;
+  };
+  recommendation: {
+    name: string;
+    runtime: string;
+    context_tokens: number;
+    gpu_layers: number;
+    estimated_vram_gb: number | null;
+    reason: string;
+    pull_command: string;
+    env: Record<string, string>;
+  };
+  backends: {
+    name: string;
+    url: string;
+    status: string;
+    models: string[];
+  }[];
+  limits: Record<string, number>;
+  privacy: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  label: string;
+  provider: string;
+  model: string;
+  context_chars: number;
+}
+
+export interface ModelsResponse {
+  models: ModelInfo[];
+  default: string;
+  local_only: boolean;
+}
+
+export interface TurnSummary {
+  turn_id: string;
+  files: number;
+  paths: string[];
+  created_at: string;
+}
+
+export interface TurnsResponse {
+  project: string;
+  turns: TurnSummary[];
+}
+
+export interface RevertResult {
+  turn_id: string;
+  files_reverted: number;
+  reverted: { path: string; undo_checkpoint_id: string }[];
+  skipped: { path: string; reason: string }[];
 }

@@ -14,16 +14,18 @@ class ProposalRequest(BaseModel):
     project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     path:str=Field(min_length=1,max_length=512)
     instruction:str=Field(min_length=4,max_length=4000)
+    model:str|None=Field(default=None,max_length=120)
 
-def config():
-    if os.getenv("LOCAL_MODEL_ONLY")=="1":
-        from .local_model import model_settings
-        settings=model_settings()
-        return settings["base_url"],settings["model"],"local"
-    key=os.getenv("MODEL_API_KEY")
-    if not key:
-        raise HTTPException(503,"Configure local inference or MODEL_API_KEY")
-    return os.getenv("MODEL_BASE_URL","https://api.openai.com/v1").rstrip("/"),os.getenv("MODEL_NAME","gpt-4.1-mini"),key
+def config(requested=None):
+    """Resolve the model for a proposal; a request may only name a catalog id."""
+    from .models import resolve
+    try:
+        chosen=resolve(requested)
+    except ValueError as error:
+        message=str(error)
+        status=503 if message.startswith("No model is configured") else 400
+        raise HTTPException(status,message)
+    return chosen["base_url"],chosen["model"],chosen["api_key"]
 
 def strip_fence(value):
     value=value.strip()
@@ -48,7 +50,7 @@ async def propose(body:ProposalRequest,authorization:str|None=Header(default=Non
     old=current(source)
     if len(old)>100000:
         raise HTTPException(413,"File exceeds model context budget; select a smaller file")
-    base,model,key=config()
+    base,model,key=config(body.model) if body.model else config()
     prompt=("You are editing exactly one source file. Return ONLY the complete updated file text, "
             "without markdown, explanation, or file separators. Preserve unrelated behavior. "
             "Do not fabricate test results. Follow the instruction and existing code style.")

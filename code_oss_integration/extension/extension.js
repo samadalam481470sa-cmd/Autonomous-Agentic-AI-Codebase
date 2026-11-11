@@ -4,6 +4,8 @@ const vscode = require('vscode');
 const crypto = require('node:crypto');
 const {parseAvailable, localEndpoint, validProject} = require('./sse.js');
 const {rewriteSelection}=require('./rewrite-selection.js');
+const {AgentPanel}=require('./agent-panel.js');
+const {registerCompletions}=require('./completions.js');
 
 const SECRET = 'agenticLocal.adminToken';
 function escapeHtml(value) {return String(value).replace(/[&<>"']/g, c => ({
@@ -18,12 +20,13 @@ class ChatView {
     view.webview.options = {enableScripts:true, localResourceRoots:[]};
     view.webview.html = this.html(nonce);
     view.webview.onDidReceiveMessage(async message => {
+      if (message && message.type === 'models') {this.models();return;}
       if (!message || typeof message !== 'object') return;
       if (message.type === 'stop') {this.controller?.abort();return;}
       if (message.type === 'connect') {await vscode.commands.executeCommand('agenticLocal.connect');return;}
       if (message.type === 'send') {
         if (typeof message.text !== 'string' || !message.text.trim() || message.text.length > 12000) return;
-        await this.ask(message.text.trim());
+        await this.ask(message.text.trim(), message.model);
       }
     });
   }
@@ -41,19 +44,21 @@ button{background:var(--vscode-button-background);color:var(--vscode-button-fore
 button:disabled{opacity:.45}#actions{display:flex;gap:8px}#status{opacity:.85;font-size:12px}
 </style></head><body>
 <div id="thread"><div class="message">Runs on your computer. Configure LOCAL_MODEL_ONLY=1 and start the Python/Rust services, then connect using your local admin token. This chat never executes tools.</div></div>
+<label for="model">Model</label><select id="model" aria-label="Model"><option value="">Default</option></select>
 <label for="prompt">Ask your local model</label><textarea id="prompt" maxlength="12000" aria-label="Local AI prompt"></textarea>
 <div id="actions"><button id="send">Send</button><button id="stop" disabled>Stop</button><button id="connect">Connect</button></div><div id="status">Disconnected</div>
 <script nonce="${nonce}">
 const vscode=acquireVsCodeApi(),get=id=>document.getElementById(id),thread=get('thread');
 let current=null;
 function add(cls,text){const node=document.createElement('div');node.className='message '+cls;node.textContent=text;thread.append(node);thread.scrollTop=thread.scrollHeight;return node}
-get('send').onclick=()=>{const text=get('prompt').value.trim();if(!text)return;add('user',text);get('prompt').value='';current=add('assistant','');get('send').disabled=true;get('stop').disabled=false;vscode.postMessage({type:'send',text})};
+get('send').onclick=()=>{const text=get('prompt').value.trim();if(!text)return;add('user',text);get('prompt').value='';current=add('assistant','');get('send').disabled=true;get('stop').disabled=false;vscode.postMessage({type:'send',text,model:get('model').value||null})};
 get('stop').onclick=()=>vscode.postMessage({type:'stop'});
 get('connect').onclick=()=>vscode.postMessage({type:'connect'});
 window.addEventListener('message',event=>{
 const m=event.data;if(!m||typeof m!=='object')return;
 if(m.type==='delta'){if(current)current.textContent+=m.text;thread.scrollTop=thread.scrollHeight;}
 if(m.type==='status')get('status').textContent=m.text;
+if(m.type==='models'){const box=get('model');const keep=box.value;box.textContent='';box.append(new Option('Default',''));for(const item of (m.models||[]))box.append(new Option(item.label,item.id));box.value=keep;}
 if(m.type==='error'){if(current)current.textContent+='\\n[Error: '+m.text+']';get('status').textContent='Local model unavailable';}
 if(m.type==='done'){get('send').disabled=false;get('stop').disabled=true;current=null}
 if(m.type==='prefill')get('prompt').value=m.text;
@@ -61,7 +66,23 @@ if(m.type==='prefill')get('prompt').value=m.text;
 </script></body></html>`;
   }
   post(type, content) {this.view?.webview.postMessage({type, ...content});}
-  async ask(text) {
+  async models() {
+    const token = await this.context.secrets.get(SECRET);
+    if (!token) return;
+    let endpoint;
+    try {endpoint=localEndpoint(vscode.workspace.getConfiguration('agenticLocal').get('endpoint','http://127.0.0.1:8000'));}
+    catch (_) {return;}
+    try {
+      const response=await fetch(endpoint+'/api/models',{
+        redirect:'error',headers:{'Authorization':'Bearer '+token}
+      });
+      if(!response.ok)return;
+      const data=await response.json();
+      const models=Array.isArray(data.models)?data.models.map(m=>({id:m.id,label:m.label})):[];
+      this.post('models',{models,default:data.default});
+    } catch (_) {return;}
+  }
+  async ask(text, model) {
     if (this.busy) return;
     const token = await this.context.secrets.get(SECRET);
     if (!token) {this.post('error',{text:'Connect to the local backend first'});this.post('done',{});return;}
@@ -80,7 +101,7 @@ if(m.type==='prefill')get('prompt').value=m.text;
       const response=await fetch(endpoint+'/api/chat/stream',{
         method:'POST',signal:controller.signal,redirect:'error',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({project,message:text})
+        body:JSON.stringify({project,message:text,model:model||null})
       });
       if (!response.ok || !response.body) throw new Error('Local chat HTTP '+response.status);
       const reader=response.body.getReader();
@@ -117,8 +138,12 @@ if(m.type==='prefill')get('prompt').value=m.text;
 
 async function activate(context) {
   const view=new ChatView(context);
+  const agent=new AgentPanel(context);
   context.subscriptions.push(vscode.window.registerWebviewViewProvider('agenticLocal.chat',view));
-  context.subscriptions.push({dispose:()=>view.dispose()});
+  context.subscriptions.push(vscode.window.registerWebviewViewProvider('agenticLocal.agent',agent));
+  context.subscriptions.push({dispose:()=>{view.dispose();agent.dispose();}});
+  context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.openAgent',()=>
+    vscode.commands.executeCommand('workbench.view.extension.agenticLocal')));
   context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.connect',async()=>{
     const secret=await vscode.window.showInputBox({
       title:'Connect Local AI',prompt:'Enter AGENT_ADMIN_TOKEN from your local backend',
@@ -128,6 +153,7 @@ async function activate(context) {
     await context.secrets.store(SECRET,secret);
     vscode.window.showInformationMessage('Local AI token saved in VS Code SecretStorage (not the workspace).');
   }));
+  context.subscriptions.push(registerCompletions(context));
   context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.rewriteSelection',()=>rewriteSelection(vscode,context,SECRET)));
   context.subscriptions.push(vscode.commands.registerCommand('agenticLocal.askSelection',async()=>{
     const editor=vscode.window.activeTextEditor;
@@ -140,4 +166,5 @@ async function activate(context) {
   }));
 }
 function deactivate() {}
+module.exports.AgentPanel = AgentPanel;
 module.exports={activate,deactivate};

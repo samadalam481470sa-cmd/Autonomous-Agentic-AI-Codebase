@@ -1,4 +1,4 @@
-"""Opt-in offline CUDA LoRA training against user-approved SQLite feedback.
+"""Opt-in offline CUDA/ROCm/MPS LoRA training against user-approved SQLite feedback.
 
 Requires a local Hugging Face-format causal LM (not a GGUF file) and the optional
 training dependencies. The resulting adapter is NOT loaded by llama.cpp.
@@ -15,6 +15,8 @@ import tempfile
 import uuid
 from contextlib import closing
 from pathlib import Path
+
+from services.licensing.policy import ModelLicenseError, require_model_use
 
 def split_examples(rows):
     """Stable 20% holdout. Never evaluate on examples used in training."""
@@ -36,7 +38,7 @@ def read_active(root):
     path = manifest_path(root)
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
-def activate(root, version, baseline, candidate, base_model):
+def activate(root, version, baseline, candidate, base_model, model_id=None, model_license=None):
     """Atomically publish a pointer to an existing candidate adapter directory."""
     root = Path(root)
     adapter = root / ".agent" / "models" / "versions" / version
@@ -46,6 +48,10 @@ def activate(root, version, baseline, candidate, base_model):
     record = {"active": version, "previous": previous["active"] if previous else None,
               "baseline_eval_loss": baseline, "candidate_eval_loss": candidate,
               "base_model": str(base_model)}
+    if model_id is not None:
+        record["model_id"] = str(model_id)
+    if model_license is not None:
+        record["model_license"] = str(model_license)
     destination = manifest_path(root)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode="w", dir=destination.parent, prefix=".active-",
@@ -79,12 +85,15 @@ def rollback(root):
     os.replace(temporary, destination)
     return entry
 
+def read_only_uri(database):
+    """Build a SQLite URI that works with drive letters and POSIX paths."""
+    return Path(database).resolve().as_uri() + "?mode=ro"
+
 def approved_examples(root, maximum):
     database = root / ".agent" / "feedback.sqlite3"
     if not database.is_file():
         raise ValueError("No opted-in feedback database exists")
-    uri = "file:" + database.resolve().as_posix() + "?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as conn:
+    with closing(sqlite3.connect(read_only_uri(database), uri=True)) as conn:
         return conn.execute("SELECT id,prompt,response FROM feedback ORDER BY created_at,id LIMIT ?",
                             (maximum,)).fetchall()
 
@@ -121,13 +130,17 @@ def select_training_device(torch):
         return "mps"
     raise RuntimeError("No compatible local GPU detected; install a CUDA/ROCm or Apple MPS PyTorch build")
 
+def feature_tensors(torch, ids, labels, device):
+    """Create model inputs on the same accelerator selected for the model."""
+    return (torch.tensor([ids], device=device),
+            torch.tensor([labels], device=device))
+
 def evaluate(model, features, torch, device):
     model.eval()
     losses = []
     with torch.no_grad():
         for ids, labels in features:
-            input_ids = torch.tensor([ids], device=device)
-            label_ids = torch.tensor([labels], device=device)
+            input_ids, label_ids = feature_tensors(torch, ids, labels, device)
             output = model(input_ids=input_ids, labels=label_ids)
             value = float(output.loss.detach().float().cpu())
             if not math.isfinite(value):
@@ -135,7 +148,12 @@ def evaluate(model, features, torch, device):
             losses.append(value)
     return sum(losses) / len(losses)
 
-def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
+def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens,
+          model_id=None, model_license=None):
+    """Train only after the reviewed model license explicitly permits training."""
+    if not model_id or not model_license:
+        raise ValueError("Reviewed --model-id and --model-license are required before training")
+    require_model_use(model_id, model_license, "training")
     # Imports stay inside this function so rollback and split tests need no GPU deps.
     try:
         import torch
@@ -169,8 +187,7 @@ def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
                                   lr=0.00005)
     for step in range(steps):
         ids, labels = train_data[step % len(train_data)]
-        tokens = torch.tensor([ids], device="cuda")
-        answers = torch.tensor([labels], device="cuda")
+        tokens, answers = feature_tensors(torch, ids, labels, device)
         optimizer.zero_grad(set_to_none=True)
         loss = adapter(input_ids=tokens, labels=answers).loss
         if not torch.isfinite(loss):
@@ -190,15 +207,18 @@ def train(root, base_model, steps, maximum, minimum_gain, targets, max_tokens):
         if not (Path(temporary) / "adapter_config.json").is_file():
             raise RuntimeError("Adapter was not saved correctly")
         os.replace(temporary, versions / version)
-    record = activate(root, version, baseline, candidate, model_dir)
+    record = activate(root, version, baseline, candidate, model_dir, model_id, model_license)
     return {"promoted": True, "device": device, "version": version, "baseline_loss": baseline,
             "candidate_loss": candidate, "examples_trained": len(train_data),
-            "examples_evaluated": len(test_data), "previous": record["previous"]}
+            "examples_evaluated": len(test_data), "previous": record["previous"],
+            "model_id": model_id, "model_license": model_license}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True, help="Project folder under WORKSPACE_ROOT")
     parser.add_argument("--model-dir", help="Local Hugging Face-format causal language model")
+    parser.add_argument("--model-id", help="Exact reviewed model id, e.g. Qwen/Qwen2.5-Coder-7B-Instruct")
+    parser.add_argument("--model-license", help="Exact license id from security/model-policy.json")
     parser.add_argument("--steps", type=int, default=20)
     parser.add_argument("--max-examples", type=int, default=250)
     parser.add_argument("--min-gain", type=float, default=0.01)
@@ -217,13 +237,20 @@ def main():
         return
     if not args.consent_to_gpu_training:
         parser.error("Explicit --consent-to-gpu-training is required")
+    if not args.model_id or not args.model_license:
+        parser.error("--model-id and --model-license are required so the license gate can run")
+    try:
+        require_model_use(args.model_id, args.model_license, "training")
+    except ModelLicenseError as exc:
+        parser.error(f"Model license is not approved for training: {exc}")
     if not args.model_dir or not 1 <= args.steps <= 100 or not 12 <= args.max_examples <= 2000 or not 0 <= args.min_gain <= 0.5 or not 128 <= args.max_tokens <= 2048:
         parser.error("Invalid model path, step count, sample limit, threshold or token budget")
     targets = [x.strip() for x in args.target_modules.split(",") if x.strip()]
     if not targets or len(targets) > 8:
         parser.error("Specify between 1 and 8 LoRA target modules")
     print(json.dumps(train(root, args.model_dir, args.steps, args.max_examples,
-                           args.min_gain, targets, args.max_tokens), indent=2))
+                           args.min_gain, targets, args.max_tokens,
+                           model_id=args.model_id, model_license=args.model_license), indent=2))
 
 if __name__ == "__main__":
     main()

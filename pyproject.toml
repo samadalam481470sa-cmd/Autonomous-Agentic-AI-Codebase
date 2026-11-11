@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "autonomous-agentic-ai-codebase"
 version = "0.1.0"
 description = "Self-hostable coding agent foundation"
+license = {text = "MIT"}
 requires-python = ">=3.11"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.27,<1", "pydantic>=2.9,<3"]
 
@@ -17,3 +18,4 @@ include = ["services*", "scripts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]

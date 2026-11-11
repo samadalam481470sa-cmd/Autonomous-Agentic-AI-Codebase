@@ -24,3 +24,17 @@ def test_rejects_bad_context(tmp_path):
     p=tmp_path/"code.gguf";p.write_bytes(b"GGUF")
     with pytest.raises(RuntimeError,match="Context"):
         stack.config(SimpleNamespace(model=str(p),context=1,gpu_layers=0))
+
+def test_process_group_options_match_the_host_platform():
+    import os
+    options=stack.process_group_options()
+    if os.name=="nt":
+        assert "creationflags" in options
+    else:
+        assert options=={"start_new_session":True}
+
+def test_terminate_tree_skips_an_already_finished_process():
+    class Finished:
+        def poll(self):return 0
+        def terminate(self):raise AssertionError("must not terminate a finished process")
+    stack.terminate_tree(Finished())

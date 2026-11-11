@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "policy": "List every model whose weights are bundled in a release artifact. Each entry is checked for the exact reviewed license and the 'shipping' permission before release. The desktop application does not bundle model weights; user-initiated downloads are checked separately against model-policy.json.",
+  "bundled_models": []
+}

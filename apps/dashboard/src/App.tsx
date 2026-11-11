@@ -1,24 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ApiError, api, setCredentials } from './api';
-import type { ChatSeed, IndexStats, SearchResult } from './types';
+import type { IndexStats, RagPacket, SearchResult } from './types';
 import {
   CloseIcon,
   CommandIcon,
+  DeviceIcon,
   FilesIcon,
+  LabsIcon,
   LogoMark,
   RefreshIcon,
   SearchIcon,
-  SendIcon,
   SettingsIcon,
   ShieldIcon,
   SparkIcon,
 } from './icons';
 import AssistantPanel from './components/AssistantPanel';
 import CommandPalette, { type PaletteAction } from './components/CommandPalette';
+import DevicePanel from './components/DevicePanel';
+import LabsPanel from './components/LabsPanel';
+import LearningPanel from './components/LearningPanel';
 import SecurityPanel from './components/SecurityPanel';
 
-type View = 'files' | 'search' | 'security' | 'settings';
+type View = 'files' | 'search' | 'labs' | 'device' | 'learning' | 'security' | 'settings';
 type AssistantTab = 'chat' | 'ask' | 'agents';
 type OpenFile = { path: string; content: string; lines: number };
 
@@ -38,17 +42,14 @@ export default function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchRag, setSearchRag] = useState<RagPacket | null>(null);
   const [searching, setSearching] = useState(false);
   const [stats, setStats] = useState<IndexStats | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState('Ready');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [explorerOpen, setExplorerOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(() =>
-    window.matchMedia('(min-width: 901px)').matches,
-  );
-  const [chatSeed, setChatSeed] = useState<ChatSeed | null>(null);
-  const [quickInput, setQuickInput] = useState('');
+  const [rightOpen, setRightOpen] = useState(true);
 
   const notify = useCallback((message: string) => setStatus(message), []);
 
@@ -125,8 +126,12 @@ export default function App() {
     try {
       const data = await api.search(project, query);
       setSearchResults(data.results);
+      setSearchRag(data.rag ?? null);
       setView('search');
-      setStatus(`${data.results.length} matches for “${query}”`);
+      setStatus(
+        `${data.results.length} matches for “${query}”` +
+          (data.retrieval?.learned_rerank ? ' · learned rerank' : ''),
+      );
     } catch (error) {
       handleError(error);
     } finally {
@@ -140,6 +145,7 @@ export default function App() {
     setTabs([]);
     setActivePath(null);
     setSearchResults([]);
+    setSearchRag(null);
     (async () => {
       try {
         const [fileData, indexStats] = await Promise.all([
@@ -210,6 +216,24 @@ export default function App() {
         },
       },
       { id: 'search', label: 'Search code', hint: 'Hybrid retrieval', run: () => setView('search') },
+      {
+        id: 'labs',
+        label: 'Open Labs',
+        hint: 'GitHub learning and diagrams',
+        run: () => setView('labs'),
+      },
+      {
+        id: 'device',
+        label: 'Device runtime',
+        hint: 'GPU, thermals, keep-awake',
+        run: () => setView('device'),
+      },
+      {
+        id: 'learning',
+        label: 'Continuous learning',
+        hint: 'Learned retrieval and feedback',
+        run: () => setView('learning'),
+      },
       { id: 'security', label: 'Security posture', hint: 'Auth, lockouts, audit', run: () => setView('security') },
       { id: 'settings', label: 'Settings', hint: 'Credentials and project', run: () => setView('settings') },
       { id: 'lock', label: 'Lock workspace', hint: 'Clear credentials', run: lock },
@@ -224,17 +248,6 @@ export default function App() {
     const list = needle ? files.filter((file) => file.toLowerCase().includes(needle)) : files;
     return list.slice(0, 500);
   }, [files, fileFilter]);
-
-  function askFromQuickBar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = quickInput.trim();
-    if (!text) return;
-    setQuickInput('');
-    setRightOpen(true);
-    setAssistantTab('chat');
-    setChatSeed({ id: Date.now(), text });
-    setStatus('Message sent to assistant');
-  }
 
   function closeTab(path: string) {
     const next = tabs.filter((tab) => tab.path !== path);
@@ -325,6 +338,23 @@ export default function App() {
           <RailButton active={view === 'search'} label="Search" onClick={() => setView('search')}>
             <SearchIcon size={18} />
           </RailButton>
+          <RailButton active={view === 'labs'} label="Labs" onClick={() => setView('labs')}>
+            <LabsIcon size={18} />
+          </RailButton>
+          <RailButton
+            active={view === 'device'}
+            label="Device runtime"
+            onClick={() => setView('device')}
+          >
+            <DeviceIcon size={18} />
+          </RailButton>
+          <RailButton
+            active={view === 'learning'}
+            label="Continuous learning"
+            onClick={() => setView('learning')}
+          >
+            <SparkIcon size={18} />
+          </RailButton>
           <RailButton
             active={view === 'security'}
             label="Security"
@@ -350,9 +380,15 @@ export default function App() {
                   ? 'Explorer'
                   : view === 'search'
                     ? 'Search'
-                    : view === 'security'
-                      ? 'Security'
-                      : 'Settings'}
+                    : view === 'labs'
+                      ? 'Labs'
+                    : view === 'device'
+                      ? 'Device'
+                      : view === 'learning'
+                        ? 'Learning'
+                        : view === 'security'
+                        ? 'Security'
+                        : 'Settings'}
               </span>
               <button className="ghost icon" onClick={() => void refreshFiles()} title="Refresh files">
                 <RefreshIcon size={14} />
@@ -435,8 +471,33 @@ export default function App() {
                       Hybrid vector and keyword search across the indexed project.
                     </p>
                   )}
+                  {searchRag && searchRag.citations.length > 0 && (
+                    <div className="rag-packet">
+                      <span className="rag-title">RAG packet</span>
+                      <p className="muted small">
+                        {searchRag.results} excerpts · {searchRag.used_chars} chars ·{' '}
+                        {searchRag.safety.risk} risk
+                      </p>
+                      {searchRag.citations.slice(0, 6).map((citation) => (
+                        <button
+                          key={`${citation.path}:${citation.line}`}
+                          className="link"
+                          onClick={() => void openFile(citation.path, citation.line)}
+                        >
+                          {citation.path}:{citation.line}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
+
+            {view === 'device' && (
+              <p className="muted small">
+                Hardware, temperatures and the keep-awake hold are shown in the main panel. Agent
+                steps pause automatically when the device runs hot.
+              </p>
             )}
 
             {view === 'security' && (
@@ -455,7 +516,23 @@ export default function App() {
         )}
 
         <main className="center">
-          {view === 'security' ? (
+          {view === 'device' ? (
+            <DevicePanel notify={notify} onLocked={lock} />
+          ) : view === 'labs' ? (
+            <LabsPanel
+              project={project}
+              notify={notify}
+              onLocked={lock}
+              onOpenProject={(next) => {
+                setProject(next);
+                setProjectDraft(next);
+                localStorage.setItem('omniforge.project', next);
+                setStatus(`Opened learned project ${next}`);
+              }}
+            />
+          ) : view === 'learning' ? (
+            <LearningPanel project={project} notify={notify} onLocked={lock} />
+          ) : view === 'security' ? (
             <SecurityPanel notify={notify} onLocked={lock} />
           ) : view === 'settings' ? (
             <SettingsView
@@ -513,37 +590,9 @@ export default function App() {
             onOpenFile={(path, line) => void openFile(path, line)}
             onLocked={lock}
             notify={notify}
-            seed={chatSeed}
-            onSeedConsumed={() => setChatSeed(null)}
           />
         )}
       </div>
-
-      <form className="quickbar" onSubmit={askFromQuickBar}>
-        <span className="quickbar-icon">
-          <SparkIcon size={16} />
-        </span>
-        <textarea
-          value={quickInput}
-          rows={1}
-          maxLength={12000}
-          onChange={(event) => setQuickInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
-            }
-          }}
-          placeholder="Ask anything — or describe the code you want to build…"
-          aria-label="Ask the assistant"
-        />
-        <span className="quickbar-hint">
-          <kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline
-        </span>
-        <button className="primary" type="submit" disabled={!quickInput.trim()}>
-          <SendIcon size={14} /> Send
-        </button>
-      </form>
 
       <footer className="statusbar">
         <span className={`status-dot ${busy ? 'busy' : 'ok'}`} />

@@ -11,7 +11,9 @@ npm run package:win   # Windows installer (on supported Windows build environmen
 # or npm run package:mac / npm run package:linux
 ```
 
-Artifacts are produced in `apps/desktop/dist`. These commands are not yet validated on all operating systems; installer signing/notarization is not configured. Do not distribute as trusted signed releases.
+Artifacts are produced in `apps/desktop/dist`. The packaging workflow builds these targets on Windows, macOS and Linux GitHub runners. Installers are unsigned and not notarized, and have not been clean-machine certified; do not distribute them as trusted signed releases.
+
+macOS builds match the architecture of the build machine. Build separately on Intel and Apple Silicon hosts if both architectures are required. The macOS bundle declares microphone usage for the optional local voice transcription feature.
 
 ## VS Code extension
 `apps/vscode-extension` provides commands that open the local chat and code studio. It does not yet provide inline completions, repository indexing, code actions or a native VS Code editor integration.

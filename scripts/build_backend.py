@@ -10,6 +10,7 @@ cmd=[sys.executable,"-m","PyInstaller","--noconfirm","--clean","--onedir","--nam
      "--specpath",str(root/"build"),
      "--collect-all","uvicorn","--collect-submodules","services.api",
      "--add-data",f"{root/'apps'/'web'}{separator}apps/web",
+     "--add-data",f"{root/'packages'/'ui'}{separator}packages/ui",
      str(root/"scripts"/"desktop_backend.py")]
 subprocess.check_call(cmd,cwd=root)
 import shutil

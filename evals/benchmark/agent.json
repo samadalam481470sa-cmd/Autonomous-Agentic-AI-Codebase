@@ -1,0 +1,371 @@
+{
+  "kind": "agent",
+  "agent_command": "/workspace/chats/ca3c6d4cc36cfeb4ae6bad51/.venv/bin/python /workspace/chats/ca3c6d4cc36cfeb4ae6bad51/scripts/benchmark_agent.py",
+  "total": 30,
+  "passed": 10,
+  "failed": 20,
+  "agent_failures": 1,
+  "results": [
+    {
+      "id": "py-fizzbuzz",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\nAssertionError\n"
+    },
+    {
+      "id": "py-word-frequencies",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.028,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\nAssertionError\n"
+    },
+    {
+      "id": "py-palindrome",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": ""
+    },
+    {
+      "id": "py-binary-search",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": ""
+    },
+    {
+      "id": "py-flatten",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.028,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/tmp/bench-mx169cx0/solution.py\", line 9, in <module>\n    flattened_list = flatten(nested_list)\n                     ^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/bench-mx169cx0/solution.py\", line 3, in flatten\n    return [item for sublist in nested for item in flatten(sublist)]\n                                                   ^^^^^^^^^^^^^^^^\n  File \"/tmp/bench-mx169cx0/solution.py\", line 3, in flatten\n    return [item for sublist in nested for item in flatten(sublist)]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: 'int' object is not iterable\n"
+    },
+    {
+      "id": "py-roman",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.028,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-y78rj5i9/solution.py\", line 19, in roman_to_int\n    if char <= roman_map[char + 1]:\n                         ~~~~~^~~\nTypeError: can only concatenate str (not \"int\") to str\n"
+    },
+    {
+      "id": "py-chunk",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.032,
+      "output": ""
+    },
+    {
+      "id": "py-merge-intervals",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.028,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/tmp/bench-ia9p0_9y/solution.py\", line 25, in <module>\n    print(merge_intervals(intervals))  # Output: [(1, 5), (4, 6)]\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/bench-ia9p0_9y/solution.py\", line 11, in merge_intervals\n    current_interval[1] = max(current_interval[1], interval[1])\n    ~~~~~~~~~~~~~~~~^^^\nTypeError: 'tuple' object does not support item assignment\n"
+    },
+    {
+      "id": "py-group-anagrams",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.031,
+      "output": ""
+    },
+    {
+      "id": "py-transpose",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\n  File \"/tmp/bench-2o4e9hw0/solution.py\", line 8, in transpose\n    num_cols = len(matrix[0])\n                   ~~~~~~^^^\nIndexError: list index out of range\n"
+    },
+    {
+      "id": "py-caesar",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.029,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\nAssertionError\n"
+    },
+    {
+      "id": "py-valid-parentheses",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\nAssertionError\n"
+    },
+    {
+      "id": "py-two-sum",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.033,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-ceibs8iz/solution.py\", line 6, in two_sum\n    return (i, seen.index(complement))\n               ^^^^^^^^^^\nAttributeError: 'set' object has no attribute 'index'\n"
+    },
+    {
+      "id": "py-run-length",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": ""
+    },
+    {
+      "id": "py-slugify",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-12_m344m/solution.py\", line 6, in slugify\n    text = re.sub(r'[^a-zA-Z0-9]', '-', text)\n           ^^\nNameError: name 're' is not defined. Did you forget to import 're'?\n"
+    },
+    {
+      "id": "py-top-k",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.029,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\nAssertionError\n"
+    },
+    {
+      "id": "py-unique",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.029,
+      "output": ""
+    },
+    {
+      "id": "py-parse-bool",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\nAssertionError: expected ValueError\n"
+    },
+    {
+      "id": "py-even-squares",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.029,
+      "output": ""
+    },
+    {
+      "id": "py-rotate",
+      "language": "python",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": "[[3, 1], [4, 2]]\n"
+    },
+    {
+      "id": "js-sum",
+      "language": "javascript",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.045,
+      "output": ""
+    },
+    {
+      "id": "js-title-case",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.033,
+      "output": "[eval]:1\nconst {titleCase}=require('./solution.js'); if(titleCase('hello WORLD')!=='Hello World') throw new Error('bad')\n                                                                                         ^\n\nError: bad\n    at [eval]:1:96\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-unique-by",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.029,
+      "output": "[eval]:1\nconst {uniqueBy}=require('./solution.js'); const r=uniqueBy([{id:1},{id:2},{id:1}],x=>x.id); if(r.length!==2||r[1].id!==2) throw new Error('bad')\n                                                   ^\n\nTypeError: uniqueBy is not a function\n    at [eval]:1:52\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-deep-get",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.035,
+      "output": "[eval]:1\nconst {deepGet}=require('./solution.js'); if(deepGet({a:{b:2}},'a.b',0)!==2) throw new Error('bad'); if(deepGet({},'x.y',7)!==7) throw new Error('fallback')\n                                             ^\n\nTypeError: deepGet is not a function\n    at [eval]:1:46\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-chunk",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 2,
+        "error": "benchmark agent: model did not return usable code: model returned a placeholder or unchanged file\n"
+      },
+      "seconds": 0.031,
+      "output": "/tmp/bench-61avwllv/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at chunkArray (/tmp/bench-61avwllv/solution.js:2:9)\n    at [eval]:1:54\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-flatten",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": "[eval]:1\nconst {flattenArray}=require('./solution.js'); if(JSON.stringify(flattenArray([1,[2,[3]],4]))!=='[1,2,3,4]') throw new Error('bad')\n                                                                 ^\n\nTypeError: flattenArray is not a function\n    at [eval]:1:66\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-camel-case",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": "[eval]:1\nconst {camelCase}=require('./solution.js'); if(camelCase('hello world-test')!=='helloWorldTest') throw new Error('bad')\n                                                                                                 ^\n\nError: bad\n    at [eval]:1:104\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-group-by",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.034,
+      "output": "[eval]:1\nconst {groupBy}=require('./solution.js'); const r=groupBy([1,2,3,4],x=>x%2?'odd':'even'); if(r.odd.length!==2||r.even[0]!==2) throw new Error('bad')\n                                                  ^\n\nTypeError: groupBy is not a function\n    at [eval]:1:51\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-parse-query",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.031,
+      "output": "[eval]:1\nconst {parseQuery}=require('./solution.js'); const r=parseQuery('?a=1&b=two&a=3'); if(r.a.join(',')!=='1,3'||r.b!=='two') throw new Error('bad')\n                                                     ^\n\nTypeError: parseQuery is not a function\n    at [eval]:1:54\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-truncate",
+      "language": "javascript",
+      "passed": true,
+      "agent": {
+        "ran": true,
+        "exit_code": 0,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": ""
+    }
+  ],
+  "label": "Qwen2.5-Coder-0.5B-Instruct Q4_K_M (CPU, llama.cpp)"
+}

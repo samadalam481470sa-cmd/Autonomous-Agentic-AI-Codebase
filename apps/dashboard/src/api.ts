@@ -1,12 +1,22 @@
 import type {
   AgentRun,
   AskResponse,
+  DeviceStatus,
+  DiagramResponse,
   FileRead,
+  GithubLearnResponse,
+  GithubSearchResult,
+  GithubSource,
+  GpuTrainingStatus,
   HistoryResponse,
   IndexReport,
   IndexStats,
-  SearchResult,
+  LearningStatus,
+  ModelsResponse,
+  RevertResult,
+  SearchResponse,
   SecurityPosture,
+  TurnsResponse,
 } from './types';
 
 export class ApiError extends Error {
@@ -74,15 +84,15 @@ export const api = {
     }),
   history: (project: string) =>
     request<HistoryResponse>(`/api/projects/${encodeURIComponent(project)}/history`),
-  chat: (project: string, message: string) =>
+  chat: (project: string, message: string, model = '') =>
     request<{ answer: string }>('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ project, message }),
+      body: JSON.stringify(model ? { project, message, model } : { project, message }),
     }),
   search: (project: string, query: string, limit = 12) =>
-    request<{ results: SearchResult[] }>('/api/ai/search', {
+    request<SearchResponse>('/api/ai/search', {
       method: 'POST',
-      body: JSON.stringify({ project, query, limit, mode: 'hybrid' }),
+      body: JSON.stringify({ project, query, limit, mode: 'hybrid', rag: true }),
     }),
   ask: (project: string, question: string) =>
     request<AskResponse>('/api/ai/ask', {
@@ -104,6 +114,15 @@ export const api = {
         body: JSON.stringify({ project, query, path, line, rating }),
       },
     ),
+  models: () => request<ModelsResponse>('/api/models'),
+  turns: (project: string) =>
+    request<TurnsResponse>(`/api/studio/turns/${encodeURIComponent(project)}`),
+  revertTurn: (project: string, turnId?: string) =>
+    request<RevertResult>('/api/studio/turns/revert', {
+      method: 'POST',
+      headers: { 'X-Confirm-Change': 'approve' },
+      body: JSON.stringify(turnId ? { project, turn_id: turnId } : { project }),
+    }),
   roles: () =>
     request<{ roles: { name: string; instruction: string }[]; max_steps: number }>(
       '/api/agents/roles',
@@ -118,8 +137,87 @@ export const api = {
     }),
   advanceRun: (runId: string) =>
     request<AgentRun>(`/api/agents/runs/${runId}/advance`, { method: 'POST' }),
+  autoAdvance: (runId: string, maxSteps = 8) =>
+    request<AgentRun>(`/api/agents/runs/${runId}/auto-advance`, {
+      method: 'POST',
+      body: JSON.stringify({ max_steps: maxSteps }),
+    }),
   cancelRun: (runId: string) =>
     request<AgentRun>(`/api/agents/runs/${runId}/cancel`, { method: 'POST' }),
+  device: () => request<DeviceStatus>('/api/device'),
+  setKeepAwake: (enabled: boolean, ttlMinutes = 480) =>
+    request<DeviceStatus>('/api/device/keep-awake', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, ttl_minutes: ttlMinutes }),
+    }),
+  learningStatus: (project: string) =>
+    request<LearningStatus>(
+      `/api/learning/continuous/status?project=${encodeURIComponent(project)}`,
+    ),
+  learningStart: () =>
+    request<{ enabled: boolean; thread_started: boolean }>('/api/learning/continuous/start', {
+      method: 'POST',
+    }),
+  learningPause: () =>
+    request<{ paused: boolean }>('/api/learning/continuous/pause', { method: 'POST' }),
+  learningTick: () =>
+    request<Record<string, unknown>>('/api/learning/continuous/tick', { method: 'POST' }),
+  learningTrain: (project: string, force = false) =>
+    request<Record<string, unknown>>(`/api/learning/${encodeURIComponent(project)}/train`, {
+      method: 'POST',
+      body: JSON.stringify({ force }),
+    }),
+  learningRollback: (project: string) =>
+    request<Record<string, unknown>>(`/api/learning/${encodeURIComponent(project)}/rollback`, {
+      method: 'POST',
+    }),
+  gpuTrainingStatus: (project: string) =>
+    request<GpuTrainingStatus>(`/api/learning/${encodeURIComponent(project)}/gpu-training`),
+  startGpuTraining: (
+    project: string,
+    body: {
+      consent: boolean;
+      model_dir?: string;
+      model_id?: string;
+      model_license?: string;
+      steps?: number;
+      max_examples?: number;
+      min_gain?: number;
+      max_tokens?: number;
+      targets?: string;
+    },
+  ) =>
+    request<{ accepted: boolean; state: string; approved_examples: number }>(
+      `/api/learning/${encodeURIComponent(project)}/gpu-training`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  rollbackGpuTraining: (project: string) =>
+    request<Record<string, unknown>>(
+      `/api/learning/${encodeURIComponent(project)}/gpu-training/rollback`,
+      { method: 'POST' },
+    ),
+  githubSources: () =>
+    request<{ sources: GithubSource[]; enabled: boolean }>('/api/github/sources'),
+  learnGithub: (repo: string, branch?: string) =>
+    request<GithubLearnResponse>('/api/github/learn', {
+      method: 'POST',
+      body: JSON.stringify(branch ? { repo, branch } : { repo }),
+    }),
+  githubSearch: (query: string, limit = 8) =>
+    request<{ query: string; results: GithubSearchResult[] }>('/api/github/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, limit }),
+    }),
+  diagram: (project: string, maxNodes = 60) =>
+    request<DiagramResponse>('/api/diagrams/architecture', {
+      method: 'POST',
+      body: JSON.stringify({ project, max_nodes: maxNodes }),
+    }),
+  rateInteraction: (project: string, interactionId: string, rating: 'up' | 'down') =>
+    request<{ id: string; rating: string; rated: boolean }>(
+      `/api/learning/${encodeURIComponent(project)}/interactions/${interactionId}/rate`,
+      { method: 'POST', body: JSON.stringify({ project, rating }) },
+    ),
 };
 
 /**
@@ -129,13 +227,14 @@ export const api = {
 export async function streamChat(
   project: string,
   message: string,
+  model: string,
   onDelta: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ project, message }),
+    body: JSON.stringify(model ? { project, message, model } : { project, message }),
     signal,
   });
 
@@ -148,7 +247,7 @@ export async function streamChat(
       // Keep the status-based message when the body is not JSON.
     }
     if (response.status === 409 || response.status === 503) {
-      const fallback = await api.chat(project, message);
+      const fallback = await api.chat(project, message, model);
       onDelta(fallback.answer);
       return;
     }

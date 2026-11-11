@@ -14,7 +14,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from .engine import safe_path, workspace
-from . import checkpoints
+from . import checkpoints, turns
 from .security import authorize as _authorize
 
 router=APIRouter(prefix="/api/studio",tags=["studio"])
@@ -158,11 +158,15 @@ def apply(body:ChangeRequest,authorization:str|None=Header(default=None),x_confi
         if not body.expected_sha256 or not hmac.compare_digest(body.expected_sha256,digest(old)):
             raise HTTPException(409,"File changed since diff; review again")
         if old==body.content and existed:
-            return {"saved":True,"sha256":digest(old),"path":body.path,"checkpoint_id":None}
+            return {"saved":True,"sha256":digest(old),"path":body.path,
+                    "checkpoint_id":None,"turn_id":None}
         checkpoint_id=checkpoints.snapshot(body.project,body.path,old,existed,body.content)
         atomic_text_write(p,body.content)
+        # Group every write of this turn so the whole turn can be reverted.
+        turn_id=turns.new_turn()
+        turns.record(body.project,turn_id,body.path,checkpoint_id)
         return {"saved":True,"sha256":digest(body.content),
-                "path":body.path,"checkpoint_id":checkpoint_id}
+                "path":body.path,"checkpoint_id":checkpoint_id,"turn_id":turn_id}
 
 @router.post("/preview")
 def preview(body:FileRequest,authorization:str|None=Header(default=None)):

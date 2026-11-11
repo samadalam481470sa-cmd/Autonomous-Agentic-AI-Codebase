@@ -21,7 +21,7 @@ from pathlib import Path
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import semantic
+from . import device, events, semantic
 from .engine import workspace
 from .studio import authorize
 
@@ -62,6 +62,17 @@ def _db_path() -> Path:
     path = Path(os.getenv("ORCHESTRATOR_DB_PATH", "./database/agent_runs.sqlite3")).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def project_rules(project: str) -> str:
+    """Operator-authored project rules, loaded into every run as trusted text."""
+    try:
+        path = Path(workspace(project)) / "AETHERION.md"
+        if path.is_file():
+            return path.read_text(encoding="utf-8", errors="replace")[:4000]
+    except (OSError, ValueError):
+        return ""
+    return ""
 
 
 def _connect() -> sqlite3.Connection:
@@ -166,8 +177,12 @@ def create_run(project: str, goal: str, mode: str = "build",
                 (uuid.uuid4().hex, run_id, index, role, ROLES[role], "pending"),
             )
         row = con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-        return _serialize(con, row)
-
+        created = _serialize(con, row)
+    events.append(run_id, "run.created", "orchestrator", {
+        "project": project, "goal": goal, "mode": mode, "autonomy": "ask",
+        "roles": [step["role"] for step in created["steps"]],
+    })
+    return created
 
 def cancel_run(run_id: str) -> dict:
     if not isinstance(run_id, str) or len(run_id) != 32:
@@ -187,7 +202,9 @@ def cancel_run(run_id: str) -> dict:
             (run_id,),
         )
         row = con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-        return _serialize(con, row)
+        cancelled = _serialize(con, row)
+    events.append(run_id, "run.cancelled", "operator", {"reason": "operator cancelled"})
+    return cancelled
 
 
 async def _complete(system: str, user: str, max_tokens: int = 1200) -> str:
@@ -196,13 +213,52 @@ async def _complete(system: str, user: str, max_tokens: int = 1200) -> str:
     return await shared_complete(system, user, max_tokens)
 
 
+async def run_to_completion(run_id: str, max_steps: int = 8) -> dict:
+    """Advance a bounded run until it completes, blocks, or hits the limit.
+
+    This is still model-only: it never writes project files or runs commands.
+    The caller may use it interactively or enqueue it through the durable worker.
+    """
+    limit = max(1, min(int(max_steps), 12))
+    current = get_run(run_id)
+    steps_run = 0
+    stopped = "step_limit"
+    while steps_run < limit:
+        if current["status"] in ("completed", "cancelled"):
+            stopped = "terminal"
+            break
+        try:
+            current = await advance_run(run_id)
+        except HTTPException as error:
+            fresh = get_run(run_id)
+            return {**fresh, "auto": {
+                "steps_run": steps_run, "limit": limit,
+                "stopped": str(error.detail), "status_code": error.status_code,
+            }}
+        steps_run += 1
+        if current["status"] in ("completed", "cancelled", "blocked"):
+            stopped = "terminal" if current["status"] in ("completed", "cancelled") else "blocked"
+            break
+    else:
+        current = get_run(run_id)
+    return {**current, "auto": {"steps_run": steps_run, "limit": limit, "stopped": stopped}}
+
+
+async def auto_advance_job(payload: dict) -> dict:
+    """Durable worker handler for an auto-advanced multi-agent run."""
+    run_id = str(payload.get("run_id", ""))
+    return await run_to_completion(run_id, int(payload.get("max_steps", 8)))
+
+
 def _prompt(goal: str, role: str, instruction: str, prior: list[dict],
-            context: str) -> str:
+            context: str, rules: str = "") -> str:
     parts = [
         "Goal: " + goal,
         "Your role: " + role,
         "Role instructions: " + instruction,
     ]
+    if rules:
+        parts.append("Project rules (operator-authored, trusted):\n" + rules)
     if prior:
         history = []
         for step in prior[-3:]:
@@ -236,6 +292,15 @@ async def advance_run(run_id: str) -> dict:
         )
         if target is None:
             return _serialize(con, run)
+        if os.getenv("DEVICE_THERMAL_GUARD", "1") != "0":
+            gate = device.admission()
+            if not gate.get("allowed", True):
+                raise HTTPException(
+                    409,
+                    "Device cooling pause: " + str(gate.get("reason") or "thermal limit"),
+                    headers={"Retry-After": str(max(1, int(gate.get("retry_after") or 15)))},
+                )
+        device.touch_keep_awake()
         now = int(time.time())
         with con:
             con.execute("UPDATE runs SET status='running',updated_at=? WHERE id=?", (now, run_id))
@@ -247,12 +312,16 @@ async def advance_run(run_id: str) -> dict:
             {"role": step["role"], "output": step["output"]}
             for step in steps if step["status"] == "completed"
         ]
+        events.append(run_id, "step.started", target["role"], {
+            "step_id": target["id"], "seq": target["seq"],
+            "instruction": target["instruction"][:500],
+        })
         try:
             retrieved = semantic.context(run["project"], run["goal"], budget_chars=3000)
         except Exception:
             retrieved = {"text": ""}
         user = _prompt(run["goal"], target["role"], target["instruction"], prior,
-                       retrieved.get("text", ""))
+                       retrieved.get("text", ""), project_rules(run["project"]))
         try:
             output = await _complete(SYSTEM_PROMPT, user, 1200)
         except Exception:
@@ -265,6 +334,9 @@ async def advance_run(run_id: str) -> dict:
                     "UPDATE runs SET status='blocked',updated_at=? WHERE id=?",
                     (int(time.time()), run_id),
                 )
+            events.append(run_id, "step.failed", target["role"], {
+                "step_id": target["id"], "seq": target["seq"], "error": "model call failed",
+            })
             raise HTTPException(502, "Agent step failed; the run is blocked and can be retried")
         output = (output or "").strip()[:MAX_OUTPUT_CHARS]
         if not output:
@@ -292,7 +364,16 @@ async def advance_run(run_id: str) -> dict:
                 ("completed" if remaining == 0 else "queued", int(time.time()), run_id),
             )
             row = done_con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
-            return _serialize(done_con, row)
+            finished = _serialize(done_con, row)
+        events.append(run_id, "step.completed", target["role"], {
+            "step_id": target["id"], "seq": target["seq"],
+            "output": output[:2000],
+        })
+        if remaining == 0:
+            events.append(run_id, "run.completed", "orchestrator", {
+                "steps": len(steps), "status": "completed",
+            })
+        return finished
 
 
 class RunRequest(BaseModel):
@@ -300,6 +381,11 @@ class RunRequest(BaseModel):
     goal: str = Field(min_length=8, max_length=MAX_GOAL_CHARS)
     mode: str = Field(default="build", pattern=r"^(plan|build)$")
     roles: list[str] | None = Field(default=None, max_length=12)
+
+
+class AutoRunRequest(BaseModel):
+    max_steps: int = Field(default=8, ge=1, le=12)
+    queue: bool = False
 
 
 @router.get("/roles")
@@ -344,3 +430,43 @@ async def advance(run_id: str, authorization: str | None = Header(default=None))
 def cancel(run_id: str, authorization: str | None = Header(default=None)):
     authorize(authorization)
     return cancel_run(run_id)
+
+
+@router.get("/runs/{run_id}/events")
+def run_events(run_id: str, after: int = 0, limit: int = 500,
+               authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    get_run(run_id)
+    return {"events": events.list_events(run_id, after, limit),
+            "latest": events.latest_sequence(run_id)}
+
+
+@router.get("/runs/{run_id}/stream")
+def stream_run_events(run_id: str, after: int = 0,
+                      authorization: str | None = Header(default=None)):
+    from fastapi.responses import StreamingResponse
+    authorize(authorization)
+    get_run(run_id)
+    return StreamingResponse(events.tail(run_id, max(0, after)),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                 "X-Content-Type-Options": "nosniff"})
+
+
+@router.post("/runs/{run_id}/auto-advance")
+async def auto_advance(run_id: str, body: AutoRunRequest | None = None,
+                       authorization: str | None = Header(default=None)):
+    """Run all remaining specialist steps, or enqueue that bounded loop."""
+    authorize(authorization)
+    request_body = body or AutoRunRequest()
+    get_run(run_id)
+    if request_body.queue:
+        from . import worker
+        try:
+            job = worker.enqueue("agent.auto", {
+                "run_id": run_id, "max_steps": request_body.max_steps,
+            })
+        except ValueError as error:
+            raise HTTPException(400, str(error))
+        return {"queued": True, **job}
+    return await run_to_completion(run_id, request_body.max_steps)

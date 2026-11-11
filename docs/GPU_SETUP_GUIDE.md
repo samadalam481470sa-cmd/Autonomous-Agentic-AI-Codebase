@@ -8,11 +8,15 @@ Run `python scripts/gpu_diagnostics.py` to inspect detected NVIDIA GPU informati
 
 ## Model selection
 
-Choose a reputable code-capable GGUF model with appropriate licensing. For lower-VRAM systems, start with a smaller Q4-quantized model and a 2048–4096 context window. Models still require finite RAM/VRAM, and GPU offloading may fail on unsupported hardware. For CPU-only mode, use `--gpu-layers 0`.
+Choose a code-capable GGUF model that is approved in [`security/model-policy.json`](../security/model-policy.json) for your intended use. Run `python scripts/check_model_license.py --list` before downloading or training; the desktop download screen requires the exact reviewed model id and license id. For lower-VRAM systems, start with a smaller Q4-quantized model and a 2048–4096 context window. Models still require finite RAM/VRAM, and GPU offloading may fail on unsupported hardware. For CPU-only mode, use `--gpu-layers 0`.
+
+Licensing is separate from hardware compatibility. Apache-2.0 models are the lowest-friction choice; Llama and Gemma use custom terms with attribution, notice, naming, or use-restriction obligations. See [LICENSING.md](LICENSING.md).
 
 ## Local model setup
 
-Install llama.cpp from its official repository and Rust/Cargo. Download a model separately, then run `python scripts/local_stack.py --model /path/to/model-Q4_K_M.gguf` from the source checkout. The standalone desktop installer does not yet include these dependencies or manage their lifecycle.
+Install llama.cpp from its official repository and Rust/Cargo. Download a model separately, then run `python scripts/local_stack.py --model /path/to/model-Q4_K_M.gguf` from the source checkout. On Windows, pass a native path such as `"C:/Models/model-Q4_K_M.gguf"`. The standalone desktop installer does not yet include these dependencies or manage their lifecycle.
+
+LoRA training uses CUDA or ROCm on Windows/Linux and MPS on Apple Silicon. See [cross-platform setup](CROSS_PLATFORM.md) for the native environment commands.
 
 ## Distribution status
 

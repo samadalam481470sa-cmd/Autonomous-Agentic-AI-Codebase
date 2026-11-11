@@ -9,11 +9,11 @@
     "package:win": "electron-builder --win nsis",
     "package:mac": "electron-builder --mac dmg",
     "package:linux": "electron-builder --linux AppImage",
-    "test": "node --test hardware.test.cjs model-runtime.test.cjs"
+    "test": "node --test hardware.test.cjs model-runtime.test.cjs energy.test.cjs model-license.test.cjs cross-platform.test.cjs"
   },
   "devDependencies": {
-    "electron": "33.4.11",
-    "electron-builder": "25.1.8"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
   },
   "build": {
     "appId": "dev.autonomous.agenticai",
@@ -24,7 +24,9 @@
       "setup.html",
       "package.json",
       "hardware.cjs",
-      "model-runtime.cjs"
+      "energy.cjs",
+      "model-runtime.cjs",
+      "model-license.cjs"
     ],
     "extraResources": [
       {
@@ -33,6 +35,10 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "../../security/model-policy.json",
+        "to": "model-policy.json"
       }
     ],
     "directories": {
@@ -42,7 +48,10 @@
       "target": "nsis"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Record a short voice prompt locally for speech-to-text. Audio is sent only to the configured loopback whisper.cpp server."
+      }
     },
     "linux": {
       "target": "AppImage"

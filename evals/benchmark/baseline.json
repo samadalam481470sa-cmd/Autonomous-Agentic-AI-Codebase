@@ -1,0 +1,369 @@
+{
+  "kind": "starter-baseline",
+  "agent_command": null,
+  "total": 30,
+  "passed": 0,
+  "failed": 30,
+  "results": [
+    {
+      "id": "py-fizzbuzz",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.035,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-6qx40pcg/solution.py\", line 2, in fizzbuzz\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-word-frequencies",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.027,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-he1232g4/solution.py\", line 2, in word_frequencies\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-palindrome",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-kp8gj0pj/solution.py\", line 2, in is_palindrome\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-binary-search",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-_l0abxnk/solution.py\", line 2, in binary_search\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-flatten",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-9ckvawkj/solution.py\", line 2, in flatten\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-roman",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-65unh739/solution.py\", line 2, in roman_to_int\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-chunk",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-peq7zp3v/solution.py\", line 2, in chunk\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-merge-intervals",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-9j32_wbo/solution.py\", line 2, in merge_intervals\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-group-anagrams",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-o9w75e5y/solution.py\", line 2, in group_anagrams\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-transpose",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-qb_pizct/solution.py\", line 2, in transpose\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-caesar",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-gehe4ein/solution.py\", line 2, in caesar\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-valid-parentheses",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-fc9ymdk7/solution.py\", line 2, in is_valid\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-two-sum",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-nq8pfrzi/solution.py\", line 2, in two_sum\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-run-length",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-50zsyiyb/solution.py\", line 2, in run_length_encode\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-slugify",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-re99dsnt/solution.py\", line 2, in slugify\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-top-k",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-zr6bsuam/solution.py\", line 2, in top_k\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-unique",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-03bs_3_k/solution.py\", line 2, in unique\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-parse-bool",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-41kxp5hf/solution.py\", line 2, in parse_bool\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-even-squares",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/bench-mwiwwgpk/solution.py\", line 2, in sum_even_squares\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "py-rotate",
+      "language": "python",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.026,
+      "output": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\n  File \"/tmp/bench-jtocu3j2/solution.py\", line 2, in rotate_90\n    raise NotImplementedError\nNotImplementedError\n"
+    },
+    {
+      "id": "js-sum",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.131,
+      "output": "/tmp/bench-2wsff_4c/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at sumArray (/tmp/bench-2wsff_4c/solution.js:2:9)\n    at [eval]:1:47\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-title-case",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.037,
+      "output": "/tmp/bench-ehnk9siy/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at titleCase (/tmp/bench-ehnk9siy/solution.js:2:9)\n    at [eval]:1:48\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-unique-by",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.034,
+      "output": "/tmp/bench-kc2opbpd/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at uniqueBy (/tmp/bench-kc2opbpd/solution.js:2:9)\n    at [eval]:1:52\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-deep-get",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.038,
+      "output": "/tmp/bench-brixajon/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at deepGet (/tmp/bench-brixajon/solution.js:2:9)\n    at [eval]:1:46\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-chunk",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.034,
+      "output": "/tmp/bench-nd5fgco2/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at chunkArray (/tmp/bench-nd5fgco2/solution.js:2:9)\n    at [eval]:1:54\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-flatten",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.032,
+      "output": "/tmp/bench-gwy4qrvx/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at flattenArray (/tmp/bench-gwy4qrvx/solution.js:2:9)\n    at [eval]:1:66\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-camel-case",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.035,
+      "output": "/tmp/bench-9pcvi4vo/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at camelCase (/tmp/bench-9pcvi4vo/solution.js:2:9)\n    at [eval]:1:48\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-group-by",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.032,
+      "output": "/tmp/bench-pladdeln/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at groupBy (/tmp/bench-pladdeln/solution.js:2:9)\n    at [eval]:1:51\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-parse-query",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": "/tmp/bench-fq1l341s/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at parseQuery (/tmp/bench-fq1l341s/solution.js:2:9)\n    at [eval]:1:54\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    },
+    {
+      "id": "js-truncate",
+      "language": "javascript",
+      "passed": false,
+      "agent": {
+        "ran": false,
+        "exit_code": null,
+        "error": ""
+      },
+      "seconds": 0.03,
+      "output": "/tmp/bench-jlxj1b0q/solution.js:2\n  throw new Error('not implemented');\n  ^\n\nError: not implemented\n    at truncate (/tmp/bench-jlxj1b0q/solution.js:2:9)\n    at [eval]:1:47\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:485:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:483:60)\n    at evalFunction (node:internal/process/execution:317:30)\n    at evalTypeScript (node:internal/process/execution:329:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v26.13.0\n"
+    }
+  ]
+}

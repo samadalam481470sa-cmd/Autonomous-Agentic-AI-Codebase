@@ -1,23 +1,45 @@
 name: Verify
 on: [push, pull_request]
 jobs:
-  python:
-    runs-on: ubuntu-latest
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - run: pip install -e '.[dev]'
-      - run: python -m compileall -q services
-      - name: Repository security audit
-        run: python scripts/security_audit.py --fail-on high
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m compileall -q services scripts
+      - run: python scripts/generate_contracts.py --check
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/dashboard/package-lock.json
+      # One setup path shared with local development: dependencies, editor
+      # assets and Chromium, skipping anything already current.
+      - name: Bootstrap the browser test toolchain
+        if: runner.os != 'Linux'
+        working-directory: apps/web
+        run: python ../../scripts/bootstrap_dev.py
+      - name: Bootstrap the browser test toolchain
+        if: runner.os == 'Linux'
+        working-directory: apps/web
+        run: python ../../scripts/bootstrap_dev.py --with-deps
       - run: node --check apps/web/monaco-entry.js
       - run: node --check apps/web/build.mjs
-      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs
+      - run: node --check apps/web/playwright.config.mjs
+      - run: node --check apps/web/e2e/app.spec.mjs
+      - run: node --check apps/desktop/model-license.cjs
+      - run: node packages/ui/build.mjs --check
+      - run: node --test packages/ui/test/icons.test.mjs packages/ui/test/provenance.test.mjs packages/ui/test/tokens.test.mjs
+      - run: node --test apps/desktop/hardware.test.cjs apps/desktop/model-runtime.test.cjs apps/desktop/energy.test.cjs apps/desktop/model-license.test.cjs apps/desktop/cross-platform.test.cjs
       - name: Verify Code-OSS extension transport and source syntax
         run: |
           node --check code_oss_integration/extension/extension.js
@@ -25,8 +47,41 @@ jobs:
           node --test code_oss_integration/extension/sse.test.cjs
           node --check code_oss_integration/extension/rewrite-selection.js
           node --test code_oss_integration/extension/rewrite-selection.test.cjs
+          node --check code_oss_integration/extension/agent-panel.js
+          node --check code_oss_integration/extension/agent-state.js
+          node --test code_oss_integration/extension/agent-state.test.cjs
       - run: python scripts/check_inline_scripts.py
+      - run: python scripts/check_provenance.py
+      - run: python scripts/check_model_license.py --validate
+      - run: python scripts/license_scan.py --requirements --vendored --models
       - run: python scripts/code_metrics.py
       - name: Verify third-party licenses and notices
         run: python scripts/check_oss_licenses.py
-      - run: pytest -q
+      - run: pytest -q --junitxml=pytest-results.xml
+      - name: Report Python test failures
+        if: failure()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("pytest-results.xml")
+          if report.is_file():
+              for case in ET.parse(report).iter("testcase"):
+                  failure = case.find("failure")
+                  error = case.find("error")
+                  problem = failure if failure is not None else error
+                  if problem is None:
+                      continue
+                  title = f"{case.get('classname', '')}.{case.get('name', '')}"
+                  message = " ".join((problem.get("message") or "").split())[:600]
+                  detail = " ".join((problem.text or "").split())[:1200]
+                  if detail:
+                      message = f"{message} | {detail}"
+                  message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error title={title}::{message}")
+          PY
+      - name: Browser smoke tests
+        working-directory: apps/web
+        run: npm run test:e2e

@@ -1,0 +1,69 @@
+name: Coding benchmark
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'evals/benchmark/**'
+      - 'scripts/run_benchmark.py'
+      - 'scripts/benchmark_agent.py'
+      - '.github/workflows/benchmark.yml'
+permissions:
+  contents: write
+env:
+  # GitHub Models was retired on 2026-07-30. This workflow needs a real
+  # OpenAI-compatible model, configured as repository secrets/variables.
+  MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}
+  MODEL_BASE_URL: ${{ vars.MODEL_BASE_URL }}
+  MODEL_NAME: ${{ vars.MODEL_NAME }}
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Check whether a model is configured
+        id: model
+        shell: bash
+        run: |
+          if [ -n "${MODEL_API_KEY:-}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Model secret is configured; a measured score will be recorded."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::MODEL_API_KEY is not configured; skipping the benchmark instead of recording a fake score."
+          fi
+      - if: steps.model.outputs.available == 'true'
+        run: python -m pip install httpx
+      - if: steps.model.outputs.available == 'true'
+        name: Run the 30-task benchmark with the model agent
+        run: |
+          python scripts/run_benchmark.py \
+            --agent-command "python $PWD/scripts/benchmark_agent.py" \
+            --agent-timeout 90 \
+            --json evals/benchmark/agent.json \
+            --markdown evals/benchmark/AGENT.md
+      - if: steps.model.outputs.available == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coding-benchmark-agent
+          path: |
+            evals/benchmark/agent.json
+            evals/benchmark/AGENT.md
+          if-no-files-found: error
+      - if: steps.model.outputs.available == 'true'
+        name: Record the measured score in the repository
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evals/benchmark/agent.json evals/benchmark/AGENT.md
+          if git diff --cached --quiet; then
+            echo "No score changes to record."
+            exit 0
+          fi
+          git commit -m "Record coding benchmark agent score [skip ci]"
+          git push

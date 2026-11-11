@@ -12,6 +12,7 @@ from fastapi import APIRouter,Header,HTTPException
 from pydantic import BaseModel,Field
 from .engine import workspace
 from .studio import authorize
+from . import gpu_training, lifelong
 
 router=APIRouter(prefix="/api/learning",tags=["learning"])
 class Feedback(BaseModel):
@@ -26,6 +27,21 @@ class Evaluation(BaseModel):
     total:int=Field(ge=1,le=1000000)
     baseline_passed:int=Field(ge=0,le=1000000)
     min_improvement:float=Field(default=0.0,ge=0,le=1)
+class InteractionRating(BaseModel):
+    project:str=Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    rating:str=Field(pattern=r"^(up|down)$")
+class TrainRequest(BaseModel):
+    force:bool=False
+class GpuTrainingRequest(BaseModel):
+    consent:bool=False
+    model_dir:str|None=Field(default=None,max_length=1024)
+    model_id:str|None=Field(default=None,max_length=200)
+    model_license:str|None=Field(default=None,max_length=100)
+    steps:int|None=Field(default=None,ge=1,le=100)
+    max_examples:int|None=Field(default=None,ge=12,le=2000)
+    min_gain:float|None=Field(default=None,ge=0,le=0.5)
+    max_tokens:int|None=Field(default=None,ge=128,le=2048)
+    targets:str|None=Field(default=None,max_length=200)
 
 def database(project):
     path=workspace(project)/".agent"/"feedback.sqlite3"
@@ -69,6 +85,103 @@ def evaluation(body:Evaluation,authorization:str|None=Header(default=None)):
     return {"evaluation_id":ident,"candidate":body.candidate,"approved":approved,
             "delta":round(improved,6),"model_switched":False}
 
+@router.get("/continuous/status")
+def continuous_status(project:str|None=None,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if project is not None and not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    return lifelong.continuous_status(project)
+
+@router.post("/continuous/start")
+def continuous_start(authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    lifelong.state_set("enabled","1")
+    lifelong.state_set("paused","0")
+    started=lifelong.runtime.start()
+    return {"enabled":True,"thread_started":started,"runtime":lifelong.runtime.status()}
+
+@router.post("/continuous/pause")
+def continuous_pause(authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    lifelong.state_set("paused","1")
+    return {"paused":True,"runtime":lifelong.runtime.status()}
+
+@router.post("/continuous/tick")
+def continuous_tick(authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    return lifelong.tick(force=True)
+
+@router.get("/{project}/interactions")
+def interaction_list(project:str,limit:int=20,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    return {"project":project,"interactions":lifelong.interactions(project,limit)}
+
+@router.post("/{project}/interactions/{interaction_id}/rate")
+def interaction_rate(project:str,interaction_id:str,body:InteractionRating,
+                     authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if body.project!=project:
+        raise HTTPException(400,"Project mismatch")
+    try:
+        return lifelong.rate(project,interaction_id,body.rating)
+    except ValueError as error:
+        raise HTTPException(400,str(error))
+
+@router.post("/{project}/train")
+def train(project:str,body:TrainRequest|None=None,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    return lifelong.train(project,force=bool(body and body.force))
+
+@router.get("/{project}/gpu-training")
+def gpu_training_status(project:str,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    return gpu_training.status(project)
+
+@router.post("/{project}/gpu-training")
+def gpu_training_start(project:str,body:GpuTrainingRequest|None=None,
+                       authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    body=body or GpuTrainingRequest()
+    overrides={key:getattr(body,key) for key in
+               ("model_dir","model_id","model_license","steps","max_examples",
+                "min_gain","max_tokens","targets")}
+    try:
+        return gpu_training.start(project,consent=body.consent,overrides=overrides)
+    except PermissionError as error:
+        raise HTTPException(428,str(error))
+    except RuntimeError as error:
+        raise HTTPException(409,str(error))
+    except (ValueError,OSError) as error:
+        raise HTTPException(400,str(error))
+
+@router.post("/{project}/gpu-training/rollback")
+def gpu_training_rollback(project:str,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    try:
+        return gpu_training.rollback(project)
+    except ValueError as error:
+        raise HTTPException(400,str(error))
+
+@router.post("/{project}/rollback")
+def rollback(project:str,authorization:str|None=Header(default=None)):
+    authorize(authorization)
+    if not __import__("re").fullmatch(r"[A-Za-z0-9_-]{1,64}",project):
+        raise HTTPException(400,"Invalid project name")
+    try:
+        return lifelong.rollback(project)
+    except ValueError as error:
+        raise HTTPException(400,str(error))
+
 @router.get("/{project}/status")
 def status(project:str,authorization:str|None=Header(default=None)):
     authorize(authorization)
@@ -78,4 +191,5 @@ def status(project:str,authorization:str|None=Header(default=None)):
     return {"feedback_examples":n,"latest_evaluation":None if latest is None else
         {"candidate":latest[0],"approved":bool(latest[1]),"passed":latest[2],
          "total":latest[3],"baseline":latest[4]},
+        "lifelong":lifelong.status(project),
         "gpu_training_enabled":False}

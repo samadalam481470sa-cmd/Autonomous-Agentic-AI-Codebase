@@ -15,10 +15,12 @@ def project(tmp_path, monkeypatch):
     monkeypatch.setattr(engine, "ROOT", tmp_path / "workspaces")
     monkeypatch.setattr(engine, "DB", tmp_path / "agent.sqlite3")
     monkeypatch.setenv("ORCHESTRATOR_DB_PATH", str(tmp_path / "runs.sqlite3"))
+    monkeypatch.setenv("EVENT_DB_PATH", str(tmp_path / "events.sqlite3"))
     monkeypatch.setenv("AGENT_ADMIN_TOKEN", TOKEN)
     monkeypatch.setenv("SECURITY_DB_PATH", str(tmp_path / "security.sqlite3"))
     monkeypatch.delenv("AGENT_TOTP_SECRET", raising=False)
     monkeypatch.setenv("SEMANTIC_RAG", "0")
+    monkeypatch.setenv("DEVICE_THERMAL_GUARD", "0")
     security.reset()
     root = engine.workspace("demo")
     (root / "app.py").write_text("def main():\n    return 'ok'\n", encoding="utf-8")
@@ -85,6 +87,21 @@ def test_model_failure_blocks_and_can_be_retried(project, monkeypatch):
     assert recovered["status"] == "queued"
 
 
+def test_thermal_pause_blocks_advance_until_cooled(project, monkeypatch):
+    monkeypatch.setenv("DEVICE_THERMAL_GUARD", "1")
+    monkeypatch.setattr(orchestrator.device, "admission", lambda: {
+        "allowed": False, "reason": "device is hot", "retry_after": 12,
+    })
+    monkeypatch.setattr(orchestrator.device, "touch_keep_awake", lambda *args, **kwargs: None)
+    run = orchestrator.create_run("demo", "Implement a health endpoint")
+    with pytest.raises(Exception) as error:
+        asyncio.run(orchestrator.advance_run(run["id"]))
+    assert getattr(error.value, "status_code", 0) == 409
+    assert "hot" in str(getattr(error.value, "detail", error.value))
+    assert getattr(error.value, "headers", {}).get("Retry-After") == "12"
+    assert orchestrator.get_run(run["id"])["status"] == "queued"
+
+
 def test_cancel_prevents_further_advance(project, monkeypatch):
     monkeypatch.setattr(orchestrator, "_complete", fake_complete)
     run = orchestrator.create_run("demo", "Implement a health endpoint")
@@ -110,6 +127,20 @@ def test_runs_never_touch_project_files(project, monkeypatch):
     run = orchestrator.create_run("demo", "Rewrite the entire application")
     asyncio.run(orchestrator.advance_run(run["id"]))
     assert source_snapshot(project) == before
+
+
+def test_every_step_is_written_to_the_append_only_event_log(project, monkeypatch):
+    from services.api import events
+    monkeypatch.setattr(orchestrator, "_complete", fake_complete)
+    run = orchestrator.create_run("demo", "Implement a health endpoint")
+    created = events.list_events(run["id"])
+    assert [item["type"] for item in created] == ["run.created"]
+    asyncio.run(orchestrator.advance_run(run["id"]))
+    types = [item["type"] for item in events.list_events(run["id"])]
+    assert types[:3] == ["run.created", "step.started", "step.completed"]
+    assert events.replay(run["id"])["contiguous"] is True
+    orchestrator.cancel_run(run["id"])
+    assert events.list_events(run["id"])[-1]["type"] == "run.cancelled"
 
 
 def test_agent_endpoints_require_auth_and_are_bounded(project, monkeypatch):

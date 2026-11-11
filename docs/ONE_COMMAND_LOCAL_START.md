@@ -20,10 +20,12 @@ python scripts/local_stack.py --model /absolute/path/to/coder-Q4_K_M.gguf --gpu-
 Windows PowerShell:
 
 ```powershell
-py scripts/local_stack.py --model "C:\\Models\\coder-Q4_K_M.gguf" --gpu-layers 99 --context 4096
+py scripts/local_stack.py --model "C:/Models/coder-Q4_K_M.gguf" --gpu-layers 99 --context 4096
 ```
 
 Use `--gpu-layers 0` to force CPU inference, or reduce the number if the model doesn't fit in VRAM. The script prints a temporary admin token for the Studio UI. It is not persisted; keep it private.
+
+On Windows PowerShell, use a native path and Python launcher, for example `py scripts/local_stack.py --model "C:/Models/coder-Q4_K_M.gguf" --gpu-layers 99 --context 4096`. Ctrl+C stops the whole child process tree on both Windows and POSIX.
 
 Open `http://127.0.0.1:8000/studio`. You can optionally run the Electron desktop client separately.
 
